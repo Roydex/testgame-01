@@ -61,6 +61,7 @@ func _ready() -> void:
 	_mesh.material_override = _mat
 	add_child(_mesh)
 	_label = Label3D.new()
+	_label.font = UiFont.get_font()
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.position = Vector3.UP * (radius + 1.0)
 	_label.pixel_size = 0.02

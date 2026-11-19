@@ -51,6 +51,7 @@ var _lunge_stopped := false
 ## Horizontally on top of the target: stop advancing, keep vertical tracking.
 var _lunge_reached := false
 var _projectile_fired := false
+var _active_announced := false
 var _attack_mod: MovementModifier
 var _force_unblockable := false
 var _attack_damage_mult := 1.0
@@ -97,6 +98,21 @@ func setup(p_profile: CombatProfile, p_motor: MechMotor) -> void:
 		ultimate.name = "UltimateSystem"
 		p_motor.add_child(ultimate)
 		ultimate.setup(profile.ultimate, self)
+
+
+## Practice / debug: full HP, clear states, reset ultimate.
+func restore_full() -> void:
+	health.restore()
+	hurtbox.set_enabled(true)
+	for id in [MOD_STAGGER, MOD_OFFBALANCE, MOD_DEAD, MOD_ACTION]:
+		motor.remove_modifier(id)
+	offbalance_by = null
+	cc_immune_left = 0.0
+	_cc_times.clear()
+	_cooldowns.clear()
+	_to_ready()
+	if ultimate:
+		ultimate.reset()
 
 
 func get_state_name() -> String:
@@ -247,6 +263,7 @@ func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0)
 	_lunge_stopped = false
 	_lunge_reached = false
 	_projectile_fired = false
+	_active_announced = false
 	_force_unblockable = unblockable
 	_attack_damage_mult = dmg_mult
 	_buf_attack = 0.0
@@ -266,6 +283,9 @@ func _tick_attack(delta: float, cmd: MechCommand) -> void:
 	attack_time += delta
 	var t_active_end := d.windup + maxf(d.active, d.lunge_duration)
 	var phase := 0 if attack_time < d.windup else (1 if attack_time < t_active_end else 2)
+	if phase >= 1 and not _active_announced:
+		_active_announced = true
+		CombatEvents.attack_active.emit(motor, d)
 
 	if d.attack_type == CombatTypes.AttackType.PROJECTILE:
 		if phase >= 1 and not _projectile_fired:

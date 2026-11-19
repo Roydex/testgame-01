@@ -47,6 +47,7 @@ func _ready() -> void:
 	var vb := VBoxContainer.new()
 	_panel.add_child(vb)
 	_label = Label.new()
+	_label.add_theme_font_override(&"font", UiFont.get_font())
 	_label.add_theme_font_size_override(&"font_size", 15)
 	vb.add_child(_label)
 	_en_bar = ProgressBar.new()
@@ -56,8 +57,9 @@ func _ready() -> void:
 	add_child(_panel)
 
 	_help = Label.new()
+	_help.add_theme_font_override(&"font", UiFont.get_font())
 	_help.add_theme_font_size_override(&"font_size", 13)
-	_help.text = "WASD move | Mouse look (click to capture, Esc release) | Space jump / hold ascend | C/Ctrl descend | Shift dash\nQ / MMB lock | E / R or wheel switch target | Z camera distance | LMB attack RMB guard F parry X dash-slash V ultimate | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters | F7 restart | F8 dummy teams | F9 melee dummy mode | F10 drop HP to 29%"
+	_help.text = "WASD move | Mouse look (click to capture, Esc release) | Space jump / hold ascend | C/Ctrl descend | Shift dash\nQ / MMB lock | E / R or wheel switch target | Z camera distance | LMB attack RMB guard F parry X dash-slash V ultimate | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters | F5 refill | F7 restart | F8 partner teams | F9/F11 partner modes | F10 HP→29% | F12 practice/match"
 	_help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_help.position = Vector2(12, -52)
 	_help.add_theme_color_override(&"font_shadow_color", Color.BLACK)
@@ -168,5 +170,5 @@ func _draw_overlay() -> void:
 		var dh := p.y - motor.global_position.y
 		var dist := motor.global_position.distance_to(p)
 		var arrow := "▲" if dh > 3.0 else ("▼" if dh < -3.0 else "")
-		_overlay.draw_string(ThemeDB.fallback_font, pos - dir * 34.0 + Vector2(-24, 5), "%s%.0fm" % [arrow, dist],
+		_overlay.draw_string(UiFont.get_font(), pos - dir * 34.0 + Vector2(-24, 5), "%s%.0fm" % [arrow, dist],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)

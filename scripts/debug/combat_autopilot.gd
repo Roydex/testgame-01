@@ -12,6 +12,8 @@ var out_dir: String
 var log: PackedStringArray = []
 var _frame_times: PackedFloat32Array = []
 var _skip := 0
+## Screenshots requested on attack-active events: [name, frames_left].
+var _pending: Array = []
 
 
 func _process(delta: float) -> void:
@@ -34,6 +36,9 @@ func run(p_scene: Node3D) -> void:
 		Time.get_ticks_msec() / 1000.0, h.attacker.name, h.victim.name, h.attack.display_name, CombatTypes.RESULT_NAMES[h.result], h.final_damage]))
 	CombatEvents.ultimate_phase.connect(func(m: Node3D, p: String): log.append("%.2f %s ULT %s" % [Time.get_ticks_msec() / 1000.0, m.name, p]))
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	CombatEvents.attack_active.connect(func(a: Node3D, d: AttackDefinition):
+		if a == motor and d.id in [&"seraph_l2", &"seraph_l3", &"seraph_dash_slash", &"seraph_final_spear"]:
+			_pending.append(["strike_" + String(d.id), 4]))
 	_sequence.call_deferred()
 
 
@@ -47,6 +52,11 @@ func _hold(seconds: float, each := Callable()) -> void:
 		_face_lock()
 		if each.is_valid():
 			each.call(t)
+		for p in _pending.duplicate():
+			p[1] -= 1
+			if p[1] <= 0:
+				_pending.erase(p)
+				await _shot(p[0])
 		await get_tree().physics_frame
 		t += get_physics_process_delta_time()
 
@@ -70,6 +80,7 @@ func _shot(name: String) -> void:
 
 func _sequence() -> void:
 	# start: ranged partner idle, melee partner passive, lock the melee one
+	scene.set_practice(false)  # the demo exercises match rules (full partner kit)
 	scene.alliance_mode = true  # both partners on one team so they focus the player
 	scene._apply_dummy_teams()
 	_brain(ranged).enabled = false

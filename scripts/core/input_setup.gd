@@ -19,6 +19,8 @@ const KEY_BINDINGS := {
 	&"debug_dummy_teams": [KEY_F8],
 	&"debug_dummy_mode": [KEY_F9],
 	&"debug_low_hp": [KEY_F10],
+	&"debug_ranged_mode": [KEY_F11],
+	&"debug_practice": [KEY_F12],
 	&"target_next": [KEY_E],
 	&"target_prev": [KEY_R],
 	&"ui_release_mouse": [KEY_ESCAPE],
@@ -42,6 +44,10 @@ const MOUSE_BINDINGS := {
 
 func _init() -> void:
 	register()
+
+
+func _ready() -> void:
+	UiFont.apply_to_root(get_tree())
 
 
 static func register() -> void:

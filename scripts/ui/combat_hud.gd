@@ -17,6 +17,7 @@ var _callout: Label
 var _callout_t := 0.0
 var _overlay: Label
 var _bottom: VBoxContainer
+var _banner: Label
 
 
 func setup(p_motor: MechMotor, p_targeting: TargetingSystem) -> void:
@@ -53,6 +54,9 @@ func _ready() -> void:
 	_overlay = _label(root, 44)
 	_overlay.custom_minimum_size = Vector2(1000, 0)
 	_overlay.visible = false
+	_banner = _label(root, 15)
+	_banner.custom_minimum_size = Vector2(1200, 0)
+	_banner.add_theme_color_override(&"font_color", Color(0.85, 0.95, 0.8))
 
 
 func _bar(parent: Control, c: Color) -> ProgressBar:
@@ -71,6 +75,7 @@ func _bar(parent: Control, c: Color) -> ProgressBar:
 
 func _label(parent: Control, size: int) -> Label:
 	var l := Label.new()
+	l.add_theme_font_override(&"font", UiFont.get_font())
 	l.add_theme_font_size_override(&"font_size", size)
 	l.add_theme_color_override(&"font_shadow_color", Color.BLACK)
 	l.add_theme_constant_override(&"shadow_offset_x", 2)
@@ -84,6 +89,10 @@ func callout(text: String, color: Color = Color.WHITE, t: float = 0.8) -> void:
 	_callout.text = text
 	_callout.add_theme_color_override(&"font_color", color)
 	_callout_t = t
+
+
+func set_mode_banner(text: String) -> void:
+	_banner.text = text
 
 
 func show_overlay(text: String) -> void:
@@ -100,6 +109,7 @@ func _process(delta: float) -> void:
 	_target_box.position = Vector2(vp.x * 0.5 - 200.0, 18.0)
 	_callout.position = Vector2(vp.x * 0.5 - 400.0, vp.y * 0.30)
 	_overlay.position = Vector2(vp.x * 0.5 - 500.0, vp.y * 0.42)
+	_banner.position = Vector2(vp.x * 0.5 - 600.0, 72.0)
 	_callout_t = maxf(_callout_t - delta, 0.0)
 	_callout.visible = _callout_t > 0.0
 	var h := combat.health
@@ -126,7 +136,7 @@ func _process(delta: float) -> void:
 			UltimateSystem.Phase.COOLDOWN:
 				txt = "协议中断 · %.1fs 后可再次发动" % u.phase_time_left
 			UltimateSystem.Phase.SPENT:
-				txt = "圣骸回响 已用尽"
+				txt = "圣骸回响 已用尽（F12 切到练习模式可不限次数）"
 		_ult.text = txt
 	var t := targeting.current if targeting and targeting.has_target() else null
 	var tc := DamageSystem.get_combat(t)

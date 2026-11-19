@@ -44,6 +44,12 @@ var distance: float = 10.0
 ## target tilts the view (look-at) instead of dropping the camera to the floor.
 @export var lock_orbit_pitch_min_deg: float = -35.0
 @export var lock_orbit_pitch_max_deg: float = 8.0
+## Close-range lock framing: under this horizontal distance the camera
+## swings out to the shoulder and rises so the target is not hidden behind
+## the player's own mech.
+@export var lock_close_distance: float = 8.0
+@export var lock_close_shoulder: float = 3.2
+@export var lock_close_height: float = 1.8
 @export var lock_manual_yaw_deg: float = 25.0
 @export var lock_manual_pitch_deg: float = 15.0
 @export var lock_offset_return_delay: float = 0.8
@@ -84,14 +90,18 @@ var _pitch_offset := 0.0
 var _offset_idle := 0.0
 var _aim_dir := Vector3.ZERO
 var _arm_dir := Vector3.ZERO
+var _close_blend := 0.0
 var _prev_q := Quaternion.IDENTITY
 var _has_prev_q := false
 var _initialized := false
 ## Camera shake "trauma" (0..1); shake = trauma², decays quickly.
 var shake_trauma: float = 0.0
 @export_group("Shake")
-@export var shake_max_angle_deg: float = 1.6
-@export var shake_decay: float = 3.5
+@export var shake_max_angle_deg: float = 2.6
+@export var shake_max_offset: float = 0.12
+@export var shake_decay: float = 3.0
+## FOV punch spring (deg, decays with fov_sharpness).
+var _fov_punch := 0.0
 
 
 func _ready() -> void:
@@ -124,6 +134,11 @@ func snap() -> void:
 ## Horizontal basis used by brains to map input to world space.
 func add_shake(amount: float) -> void:
 	shake_trauma = clampf(shake_trauma + amount, 0.0, 1.0)
+
+
+## Brief zoom-in on heavy impacts (deg).
+func add_fov_punch(deg: float) -> void:
+	_fov_punch = maxf(_fov_punch, deg)
 
 
 func get_yaw_basis() -> Basis:
@@ -193,6 +208,7 @@ func _update_camera(delta: float, instant: bool) -> void:
 
 	var locked := is_locked()
 	var extra_dist := 0.0
+	var close_t := 0.0
 	lock_blend = move_toward(lock_blend, 1.0 if locked else 0.0, (1.0 if instant else delta * 3.0))
 
 	if locked:
@@ -211,6 +227,7 @@ func _update_camera(delta: float, instant: bool) -> void:
 		yaw = _approach_angle(yaw, desired_yaw + _yaw_offset, delta, instant)
 		pitch = _approach_angle(pitch, desired_pitch + _pitch_offset, delta, instant)
 		pitch = clampf(pitch, deg_to_rad(pitch_min_deg), deg_to_rad(pitch_max_deg))
+		close_t = clampf((lock_close_distance - horiz) / lock_close_distance, 0.0, 1.0)
 		extra_dist = clampf(absf(to.y) * lock_height_distance_factor + maxf(horiz - 40.0, 0.0) * 0.02, 0.0, lock_max_extra_distance)
 	else:
 		_yaw_offset = 0.0
@@ -229,7 +246,9 @@ func _update_camera(delta: float, instant: bool) -> void:
 		var clamped := clampf(pitch, deg_to_rad(lock_orbit_pitch_min_deg), deg_to_rad(lock_orbit_pitch_max_deg))
 		orbit_pitch = lerpf(pitch, clamped, lock_blend)
 	var basis_orbit := Basis.from_euler(Vector3(orbit_pitch, yaw, 0.0))
-	var desired_cam := _focus + basis_orbit.x * shoulder_offset + basis_orbit.z * want_dist
+	_close_blend = close_t if instant else lerpf(_close_blend, close_t, 1.0 - exp(-4.0 * delta))
+	var shoulder := lerpf(shoulder_offset, lock_close_shoulder, _close_blend)
+	var desired_cam := _focus + basis_orbit.x * shoulder + basis_orbit.z * want_dist + Vector3.UP * lock_close_height * _close_blend
 
 	# --- occlusion: sphere sweep from the focus to the desired position.
 	# If the arm would collapse (backed against a wall), try a raised arm and,
@@ -308,9 +327,11 @@ func _update_camera(delta: float, instant: bool) -> void:
 	var cam_basis := Basis(q)
 	if shake_trauma > 0.0 and not instant:
 		shake_trauma = maxf(shake_trauma - shake_decay * delta, 0.0)
-		var s := shake_trauma * shake_trauma * deg_to_rad(shake_max_angle_deg)
+		var tr := pow(shake_trauma, 1.5)
+		var s := tr * deg_to_rad(shake_max_angle_deg)
 		var t := Time.get_ticks_msec() * 0.001
 		cam_basis = cam_basis * Basis.from_euler(Vector3(sin(t * 47.0) * s, sin(t * 39.0 + 1.3) * s, sin(t * 31.0 + 2.1) * s * 0.5))
+		cam_pos += cam_basis * Vector3(sin(t * 53.0), sin(t * 41.0 + 0.7), 0.0) * tr * shake_max_offset
 	camera.global_transform = Transform3D(cam_basis, cam_pos)
 
 	# --- FOV
@@ -318,6 +339,9 @@ func _update_camera(delta: float, instant: bool) -> void:
 	var fov_t := 1.0 if dashing else speed_t
 	var want_fov := lerpf(base_fov, dash_fov, fov_t)
 	camera.fov = want_fov if instant else lerpf(camera.fov, want_fov, 1.0 - exp(-fov_sharpness * delta))
+	if _fov_punch > 0.01 and not instant:
+		camera.fov -= _fov_punch
+		_fov_punch = move_toward(_fov_punch, 0.0, delta * 30.0)
 
 
 func _yaw_offset_applied() -> float:

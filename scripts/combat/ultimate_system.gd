@@ -20,6 +20,8 @@ var phase: int = Phase.LOCKED
 var phase_time_left: float = 0.0
 var uses_left: int = 1
 var spear_charges_left: int = 0
+## Practice mode: uses are not consumed.
+var unlimited_uses: bool = false
 
 
 func setup(def: UltimateDefinition, p_combat: CombatStateMachine) -> void:
@@ -91,7 +93,8 @@ func try_activate() -> bool:
 func enter_judgment() -> void:
 	if phase == Phase.JUDGMENT or uses_left <= 0:
 		return
-	uses_left -= 1
+	if not unlimited_uses:
+		uses_left -= 1
 	spear_charges_left = definition.spear_charges
 	phase_time_left = definition.duration
 	var m := MovementModifier.create(MOD_JUDGMENT)
@@ -115,6 +118,16 @@ func on_windup_interrupted() -> void:
 	if phase == Phase.WINDUP:
 		phase_time_left = definition.interrupt_cooldown
 		_set_phase(Phase.COOLDOWN)
+
+
+## Practice reset: back to the start-of-match state.
+func reset() -> void:
+	combat.motor.remove_modifier(MOD_JUDGMENT)
+	combat.motor.remove_modifier(MOD_OVERLOAD)
+	uses_left = definition.uses_per_match
+	spear_charges_left = 0
+	phase_time_left = 0.0
+	_set_phase(Phase.LOCKED)
 
 
 func on_owner_died() -> void:

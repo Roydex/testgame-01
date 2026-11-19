@@ -5,8 +5,9 @@ extends Node
 ## a fixed pattern. It drives the mech exclusively through MechCommand, the
 ## same path PlayerBrain uses, so it obeys every movement / combat rule.
 
-enum Mode { MELEE, RANGED, PASSIVE, GUARD, PARRY_TRAINER }
-const MODE_NAMES := ["MELEE", "RANGED", "PASSIVE", "GUARD", "PARRY_TRAINER"]
+enum Mode { MELEE, RANGED, PASSIVE, GUARD, PARRY_TRAINER, TRAINING, TRAINING_RANGED }
+const MODE_NAMES := ["MELEE", "RANGED", "PASSIVE", "GUARD", "PARRY_TRAINER", "TRAINING", "TRAINING_RANGED"]
+const MODE_LABELS := ["全力近战", "全力远程", "静止", "只格挡", "定时招架", "陪练近战", "陪练远程"]
 
 @export var mode: Mode = Mode.MELEE
 ## Seconds between pattern loops.
@@ -34,7 +35,15 @@ func setup(p_motor: MechMotor) -> void:
 
 
 func get_mode_name() -> String:
-	return MODE_NAMES[mode]
+	return MODE_LABELS[mode]
+
+
+## Training pattern state (TRAINING mode).
+var _train_step := 0
+var _retreat := 0.0
+const TRAINING_PATTERN := [1, 2, 1, 3]  # presses per attack: L1 / L1-L2 / L1 / full combo
+## Pause between training attacks (s). Telegraph = the windup itself.
+@export var training_interval: float = 3.8
 
 
 func _pick_target() -> void:
@@ -78,9 +87,16 @@ func _physics_process(delta: float) -> void:
 	elif to.y < -2.0:
 		cmd.descend = true
 	var ult := combat.ultimate
-	if use_ultimate and ult and ult.is_ready() and dist < 16.0:
+	var training := mode == Mode.TRAINING or mode == Mode.TRAINING_RANGED
+	if use_ultimate and not training and ult and ult.is_ready() and dist < 16.0:
 		cmd.ult_pressed = true
 	match mode:
+		Mode.TRAINING:
+			_training(cmd, flat, dist, delta)
+		Mode.TRAINING_RANGED:
+			if _target_stunned():
+				_timer = maxf(_timer, 1.0)
+			_ranged(cmd, flat, dist, 4.2)
 		Mode.PASSIVE:
 			pass
 		Mode.GUARD:
@@ -93,7 +109,7 @@ func _physics_process(delta: float) -> void:
 		Mode.MELEE:
 			_melee(cmd, flat, dist, delta)
 		Mode.RANGED:
-			_ranged(cmd, flat, dist)
+			_ranged(cmd, flat, dist, attack_interval * 0.85)
 
 
 func _melee(cmd: MechCommand, flat: Vector3, dist: float, delta: float) -> void:
@@ -121,7 +137,48 @@ func _melee(cmd: MechCommand, flat: Vector3, dist: float, delta: float) -> void:
 		_timer = attack_interval
 
 
-func _ranged(cmd: MechCommand, flat: Vector3, dist: float) -> void:
+## The target is in hard control: training partners never press on it.
+func _target_stunned() -> bool:
+	var tc := DamageSystem.get_combat(target)
+	return tc != null and (tc.state == CombatStateMachine.CombatState.STAGGER or tc.state == CombatStateMachine.CombatState.OFFBALANCE)
+
+
+## Practice partner: approaches to ~5 m, waits, performs ONE readable
+## attack from a fixed rotating pattern, then backs off. Never follows up
+## while the target is staggered, never uses the dash slash or ultimate.
+func _training(cmd: MechCommand, flat: Vector3, dist: float, delta: float) -> void:
+	var dir := flat.normalized()
+	if _retreat > 0.0:
+		_retreat -= delta
+		cmd.move = -dir * 0.7
+		return
+	if _combo_presses > 0:
+		_press_gap -= delta
+		if _press_gap <= 0.0:
+			cmd.attack_pressed = true
+			_combo_presses -= 1
+			_press_gap = 0.3
+			if _combo_presses == 0:
+				_retreat = 1.4
+		return
+	if dist > 4.8:
+		cmd.move = dir * 0.65  # walk in at a readable pace (stops inside lance reach)
+		return
+	if dist < 2.8:
+		cmd.move = -dir * 0.4
+	else:
+		cmd.move = dir.cross(Vector3.UP) * _strafe * 0.25
+	if _target_stunned():
+		_timer = maxf(_timer, 1.2)
+		return
+	if _timer <= 0.0:
+		_combo_presses = TRAINING_PATTERN[_train_step % TRAINING_PATTERN.size()]
+		_train_step += 1
+		_press_gap = 0.0
+		_timer = training_interval
+
+
+func _ranged(cmd: MechCommand, flat: Vector3, dist: float, interval: float) -> void:
 	var dir := flat.normalized()
 	if dist < ranged_min:
 		cmd.move = -dir
@@ -131,4 +188,4 @@ func _ranged(cmd: MechCommand, flat: Vector3, dist: float) -> void:
 		cmd.move = dir.cross(Vector3.UP) * _strafe * 0.6
 	if _timer <= 0.0 and dist < 60.0:
 		cmd.attack_pressed = true
-		_timer = attack_interval * 0.85
+		_timer = interval

@@ -18,12 +18,18 @@ var combat_hud: CombatHud
 var feedback: CombatFeedback
 var dummies: Array[MechMotor] = []
 var alliance_mode: bool = false
+## Practice mode (default): nobody dies (HP floor 1), partners regenerate,
+## the ultimate has unlimited uses, partners use the readable TRAINING
+## pattern. F12 switches to match rules (death, once-per-match ultimate,
+## full-aggression partners).
+var practice_mode: bool = true
 
 
 func _ready() -> void:
 	GrayboxBuilder.build(self)
 	_spawn_player(1)
 	_spawn_dummies()
+	set_practice(true)
 	if "--autopilot" in OS.get_cmdline_user_args():
 		var ap := preload("res://scripts/debug/autopilot.gd").new()
 		ap.name = "Autopilot"
@@ -34,6 +40,8 @@ func _ready() -> void:
 		cd.name = "CombatAutopilot"
 		add_child(cd)
 		cd.run(self)
+	elif "--practice-shot" in OS.get_cmdline_user_args():
+		_practice_shot.call_deferred()
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -104,6 +112,34 @@ func _spawn_dummies() -> void:
 	_apply_dummy_teams()
 
 
+func set_practice(on: bool) -> void:
+	practice_mode = on
+	# practice partners work together on the player (F8 still toggles)
+	alliance_mode = on
+	_apply_dummy_teams()
+	var all: Array[MechMotor] = [motor]
+	all.append_array(dummies)
+	for m in all:
+		var c := m.get_node(^"CombatStateMachine") as CombatStateMachine
+		c.health.min_hp = 1.0 if on else 0.0
+		c.health.regen_rate = 80.0 if on and m != motor else 0.0
+		if c.ultimate:
+			c.ultimate.unlimited_uses = on
+	if dummies.size() >= 2:
+		(dummies[0].get_node(^"SparringBrain") as SparringBrain).mode = SparringBrain.Mode.TRAINING if on else SparringBrain.Mode.MELEE
+		(dummies[1].get_node(^"SparringBrain") as SparringBrain).mode = SparringBrain.Mode.TRAINING_RANGED if on else SparringBrain.Mode.RANGED
+	if combat_hud:
+		combat_hud.set_mode_banner(_banner())
+
+
+func _banner() -> String:
+	var m0 := (dummies[0].get_node(^"SparringBrain") as SparringBrain).get_mode_name() if dummies.size() > 0 else "-"
+	var m1 := (dummies[1].get_node(^"SparringBrain") as SparringBrain).get_mode_name() if dummies.size() > 1 else "-"
+	if practice_mode:
+		return "练习模式（不会阵亡 · 大招不限次数）   近战陪练：%s   远程陪练：%s   %s   [F12 切换实战  F5 回满]" % [m0, m1, "联盟" if alliance_mode else "乱斗"]
+	return "实战模式（会阵亡 · 大招每局 1 次）   近战：%s   远程：%s   %s   [F12 切换练习  F7 重开]" % [m0, m1, "联盟" if alliance_mode else "乱斗"]
+
+
 func _apply_dummy_teams() -> void:
 	if dummies.size() >= 2:
 		dummies[0].team_id = 1
@@ -134,7 +170,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		combat.start_action(0.8)
 	elif event.is_action_pressed(&"debug_reset"):
 		motor.reset_to(GrayboxBuilder.POINTS.spawn)
+		combat.restore_full()
+		if practice_mode:
+			for d in dummies:
+				(d.get_node(^"CombatStateMachine") as CombatStateMachine).restore_full()
 		rig.snap()
+		combat_hud.callout("已回满：HP / EN / 大招")
+	elif event.is_action_pressed(&"debug_practice"):
+		set_practice(not practice_mode)
+		combat_hud.callout("练习模式" if practice_mode else "实战模式")
+	elif event.is_action_pressed(&"debug_ranged_mode"):
+		var rb := dummies[1].get_node(^"SparringBrain") as SparringBrain
+		var cycle := [SparringBrain.Mode.TRAINING_RANGED, SparringBrain.Mode.RANGED, SparringBrain.Mode.PASSIVE]
+		rb.mode = cycle[(cycle.find(rb.mode) + 1) % cycle.size()]
+		combat_hud.set_mode_banner(_banner())
+		combat_hud.callout("远程陪练机：%s" % rb.get_mode_name())
 	elif event.is_action_pressed(&"debug_toggle_shooters"):
 		shooters_on = not shooters_on
 		TestProjectile.reset_stats()
@@ -153,10 +203,32 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"debug_dummy_teams"):
 		alliance_mode = not alliance_mode
 		_apply_dummy_teams()
+		combat_hud.set_mode_banner(_banner())
 		combat_hud.callout("陶练机阵营：%s" % ("同阵营（联盟）" if alliance_mode else "互相敌对（乱斗）"))
 	elif event.is_action_pressed(&"debug_dummy_mode"):
 		var b := dummies[0].get_node(^"SparringBrain") as SparringBrain
-		b.mode = (b.mode + 1) % SparringBrain.MODE_NAMES.size()
-		combat_hud.callout("近战陶练机模式：%s" % b.get_mode_name())
+		var mcycle := [SparringBrain.Mode.TRAINING, SparringBrain.Mode.MELEE, SparringBrain.Mode.PASSIVE,
+			SparringBrain.Mode.GUARD, SparringBrain.Mode.PARRY_TRAINER]
+		b.mode = mcycle[(mcycle.find(b.mode) + 1) % mcycle.size()]
+		combat_hud.set_mode_banner(_banner())
+		combat_hud.callout("近战陪练机：%s" % b.get_mode_name())
 	elif event.is_action_pressed(&"debug_low_hp"):
 		combat.health.take(maxf(combat.health.hp - combat.health.max_hp * 0.29, 0.0))
+
+
+## Debug: let the default practice scene run untouched, save screenshots of
+## the training partner at work, then quit (`-- --practice-shot`).
+func _practice_shot() -> void:
+	brain.enabled = false
+	targeting._set_target(dummies[0], "shot")
+	var dir := ProjectSettings.globalize_path("res://docs/screenshots")
+	for i in 3:
+		await get_tree().create_timer(2.7 if i == 0 else 2.2).timeout
+		var to := dummies[0].global_position - motor.global_position
+		motor.command.face_dir = Vector3(to.x, 0, to.z)
+		combat.aim_target = dummies[0]
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(dir.path_join("practice_%d.png" % i))
+		print("[practice-shot] %d player HP %.0f state %s / partner %s" % [i, combat.health.hp, combat.get_state_name(),
+			(dummies[0].get_node(^"CombatStateMachine") as CombatStateMachine).get_state_name()])
+	get_tree().quit()

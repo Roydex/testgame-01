@@ -54,6 +54,8 @@ func _run_all() -> void:
 		["T22", "C10 shared components player / sparring partner", t22_shared_components],
 		["T23", "C11 ultimate: unlock, windup, judgment, spear, overload", t23_ultimate],
 		["T24", "C12 melee rules: arc, local hitstop, multi-parry, ownership", t24_melee_rules],
+		["T25", "Practice mode: no death, regen, training pace, unlimited ultimate", t25_practice_mode],
+		["T26", "C09 support: attack animation poses + impact feedback exist", t26_action_feedback],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
@@ -1523,6 +1525,7 @@ func t21_death_restart(res: Dictionary) -> void:
 	var sc := scene_res.instantiate()
 	add_child(sc)
 	await _ticks(10)
+	sc.call(&"set_practice", false)  # match rules: death enabled
 	var pc := sc.get("combat") as CombatStateMachine
 	pc.health.take(pc.health.hp)
 	await _ticks(5)
@@ -1568,7 +1571,7 @@ func t22_shared_components(res: Dictionary) -> void:
 	# the partner acts only through MechCommand: it moves / attacks in the real scene
 	var p0 := melee.global_position
 	var ev := _record()
-	await _frames(ev, 240)
+	await _frames(ev, 420)
 	_unrecord()
 	var attacked := false
 	for e in ev.attacks:
@@ -1810,6 +1813,7 @@ func t23_ultimate(res: Dictionary) -> void:
 	var sc := (load("res://scenes/test/graybox_test.tscn") as PackedScene).instantiate()
 	add_child(sc)
 	await _ticks(10)
+	sc.call(&"set_practice", false)  # match rules: full-aggression partner uses its ultimate
 	var melee := (sc.get("dummies") as Array)[0] as MechMotor
 	_low_hp(melee)
 	var player := sc.get("motor") as MechMotor
@@ -1938,3 +1942,131 @@ func t24_melee_rules(res: Dictionary) -> void:
 		for n in [s, r, third]:
 			n.queue_free()
 		await _ticks(2)
+
+
+
+func t25_practice_mode(res: Dictionary) -> void:
+	var sc := (load("res://scenes/test/graybox_test.tscn") as PackedScene).instantiate()
+	add_child(sc)
+	await _ticks(10)
+	_check(res, sc.get("practice_mode") == true, "the playable scene starts in practice mode")
+	var player := sc.get("motor") as MechMotor
+	var pc := _cs(player)
+	var dummies: Array = sc.get("dummies")
+	var melee := dummies[0] as MechMotor
+	var mb := melee.get_node(^"SparringBrain") as SparringBrain
+	_check(res, mb.mode == SparringBrain.Mode.TRAINING and (dummies[1].get_node(^"SparringBrain") as SparringBrain).mode == SparringBrain.Mode.TRAINING_RANGED,
+		"partners default to the TRAINING patterns")
+	# no death in practice
+	pc.health.take(9999.0)
+	await _ticks(2)
+	_check(res, not pc.is_dead() and is_equal_approx(pc.health.hp, 1.0), "practice: lethal damage leaves the player at 1 HP (alive)")
+	# training pace: let the partners work on the player for 30 s
+	pc.health.max_hp = 1e6
+	pc.health.restore()
+	var ev := _record()
+	var st := {"pressing_on_stun": 0, "frames": 0}
+	var watch := func(_i: int) -> void:
+		st.frames += 1
+	await _frames(ev, 1800, watch)
+	_unrecord()
+	var starts := []
+	for e in ev.attacks:
+		if e[1] == melee:
+			starts.append(e[0] * DT)
+	# group presses into "engagements" (attacks less than 1 s apart belong together)
+	var engagements := 0
+	var last := -10.0
+	var min_gap := 99.0
+	for t in starts:
+		if t - last > 1.0:
+			if engagements > 0:
+				min_gap = minf(min_gap, t - last)
+			engagements += 1
+		last = t
+	var dmg := 0.0
+	for h in ev.hits:
+		if (h[1] as HitInfo).victim == player and (h[1] as HitInfo).attacker == melee:
+			dmg += h[3]
+	_info("30 s with the TRAINING melee partner: %d engagements (%d swings), smallest pause between engagements %.1fs, %.0f damage to the player" % [engagements, starts.size(), min_gap, dmg])
+	_check(res, engagements >= 4 and engagements <= 10, "training partner engages at a readable pace (%d engagements in 30 s)" % engagements)
+	_check(res, min_gap >= 2.0, "at least 2 s between engagements (%.1fs)" % min_gap)
+	# partner regeneration
+	var mc := _cs(melee)
+	mc.health.take(150.0)
+	var hp_hit := mc.health.hp
+	await _ticks(int(mc.health.regen_delay / DT) + 180)
+	_check(res, mc.health.hp > hp_hit + 50.0, "practice partner regenerates after %.0fs (%.0f → %.0f)" % [mc.health.regen_delay, hp_hit, mc.health.hp])
+	# unlimited ultimate in practice
+	pc.health.max_hp = 300.0
+	pc.restore_full()
+	pc.health.take(pc.health.hp - 80.0)
+	var u := pc.ultimate
+	mb.mode = SparringBrain.Mode.PASSIVE
+	(dummies[1].get_node(^"SparringBrain") as SparringBrain).mode = SparringBrain.Mode.PASSIVE
+	var judgments := 0
+	for k in 2:
+		await _ticks(5)
+		player.command.ult_pressed = true
+		await _ticks(40)
+		if u.in_judgment():
+			judgments += 1
+		await _ticks(int((u.definition.duration + u.definition.overload_duration + 0.5) / DT))
+	_check(res, judgments == 2 and u.phase == UltimateSystem.Phase.READY, "practice: ultimate used twice and READY again (%s)" % u.get_phase_name())
+	# F5-style restore
+	pc.restore_full()
+	_check(res, is_equal_approx(pc.health.hp, pc.health.max_hp) and u.phase == UltimateSystem.Phase.LOCKED, "restore: full HP, ultimate back to LOCKED")
+	# match rules again
+	sc.call(&"set_practice", false)
+	_check(res, mb.mode == SparringBrain.Mode.MELEE and not u.unlimited_uses and is_equal_approx(pc.health.min_hp, 0.0), "F12: match rules restore death, once-per-match ultimate, full-aggression partner")
+	sc.queue_free()
+	await _ticks(3)
+
+
+func t26_action_feedback(res: Dictionary) -> void:
+	## The procedural action layer must visibly move the weapon through each
+	## attack, and hits must produce impact FX / numbers / camera shake.
+	var a := MechFactory.create_mech(MechFactory.load_profile(1), 0, Color.GRAY, true, load(SERAPH), &"seraph")
+	a.position = Vector3(0, 0.2, 30)
+	arena.add_child(a)
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	var rig := CameraRig.new()
+	rig.mouse_enabled = false
+	arena.add_child(rig)
+	rig.setup(a, null)
+	var fb := CombatFeedback.new()
+	arena.add_child(fb)
+	fb.rig = rig
+	fb.focus_mech = a
+	await _ticks(20)
+	var vis := a.get_node(^"Visual") as MechVisual
+	var ev := _record()
+	_cs(a).aim_target = b
+	var st := {"tip": [], "fx": 0, "shake": 0.0}
+	var idle_tip := vis.get_lance_tip() - a.global_position
+	var drive := func(i: int) -> void:
+		_face(a, b)
+		if i in [0, 9, 22]:
+			a.command.attack_pressed = true
+		st.tip.append(a.global_transform.affine_inverse() * vis.get_lance_tip())
+		st.shake = maxf(st.shake, rig.shake_trauma)
+		st.fx = maxi(st.fx, fb.get_child_count())
+	await _frames(ev, 80, drive)
+	_unrecord()
+	# forward reach of the lance tip (local -Z) across the combo
+	var min_z := 0.0
+	var max_x := -99.0
+	var min_x := 99.0
+	for p: Vector3 in st.tip:
+		min_z = minf(min_z, p.z)
+		max_x = maxf(max_x, p.x)
+		min_x = minf(min_x, p.x)
+	var idle_local := a.global_transform.basis.inverse() * idle_tip
+	_info("lance tip: idle z %.2f, furthest forward z %.2f, sideways sweep %.2f m; peak camera trauma %.2f; up to %d FX nodes" % [idle_local.z, min_z, max_x - min_x, st.shake, st.fx - 12])
+	_check(res, min_z < idle_local.z - 1.5, "thrusts drive the lance tip forward by %.2f m" % (idle_local.z - min_z))
+	_check(res, max_x - min_x > 3.0, "the sweep moves the lance tip %.2f m sideways" % (max_x - min_x))
+	_check(res, st.fx > 12 + 5, "hits spawned impact FX / damage numbers (%d nodes above the audio pool)" % (st.fx - 12))
+	_check(res, st.shake > 0.15, "hits on the focus mech shake the camera (trauma %.2f)" % st.shake)
+	for n in [a, b, rig, fb]:
+		n.queue_free()
+	await _ticks(2)

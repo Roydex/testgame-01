@@ -6,6 +6,8 @@ extends Node
 signal hit_resolved(hit: HitInfo)
 signal telegraph(attacker: Node3D, attack: AttackDefinition, duration: float)
 signal attack_started(attacker: Node3D, attack: AttackDefinition)
+## The attack's active (damaging) phase begins: swing sound, weapon trail.
+signal attack_active(attacker: Node3D, attack: AttackDefinition)
 signal parried(defender: Node3D, attacker: Node3D, was_projectile: bool)
 signal mech_died(mech: Node3D)
 signal ultimate_phase(mech: Node3D, phase: String)

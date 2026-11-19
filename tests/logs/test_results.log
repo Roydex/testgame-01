@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-19T08:02:11  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-19T08:45:47  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -369,9 +369,9 @@ PASS  T17
 
 --- T18  C05 hit reactions: hitstop, stagger, knockback, airborne
   ok   3-hit combo connected (3)
-  ok   hitstop on both attacker (12 f) and victim (12 f)
+  ok   hitstop on both attacker (14 f) and victim (14 f)
   ok   knockback displaced the victim 2.04 m
-  ok   victim spent 50 frames in STAGGER
+  ok   victim spent 52 frames in STAGGER
   ok   airborne stagger: thrust blocked while holding ascend, dropped 2.84 m
 PASS  T18
 
@@ -383,8 +383,8 @@ PASS  T18
   ok   dash slash broadcasts its telegraph on the first frame
   info consecutive 1.0 s staggers every 0.4 s → [1.0, 0.7, 0.49, "immune", "immune"]
   ok   diminishing durations, then CC immunity ([1.0, 0.7, 0.49, "immune", "immune"])
-  info 1v2 continuous pressure for 10 s: victim hard-controlled 32% of frames, longest chain 0.77s, 27 hits
-  ok   no permanent lock: CC 32% ≤ 70%, longest chain 0.77s ≤ 2.0s
+  info 1v2 continuous pressure for 10 s: victim hard-controlled 23% of frames, longest chain 0.38s, 26 hits
+  ok   no permanent lock: CC 23% ≤ 70%, longest chain 0.38s ≤ 2.0s
 PASS  T19
 
 --- T20  C07 anti-air: limited vertical tracking, no teleport
@@ -413,7 +413,7 @@ PASS  T21
   ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 53.9 m and attacked via MechCommand
+  ok   partner moved 23.9 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -452,6 +452,27 @@ PASS  T23
   ok   alliance: reflected shot passes through the parrier's ally and hits the shooter
 PASS  T24
 
+--- T25  Practice mode: no death, regen, training pace, unlimited ultimate
+  ok   the playable scene starts in practice mode
+  ok   partners default to the TRAINING patterns
+  ok   practice: lethal damage leaves the player at 1 HP (alive)
+  info 30 s with the TRAINING melee partner: 7 engagements (11 swings), smallest pause between engagements 3.5s, 109 damage to the player
+  ok   training partner engages at a readable pace (7 engagements in 30 s)
+  ok   at least 2 s between engagements (3.5s)
+  ok   practice partner regenerates after 4s (150 → 300)
+  ok   practice: ultimate used twice and READY again (READY)
+  ok   restore: full HP, ultimate back to LOCKED
+  ok   F12: match rules restore death, once-per-match ultimate, full-aggression partner
+PASS  T25
+
+--- T26  C09 support: attack animation poses + impact feedback exist
+  info lance tip: idle z -4.52, furthest forward z -7.17, sideways sweep 11.47 m; peak camera trauma 0.37; up to 19 FX nodes
+  ok   thrusts drive the lance tip forward by 2.65 m
+  ok   the sweep moves the lance tip 11.47 m sideways
+  ok   hits spawned impact FX / damage numbers (19 nodes above the audio pool)
+  ok   hits on the focus mech shake the camera (trauma 0.37)
+PASS  T26
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -477,4 +498,6 @@ T21  PASS  C08 death, invalid target, restart
 T22  PASS  C10 shared components player / sparring partner
 T23  PASS  C11 ultimate: unlock, windup, judgment, spear, overload
 T24  PASS  C12 melee rules: arc, local hitstop, multi-parry, ownership
-24/24 passed
+T25  PASS  Practice mode: no death, regen, training pace, unlimited ultimate
+T26  PASS  C09 support: attack animation poses + impact feedback exist
+26/26 passed
