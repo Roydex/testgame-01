@@ -3,8 +3,8 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | 1 | GDD 与技术架构 | 未单独进行（本阶段的架构记录见 ARCHITECTURE.md；GDD 待补） |
-| 2a | **Ground-Air Hybrid 机动原型**：MechMotor、EN、分层状态机、Profile、CameraRig、锁定、灰盒、调试 | **AWAITING_USER_ACCEPTANCE**（自动化 13/13 PASS；M01/M02/M04/M06/M10 需人工确认） |
-| 2b | 单机体可玩战斗原型（攻击、防御、受击、伤害、Hitbox/Hurtbox） | 未开始，须等 2a 验收通过 |
+| 2a | **Ground-Air Hybrid 机动原型**：MechMotor、EN、分层状态机、Profile、CameraRig、锁定、灰盒、调试 | **PASS**（2026-11-19；自动化 13/13，人工验收已由用户确认；M03/M07/M08/M09 DEFERRED） |
+| 2b | 单机体可玩战斗原型（攻击、防御、受击、伤害、Hitbox/Hurtbox） | 未开始（2a 已通过，可在用户授权后开始） |
 | 3 | 四机体差异化系统 | 未开始 |
 | 4 | FFA 目标决策与比赛系统 | 未开始 |
 | 5 | 联盟 AI 协同与公平性 | 未开始 |
@@ -23,6 +23,6 @@
 
 ## 下一步建议
 
-1. 用户完成 TEST_MATRIX.md §3 的人工验收，并反馈手感参数（起飞、着陆、加速、转向、镜头）。
-2. 验收通过后进入阶段 2b：在 CombatStateMachine 上接入攻击、防御、受击和伤害（DamageSystem、Hitbox/Hurtbox），继续用 MovementModifier 驱动移动限制。
+1. 继续收集手感参数反馈（起飞、着陆、加速、转向、镜头），按需调整 `.tres` 和 CameraRig 参数。
+2. 阶段 2a 已通过，经你授权后可进入阶段 2b：在 CombatStateMachine 上接入攻击、防御、受击和伤害（DamageSystem、Hitbox/Hurtbox），继续用 MovementModifier 驱动移动限制。
 3. 补写 docs/GDD.md 和 docs/MECH_DESIGN.md（阶段 1 的文档欠账）。

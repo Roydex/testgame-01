@@ -1,6 +1,6 @@
 # 机甲乱斗 Mech Brawl — Ground-Air Hybrid 机动原型
 
-Godot 4.7.2 + GDScript。当前阶段：**机动 / 能量 / 镜头原型**，状态 AWAITING_USER_ACCEPTANCE。
+Godot 4.7.2 + GDScript。当前阶段：**机动 / 能量 / 镜头原型**，状态 **PASS**（M03/M07/M08/M09 DEFERRED，已绑定到后续阶段）。
 项目规范见 [AGENT.md](AGENT.md)，验收结果见 [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)。
 
 ## 运行
