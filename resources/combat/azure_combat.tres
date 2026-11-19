@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_pulse.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_missiles.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_orbital.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_rail.tres" id="5"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_backstep.tres" id="6"]
+[ext_resource type="Script" path="res://scripts/combat/kits/mark_config.gd" id="7"]
+
+[sub_resource type="Resource" id="MarkConfig_1"]
+script = ExtResource("7")
+
+
+[resource]
+script = ExtResource("1")
+display_name = "04 AZURE ORACLE 武装"
+max_hp = 280.0
+ranged = ExtResource("2")
+skill = ExtResource("3")
+skill_hold = ExtResource("4")
+charge_attack = ExtResource("5")
+defense_action = ExtResource("6")
+hold_threshold = 0.3
+kit = SubResource("MarkConfig_1")
+charge_time = 1.5
+charge_min = 0.25
+charge_speed_mult = 0.35

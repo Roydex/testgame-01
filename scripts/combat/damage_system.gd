@@ -1,7 +1,10 @@
 class_name DamageSystem
 extends RefCounted
 ## Single place where a hit's outcome is decided:
-##   permission (TeamRules.can_damage) → parry → guard → clean hit.
+##   permission (TeamRules.can_damage) → evade (i-frames) → parry → guard → clean hit.
+## Attack types: MELEE / PROJECTILE can be parried and guarded; BEAM /
+## EXPLOSION can only be guarded; GRAB can only be dodged.
+## Non-mech victims (turrets, missiles) take a plain hit.
 ## Detection (hitbox sweep / projectile ray) builds a HitInfo and calls
 ## resolve(); reactions are applied through the victim's / attacker's
 ## CombatStateMachine (which only touches MechMotor via modifiers,
@@ -27,15 +30,43 @@ static func in_front_arc(victim: Node3D, source: Vector3, arc_deg: float) -> boo
 
 static func resolve(hit: HitInfo) -> int:
 	hit.result = _resolve(hit)
+	if hit.result != CombatTypes.HitResult.IGNORED:
+		var ac := get_combat(hit.attacker)
+		if ac and ac.kit:
+			ac.kit.on_hit_dealt(hit)
 	CombatEvents.hit_resolved.emit(hit)
 	return hit.result
+
+
+## The attack connected (counts as "not a whiff").
+static func is_landed(result: int) -> bool:
+	return result == CombatTypes.HitResult.HIT or result == CombatTypes.HitResult.GUARDED \
+		or result == CombatTypes.HitResult.GUARD_BREAK
+
+
+## Plain hit on a non-mech damageable (turret, missile): it exposes `health`
+## and `team_id`; no guard, no parry, no reactions.
+static func _resolve_entity(hit: HitInfo) -> int:
+	var victim := hit.victim
+	if victim == null or not TeamRules.can_damage(hit.attacker, victim):
+		return CombatTypes.HitResult.IGNORED
+	var h := victim.get(&"health") as Health
+	if h == null:
+		return CombatTypes.HitResult.IGNORED
+	hit.final_damage = hit.attack.damage * hit.damage_mult
+	h.take(hit.final_damage)
+	return CombatTypes.HitResult.HIT
 
 
 static func _resolve(hit: HitInfo) -> int:
 	var victim := hit.victim
 	var vc := get_combat(victim)
-	if vc == null or not TeamRules.can_damage(hit.attacker, victim):
+	if vc == null:
+		return _resolve_entity(hit)
+	if not TeamRules.can_damage(hit.attacker, victim):
 		return CombatTypes.HitResult.IGNORED
+	if vc.is_invulnerable():
+		return CombatTypes.HitResult.EVADED
 	var atk := hit.attack
 	var prof := vc.profile
 	var front := in_front_arc(victim, hit.source_position, prof.guard_arc_deg)
@@ -53,30 +84,43 @@ static func _resolve(hit: HitInfo) -> int:
 	var base := atk.damage * hit.damage_mult
 	if not hit.force_unblockable and atk.guardable and CombatTypes.is_guardable_type(atk.attack_type) \
 			and front and vc.is_guarding():
-		var chip := base * prof.guard_damage_taken
-		if atk.guard_break or not vc.motor.consume_en(base * prof.guard_en_per_damage):
+		var chip := base * vc.guard_ratio()
+		vc.kit.on_guarded(hit)
+		if atk.guard_break or hit.force_guard_break or not vc.motor.consume_en(base * prof.guard_en_per_damage):
 			hit.final_damage = chip
 			vc.health.take(chip)
 			vc.on_guard_broken(hit)
 			_hitstop(hit, atk.hitstop * 1.5)
+			if atk.status_on_guard:
+				_apply_statuses(hit, vc)
 			return CombatTypes.HitResult.GUARD_BREAK
 		hit.final_damage = chip
 		vc.health.take(chip)
 		vc.motor.apply_impulse(_push(hit, atk.knockback * 0.4, 0.0))
 		_hitstop(hit, atk.hitstop * 0.6)
+		if atk.status_on_guard:
+			_apply_statuses(hit, vc)
 		return CombatTypes.HitResult.GUARDED
 
 	# --- clean hit
-	var mult := vc.damage_taken_mult()
+	var mult := vc.damage_taken_mult(hit)
 	var ac := get_combat(hit.attacker)
 	if vc.offbalance_by == hit.attacker and ac:
 		mult *= ac.profile.counter_damage_mult  # punish window after a parry
+	if atk.mark_consume_bonus > 0.0:
+		mult *= 1.0 + atk.mark_consume_bonus * vc.status.consume(&"mark")
 	hit.final_damage = base * mult
 	vc.health.take(hit.final_damage)
 	if not vc.health.dead:
 		vc.on_clean_hit(hit, _push(hit, atk.knockback, atk.knockback_up))
+		_apply_statuses(hit, vc)
 	_hitstop(hit, atk.hitstop)
 	return CombatTypes.HitResult.HIT
+
+
+static func _apply_statuses(hit: HitInfo, vc: CombatStateMachine) -> void:
+	for st in hit.attack.status_effects:
+		vc.status.apply(st, hit.attacker)
 
 
 static func _push(hit: HitInfo, strength: float, up: float) -> Vector3:

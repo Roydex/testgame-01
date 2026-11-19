@@ -18,16 +18,24 @@ var _callout_t := 0.0
 var _overlay: Label
 var _bottom: VBoxContainer
 var _banner: Label
+var _kit_label: Label
+var _kit_bar: ProgressBar
+var _warn: Label
+var _connected := false
 
 
 func setup(p_motor: MechMotor, p_targeting: TargetingSystem) -> void:
 	motor = p_motor
 	combat = motor.get_node(^"CombatStateMachine")
 	targeting = p_targeting
+	if _connected:
+		return
+	_connected = true
 	CombatEvents.hit_resolved.connect(_on_hit)
 	CombatEvents.parried.connect(_on_parried)
 	CombatEvents.ultimate_phase.connect(_on_ult)
 	CombatEvents.mech_died.connect(_on_died)
+	CombatEvents.kit_event.connect(_on_kit_event)
 
 
 func _ready() -> void:
@@ -44,6 +52,12 @@ func _ready() -> void:
 	_en = _bar(bottom, Color(0.35, 0.7, 1.0))
 	_en.custom_minimum_size.y = 10
 	_ult = _label(bottom, 17)
+	_kit_bar = _bar(bottom, Color(1.0, 0.45, 0.15))
+	_kit_bar.custom_minimum_size.y = 10
+	_kit_label = _label(bottom, 16)
+	_warn = _label(root, 26)
+	_warn.custom_minimum_size = Vector2(800, 0)
+	_warn.add_theme_color_override(&"font_color", Color(1.0, 0.35, 0.25))
 	_target_box = VBoxContainer.new()
 	_target_box.custom_minimum_size = Vector2(400, 0)
 	root.add_child(_target_box)
@@ -105,7 +119,8 @@ func _process(delta: float) -> void:
 		return
 	# layout from the viewport size every frame (robust to window resizes)
 	var vp := get_viewport().get_visible_rect().size
-	_bottom.position = Vector2(vp.x * 0.5 - 220.0, vp.y - 150.0)
+	_bottom.position = Vector2(vp.x * 0.5 - 220.0, vp.y - 190.0)
+	_warn.position = Vector2(vp.x * 0.5 - 400.0, vp.y * 0.62)
 	_target_box.position = Vector2(vp.x * 0.5 - 200.0, 18.0)
 	_callout.position = Vector2(vp.x * 0.5 - 400.0, vp.y * 0.30)
 	_overlay.position = Vector2(vp.x * 0.5 - 500.0, vp.y * 0.42)
@@ -138,9 +153,17 @@ func _process(delta: float) -> void:
 			UltimateSystem.Phase.SPENT:
 				txt = "圣骸回响 已用尽（F12 切到练习模式可不限次数）"
 		_ult.text = txt
+	_update_kit()
+	_update_warnings()
 	var t := targeting.current if targeting and targeting.has_target() else null
 	var tc := DamageSystem.get_combat(t)
 	_target_box.visible = tc != null
+	if tc == null and t and t.get(&"health") is Health:
+		var th := t.get(&"health") as Health
+		_target_box.visible = true
+		_target_name.text = "%s  [%s]" % [t.name, "%.0fs" % float(t.call(&"time_left")) if t.has_method(&"time_left") else ""]
+		_target_hp.max_value = th.max_hp
+		_target_hp.value = th.hp
 	if tc:
 		_target_name.text = "%s  [%s]%s" % [t.name, tc.get_state_name(),
 			"  审判中" if tc.ultimate and tc.ultimate.in_judgment() else ""]
@@ -186,3 +209,54 @@ func _on_died(mech: Node3D) -> void:
 			alive += 1
 		if alive == 0:
 			show_overlay("全部敌机已击破 — 按 F7 重开")
+
+
+func _update_kit() -> void:
+	var k := combat.kit
+	var txt := k.hud_text() if k else ""
+	_kit_label.text = txt
+	_kit_label.visible = txt != ""
+	var b := k.hud_bar() if k else -1.0
+	_kit_bar.visible = b >= 0.0
+	if b >= 0.0:
+		_kit_bar.max_value = 1.0
+		_kit_bar.value = b
+		var fill := _kit_bar.get_theme_stylebox(&"fill") as StyleBoxFlat
+		if fill and k is HeatKit:
+			fill.bg_color = Color(1.0, 0.25, 0.1) if (k as HeatKit).is_scorching() or (k as HeatKit).is_overheated() else Color(1.0, 0.6, 0.2)
+		elif fill:
+			fill.bg_color = Color(0.5, 0.85, 1.0)
+
+
+## Lock-on warnings for the player: anything aiming a major attack at them.
+func _update_warnings() -> void:
+	var w: PackedStringArray = []
+	for m in get_tree().get_nodes_in_group(&"mechs"):
+		var c := DamageSystem.get_combat(m)
+		if c and m != motor and TeamRules.is_hostile(m, motor) and c.is_charging() and c.aim_target == motor:
+			w.append("⚠ 磁轨瞄准中 %d%%" % int(c.charge_level * 100.0))
+			break
+	for o in get_tree().get_nodes_in_group(&"orbital_strikes"):
+		var s := o as OrbitalStrike
+		if s and is_instance_valid(s.owner_mech) and TeamRules.is_hostile(s.owner_mech, motor):
+			var d := motor.global_position - s.global_position
+			if Vector2(d.x, d.z).length() <= s.radius + 1.0:
+				w.append("⚠ 轨道打击落点 — 离开红圈")
+				break
+	for p in get_tree().get_nodes_in_group(&"projectiles"):
+		var pr := p as Projectile
+		if pr and pr.homing_target == motor and pr.health and is_instance_valid(pr.owner_mech) and TeamRules.is_hostile(pr.owner_mech, motor):
+			w.append("⚠ 导弹锁定")
+			break
+	_warn.text = "   ".join(w)
+	_warn.visible = not w.is_empty()
+
+
+func _on_kit_event(mech: Node3D, id: StringName) -> void:
+	if mech != motor:
+		return
+	match id:
+		&"overheat":
+			callout("过热！", Color(1.0, 0.4, 0.2), 1.0)
+		&"grapple_miss":
+			callout("钩爪落空", Color(1.0, 0.7, 0.5), 0.6)

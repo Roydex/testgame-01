@@ -26,6 +26,10 @@ var _combo_presses: int = 0
 var _press_gap: float = 0.0
 var _strafe := 1.0
 var _strafe_timer := 0.0
+# --- phase 3a kit pattern (HELLFANG / VERDANT / AZURE partners)
+var _kit_step := 0
+## Current scripted action: [kind, frames_left].
+var _act: Array = []
 
 
 func setup(p_motor: MechMotor) -> void:
@@ -64,6 +68,8 @@ func _physics_process(delta: float) -> void:
 	var cmd := motor.command
 	cmd.move = Vector3.ZERO
 	cmd.guard_held = false
+	cmd.attack_held = false
+	cmd.skill_held = false
 	cmd.ascend = false
 	cmd.descend = false
 	_pick_target()
@@ -90,6 +96,9 @@ func _physics_process(delta: float) -> void:
 	var training := mode == Mode.TRAINING or mode == Mode.TRAINING_RANGED
 	if use_ultimate and not training and ult and ult.is_ready() and dist < 16.0:
 		cmd.ult_pressed = true
+	if _uses_kit_pattern() and (mode == Mode.TRAINING or mode == Mode.MELEE or mode == Mode.TRAINING_RANGED or mode == Mode.RANGED):
+		_kit_pattern(cmd, flat, dist, delta, training)
+		return
 	match mode:
 		Mode.TRAINING:
 			_training(cmd, flat, dist, delta)
@@ -189,3 +198,101 @@ func _ranged(cmd: MechCommand, flat: Vector3, dist: float, interval: float) -> v
 	if _timer <= 0.0 and dist < 60.0:
 		cmd.attack_pressed = true
 		_timer = interval
+
+
+## Phase 3a partners (any mech with a kit or a hold skill) run one generic
+## readable loop built from their profile: keep a preferred range, then
+## perform the next action of a fixed cycle. Still a script, not an AI.
+func _uses_kit_pattern() -> bool:
+	return combat.profile.kit != null or combat.profile.skill_hold != null
+
+
+func _kit_actions() -> Array[StringName]:
+	var p := combat.profile
+	var a: Array[StringName] = [&"primary"]
+	if p.skill: a.append(&"skill")
+	a.append(&"primary")
+	if p.skill_hold: a.append(&"skill_hold")
+	if p.attack_hold: a.append(&"attack_hold")
+	if p.charge_attack: a.append(&"charge")
+	return a
+
+
+func _preferred_range() -> Vector2:
+	var p := combat.profile
+	if p.light_combo:
+		return Vector2(2.8, 4.6)
+	var r := p.ranged.projectile_range if p.ranged else 30.0
+	return Vector2(clampf(r * 0.25, 8.0, 18.0), clampf(r * 0.45, 12.0, 28.0))
+
+
+func _kit_pattern(cmd: MechCommand, flat: Vector3, dist: float, _delta: float, training: bool) -> void:
+	var dir := flat.normalized()
+	var band := _preferred_range()
+	if dist > band.y:
+		cmd.move = dir * (0.65 if training else 1.0)
+	elif dist < band.x:
+		cmd.move = -dir * 0.5
+	else:
+		cmd.move = dir.cross(Vector3.UP) * _strafe * 0.3
+	if not _act.is_empty():
+		_run_action(cmd)
+		return
+	if training and _target_stunned():
+		_timer = maxf(_timer, 1.2)
+		return
+	# a melee kit closes long gaps with its skill (HELLFANG grapple)
+	if combat.profile.light_combo and dist > 9.0 and dist < 24.0 and combat.profile.skill \
+			and combat.get_cooldown(combat.profile.skill.id) <= 0.0 and _timer <= 0.0:
+		_act = [&"skill", 2]
+		_timer = training_interval if training else attack_interval * 0.6
+		return
+	if _timer > 0.0 or dist > band.y + 6.0:
+		return
+	var acts := _kit_actions()
+	var kind: StringName = acts[_kit_step % acts.size()]
+	_kit_step += 1
+	match kind:
+		&"primary":
+			_act = [&"primary", 3 if combat.profile.light_combo else 2]
+		&"skill":
+			_act = [&"skill", 2]
+		&"skill_hold":
+			_act = [&"skill_hold", 26]
+		&"attack_hold":
+			_act = [&"attack_hold", 26]
+		&"charge":
+			_act = [&"charge", int(combat.profile.charge_time * 0.8 * 60.0)]
+	_timer = training_interval if training else attack_interval * 0.6
+
+
+func _run_action(cmd: MechCommand) -> void:
+	var kind: StringName = _act[0]
+	var left: int = _act[1]
+	match kind:
+		&"primary":
+			_press_gap -= 1.0 / 60.0
+			if _press_gap <= 0.0:
+				cmd.attack_pressed = true
+				cmd.attack_held = true
+				_press_gap = 0.32
+				left -= 1
+		&"skill":
+			cmd.skill_pressed = left == 2
+			cmd.skill_held = false
+			left -= 1
+		&"skill_hold":
+			cmd.skill_pressed = left == 26
+			cmd.skill_held = true
+			left -= 1
+		&"attack_hold":
+			cmd.attack_pressed = left == 26
+			cmd.attack_held = true
+			left -= 1
+		&"charge":
+			cmd.guard_held = true
+			left -= 1
+	_act[1] = left
+	if left <= 0:
+		_act = []
+		_press_gap = 0.0

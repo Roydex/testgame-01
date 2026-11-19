@@ -2,6 +2,7 @@
 
 Godot 4.7.2 + GDScript。- 阶段 2a 机动 / 能量 / 镜头原型：**PASS**（M03/M07/M08/M09 DEFERRED，已绑定到后续阶段）。
 - 阶段 2b 单机体战斗原型（01 白祷）：**AWAITING_USER_ACCEPTANCE**。
+- 阶段 3a 另外三台机体（02 赤狱、03 苍藓、04 苍穹）的武装与技能测试场景：**AWAITING_USER_ACCEPTANCE**（自动化 36/36 PASS）。
 项目规范见 [AGENT.md](AGENT.md)，验收结果见 [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)。
 
 ## 运行
@@ -11,6 +12,24 @@ Godot 4.7.2 + GDScript。- 阶段 2a 机动 / 能量 / 镜头原型：**PASS**�
 ```
 
 也可以用 Godot 编辑器打开本目录后按 F5，主场景为 `scenes/test/graybox_test.tscn`。
+
+## 技能测试场景（阶段 3a）
+
+```bash
+../engine/Godot.app/Contents/MacOS/Godot --path . res://scenes/test/skill_lab.tscn
+```
+
+灰盒场景加上出生点旁的掩体墙和有顶掩体。`1`–`4` 切换自己的机体（白祷 / 赤狱 / 苍藓 / 苍穹），`G` 切换陪练机的机体，其他按键与下表相同。
+
+| 键 | 01 白祷 | 02 赤狱 | 03 苍藓 | 04 苍穹 |
+|---|---|---|---|---|
+| 左键 | 光矛三连 | 链斧 2 段 + 断甲终结；热量 ≥ 60 时长按 = 熔炉冲撞 | 孢子散射 | 脉冲炮（叠标记） |
+| 右键 | 格挡 | 格挡（积热） | 龟甲格挡 | 按住蓄力磁轨炮，松开发射 |
+| `F` | 招架 | 窄招架（只推开） | 招架（只推开） | 后跃 + 推开脉冲 |
+| `X` 短按 | 突进斩 | 磁索钩爪 | 部署炮台（最多 2 座） | 导弹齐射 |
+| `X` 长按 | — | 主动排气 | 区域束缚装置 | 轨道激光 |
+
+屏幕下方显示当前机体的资源（热量 / 炮台位 / 标记与蓄力）。有敌人用磁轨瞄准你、你站在轨道激光的红圈里、或有导弹锁定你时，屏幕中部会显示红色警告。
 
 ## 操作说明
 
@@ -65,7 +84,7 @@ Godot 4.7.2 + GDScript。- 阶段 2a 机动 / 能量 / 镜头原型：**PASS**�
 tests/run_tests.sh
 ```
 
-无头运行，固定 60 Hz 步长，共 27 项，用时约 1.5 分钟。可加 `--only=T05` 只跑单项。日志写入 `tests/logs/test_results.log`，退出码 0 表示全部通过。
+无头运行，固定 60 Hz 步长，共 36 项（T28–T36 为阶段 3a），用时约 2 分钟。可加 `--only=T05` 只跑单项。日志写入 `tests/logs/test_results.log`，退出码 0 表示全部通过。
 
 真实渲染演示（自动截图到 `docs/screenshots/`，并输出帧率统计），机动演示：
 
@@ -79,11 +98,24 @@ tests/run_tests.sh
 ../engine/Godot.app/Contents/MacOS/Godot --path . --resolution 1920x1080 -- --combat-demo
 ```
 
+技能演示（三台新机体的截图，以及繁忙场景的帧率）：
+
+```bash
+../engine/Godot.app/Contents/MacOS/Godot --path . --resolution 1920x1080 res://scenes/test/skill_lab.tscn -- --skill-demo
+```
+
+平衡模拟（结果写入 `tests/logs/balance_sim.log`，分析见 docs/BALANCE_REPORT.md）：
+
+```bash
+../engine/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/balance_sim.tscn
+```
+
 ## 文档
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)：分层、设计决策、碰撞层。
 - [docs/MOVEMENT_PARAMETERS.md](docs/MOVEMENT_PARAMETERS.md)：机动参数表和实测数据。
 - [docs/COMBAT_PARAMETERS.md](docs/COMBAT_PARAMETERS.md)：战斗参数表（招式、防御、大招、反馈）。
-- [docs/MECH_DESIGN.md](docs/MECH_DESIGN.md)：白祷的设定、武装、招架规则、大招与混战规则。
-- [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)：M01–M10 验收矩阵和人工验收清单。
-- [docs/ROADMAP.md](docs/ROADMAP.md)、[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)、[docs/BALANCE_REPORT.md](docs/BALANCE_REPORT.md)。
+- [docs/MECH_DESIGN.md](docs/MECH_DESIGN.md)：四台机体的设定、武装、资源机制、克制关系与操作布局。
+- [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)：M01–M10、C01–C12、P01–P13 验收矩阵和人工验收清单。
+- [docs/BALANCE_REPORT.md](docs/BALANCE_REPORT.md)：战斗平衡表（优势、弱点、有效交战距离、潜在不公平组合）。
+- [docs/ROADMAP.md](docs/ROADMAP.md)、[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)。

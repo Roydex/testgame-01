@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatusEffectDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/specs/status_effect_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"armor_break"
+display_name = "破甲"
+duration = 5.0
+max_stacks = 1
+damage_taken_mult = 1.2
+guard_damage_taken_add = 0.15
+color = Color(1.0, 0.45, 0.2, 1.0)

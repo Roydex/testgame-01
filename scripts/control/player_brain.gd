@@ -49,6 +49,8 @@ func _physics_process(_delta: float) -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	cmd.attack_pressed = cmd.attack_pressed or (captured and Input.is_action_just_pressed(&"attack"))
 	cmd.guard_held = captured and Input.is_action_pressed(&"guard")
+	cmd.attack_held = captured and Input.is_action_pressed(&"attack")
+	cmd.skill_held = Input.is_action_pressed(&"skill")
 	cmd.parry_pressed = cmd.parry_pressed or Input.is_action_just_pressed(&"parry")
 	cmd.skill_pressed = cmd.skill_pressed or Input.is_action_just_pressed(&"skill")
 	cmd.ult_pressed = cmd.ult_pressed or Input.is_action_just_pressed(&"ultimate")

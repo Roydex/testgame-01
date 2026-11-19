@@ -12,6 +12,7 @@ var results: Array[Dictionary] = []
 var log_lines: PackedStringArray = []
 var arena: Node3D
 var _filter := ""
+var p3 = preload("res://tests/phase3_tests.gd").new(self)
 
 
 func _ready() -> void:
@@ -58,6 +59,15 @@ func _run_all() -> void:
 		["T25", "Practice mode: no death, regen, training pace, unlimited ultimate", t25_practice_mode],
 		["T26", "C09 support: attack animation poses + impact feedback exist", t26_action_feedback],
 		["T27", "Pause menu: Esc freezes the world, resumes cleanly", t27_pause],
+		["T28", "P01/P11 four mechs fully operable; configs drive behaviour", p3.t28_kits_operable],
+		["T29", "P02 skill phases: windup / active / recovery / cooldown, event order", p3.t29_skill_phases],
+		["T30", "P03 one damage interface; GRAB / BEAM / EXPLOSION parry & guard rules", p3.t30_damage_types],
+		["T31", "P04 status effects: armor break, restraint, marks", p3.t31_status_effects],
+		["T32", "P05 cover blocks shots, missiles, grapple, rail, turret, blast, orbital", p3.t32_cover],
+		["T33", "P06 resources: heat, deployables, charge and marks", p3.t33_resources],
+		["T34", "P07 counter windows for every major attack", p3.t34_counter_windows],
+		["T35", "P08 anti-air for every mech (grapple drag, upward fire)", p3.t35_anti_air],
+		["T36", "P09 deployables / missiles / zones / blasts / strikes follow TeamRules", p3.t36_team_rules],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):

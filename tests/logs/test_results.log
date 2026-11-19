@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-19T09:37:27  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-19T12:01:10  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -407,13 +407,13 @@ PASS  T20
 PASS  T21
 
 --- T22  C10 shared components player / sparring partner
-  info player components: ["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "UltimateSystem"]
-  ok   Sparring_Melee shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "UltimateSystem"])
+  info player components: ["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects", "UltimateSystem"]
+  ok   Sparring_Melee shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects", "UltimateSystem"])
   ok   Sparring_Melee differs only by its brain (SparringBrain)
-  ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox"])
+  ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 19.6 m and attacked via MechCommand
+  ok   partner moved 23.1 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -482,6 +482,131 @@ PASS  T26
   ok   P / Esc both bound to pause (reopened)
 PASS  T27
 
+--- T28  P01/P11 four mechs fully operable; configs drive behaviour
+  ok   seraph LMB → seraph_l1
+  ok   seraph X → seraph_dash_slash
+  ok   seraph F → PARRY
+  ok   seraph RMB → GUARD
+  ok   hellfang LMB → hf_axe1
+  ok   hellfang X → hf_hook
+  ok   hellfang XH → hf_vent
+  ok   hellfang LMBH → hf_ram
+  ok   hellfang F → PARRY
+  ok   hellfang RMB → GUARD
+  ok   verdant LMB → va_scatter
+  ok   verdant X → va_turret
+  ok   verdant XH → va_zone
+  ok   verdant F → PARRY
+  ok   verdant RMB → GUARD
+  ok   azure LMB → ao_pulse
+  ok   azure X → ao_missiles
+  ok   azure XH → ao_orbital
+  ok   azure F → ao_backstep
+  ok   azure RMB → ao_rail
+  ok   VERDANT va_scatter.tres pellets 6 → 3: projectiles fired [6, 3]
+  ok   AZURE ao_backstep.tres cooldown 6 → 2: runtime cooldown 1.97 s
+  info hook range 25: start distance 18.0 m
+  info hook range 10: start distance 18.0 m
+  ok   HELLFANG hf_hook.tres max_range 25 → 10 against an 18 m target: ["hit", "miss"]
+  ok   HELLFANG heat decay_per_sec 14 → 40: heat 80 → 59.3 after 1.0 s delay + 0.5 s
+PASS  T28
+
+--- T29  P02 skill phases: windup / active / recovery / cooldown, event order
+  ok   seraph: all 4 attacks have windup / active / recovery; skills have cooldowns []
+  ok   hellfang: all 6 attacks have windup / active / recovery; skills have cooldowns []
+  ok   verdant: all 3 attacks have windup / active / recovery; skills have cooldowns []
+  ok   azure: all 5 attacks have windup / active / recovery; skills have cooldowns []
+  ok   hellfang hf_hook: start f3 → telegraph → active f14 → finished f61
+  ok   hellfang hf_hook: second press inside the 3 s cooldown refused (started 1×)
+  ok   verdant va_turret: start f3 → telegraph → active f51 → finished f75
+  ok   verdant va_turret: second press inside the 6 s cooldown refused (started 1×)
+  ok   verdant va_zone: start f17 → telegraph → active f53 → finished f80
+  ok   verdant va_zone: second press inside the 14 s cooldown refused (started 1×)
+  ok   azure ao_missiles: start f3 → telegraph → active f24 → finished f51
+  ok   azure ao_missiles: second press inside the 7 s cooldown refused (started 1×)
+  ok   azure ao_orbital: start f17 → telegraph → active f45 → finished f77
+  ok   azure ao_orbital: second press inside the 12 s cooldown refused (started 1×)
+  ok   seraph seraph_dash_slash: start f0 → telegraph → active f13 → finished f56
+  ok   seraph seraph_dash_slash: second press inside the 2 s cooldown refused (started 1×)
+PASS  T29
+
+--- T30  P03 one damage interface; GRAB / BEAM / EXPLOSION parry & guard rules
+  ok   MELEE vs parry / guard → PARRIED / GUARDED (expected PARRIED / GUARDED)
+  ok   GRAB vs parry / guard → HIT / HIT (expected HIT / HIT)
+  ok   BEAM vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
+  ok   EXPLOSION vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
+  ok   real grapple vs guarding SERAPH: HIT (grabs ignore guard)
+  ok   every HP change goes through DamageSystem.resolve(): Mech lost 239.1 / resolved 239.1, @CharacterBody3D@5051 lost 19.5 / resolved 19.5; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
+PASS  T30
+
+--- T31  P04 status effects: armor break, restraint, marks
+  ok   finisher landed (1) → armor break applied (true, 4.8 s left)
+  ok   armored-broken victim takes ×1.2: axe 15 → 18.0
+  ok   armor break expired after 5 s
+  ok   inside the zone: speed 8.8 m/s ≤ 55% of 16 (slowed, not rooted)
+  ok   left the zone: restraint gone after 21 frames, speed back to 16.0 m/s
+  ok   the restraint is a status, never a hard-control state (combat stayed READY)
+  ok   6 pulse hits → marks capped at 3
+  ok   marks expired 8 s after the last hit
+PASS  T31
+
+--- T32  P05 cover blocks shots, missiles, grapple, rail, turret, blast, orbital
+  ok   verdant lmb through WallThick: fired true, hits on target 0
+  ok   azure lmb through WallThick: fired true, hits on target 0
+  ok   azure rail through WallThick: fired true, hits on target 0
+  ok   azure x through WallThick: fired true, hits on target 0
+  ok   hellfang x through WallThick: fired true, hits on target 0
+  ok   turret 7 m from a target behind WallThick: 0 hits in 4 s
+  ok   blast 2.7 m away: behind the wall 0 hits, in the open 1 hit
+  ok   orbital strike on a target under SlabLow: struck true, hits 0 (roof blocks)
+  ok   same strike on the target in the open: 1 hit
+PASS  T32
+
+--- T33  P06 resources: heat, deployables, charge and marks
+  ok   axe chain builds heat: peak 39
+  ok   idle cooling after 1.0 s: 45 → 22
+  ok   scorching (heat ≥ 70): axe deals 19.5 (= 15 × 1.3)
+  ok   overheat at 100: no attack starts, dash blocked (EN 100 → 100)
+  ok   overheated: takes ×1.3 (11.7)
+  ok   overheat over after 1.6 s, heat reset to 40 (40)
+  ok   X held: active vent, heat 80 → 18
+  ok   whiffed overdrive ram → overheat (1)
+  ok   deploy ×3 (each after the 6 s cooldown): turrets [1, 2, 2] — the third is refused
+  ok   a turret destroyed by DamageSystem: removed (destroyed) → 1 left
+  ok   the last turret expired on its own after 7.6 s (lifetime 20 s)
+  ok   railgun: minimum charge 20.8, full charge 55.0 (= 20 × 2.75)
+  ok   3 marks: full-charge rail 79.8 (× 1.45) and marks consumed (0 left)
+  ok   full-charge rail vs a guard: GUARD_BREAK
+PASS  T33
+
+--- T34  P07 counter windows for every major attack
+  ok   grapple at 20 m: standing still → hit 1; side-dash after the telegraph → hit 0
+  ok   ram at 14 m: stand → hit 1; side-dash during the windup → hit 0
+  ok   rail: aiming-laser telegraph at f0, shot at f60 (≥ 0.38 s warning)
+  ok   4 missiles vs a target dashing sideways at 40 m: 0 direct hits (limited homing, not guaranteed)
+  ok   a defender's pulse shots down incoming missiles: 2 destroyed
+  ok   orbital: 1.2 s ground circle; stand → hit 1; walk out → hit 0
+  ok   backstep: hit at 0.1 s → EVADED, at 0.43 s → HIT (i-frames 0.25 s)
+  ok   backstep + repulse: separation 3.0 → 16.4 m, no damage to the pushed mech
+  ok   second backstep inside the 6 s cooldown refused
+PASS  T34
+
+--- T35  P08 anti-air for every mech (grapple drag, upward fire)
+  ok   HELLFANG grapple on a target hovering 6.4 m up: dragged down 6.5 m
+  ok   drag is motion, not a teleport: max step 0.23 m / frame
+  ok   verdant va_scatter reaches a target 6.6 m up at 12 m (12 hits)
+  ok   azure ao_pulse reaches a target 6.6 m up at 12 m (3 hits)
+PASS  T35
+
+--- T36  P09 deployables / missiles / zones / blasts / strikes follow TeamRules
+  ok   turret: 4 hits on the enemy, 0 on the ally standing in range
+  ok   restraint zone never affects allies
+  ok   zone over both: enemy restrained true, ally restrained false
+  ok   orbital + blast over ally and enemy: enemy hit (orbital 1, blast 1), ally hit 0
+  ok   missiles pass the ally in the way (0 hits) and reach the enemy (4)
+  ok   FFA: the turret hits both hostile teams (team 1: 2, team 2: 2)
+PASS  T36
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -510,4 +635,13 @@ T24  PASS  C12 melee rules: arc, local hitstop, multi-parry, ownership
 T25  PASS  Practice mode: no death, regen, training pace, unlimited ultimate
 T26  PASS  C09 support: attack animation poses + impact feedback exist
 T27  PASS  Pause menu: Esc freezes the world, resumes cleanly
-27/27 passed
+T28  PASS  P01/P11 four mechs fully operable; configs drive behaviour
+T29  PASS  P02 skill phases: windup / active / recovery / cooldown, event order
+T30  PASS  P03 one damage interface; GRAB / BEAM / EXPLOSION parry & guard rules
+T31  PASS  P04 status effects: armor break, restraint, marks
+T32  PASS  P05 cover blocks shots, missiles, grapple, rail, turret, blast, orbital
+T33  PASS  P06 resources: heat, deployables, charge and marks
+T34  PASS  P07 counter windows for every major attack
+T35  PASS  P08 anti-air for every mech (grapple drag, upward fire)
+T36  PASS  P09 deployables / missiles / zones / blasts / strikes follow TeamRules
+36/36 passed

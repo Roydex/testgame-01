@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/specs/status_effect_definition.gd" id="2"]
+[ext_resource type="Resource" path="res://resources/combat/status/armor_break.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = &"hf_finisher"
+display_name = "链斧·断甲"
+windup = 0.5
+active = 0.16
+recovery = 0.5
+cancel_time = 0.75
+telegraphed = true
+whiff_recovery_extra = 0.45
+damage = 26.0
+guard_break = true
+knockback = 9.0
+knockback_up = 2.5
+stagger_time = 0.5
+hitstop = 0.13
+shake = 0.45
+status_effects = Array[ExtResource("2")]([ExtResource("3")])
+status_on_guard = true
+hitbox_offset = Vector3(0, 2.4, -2.6)
+hitbox_size = Vector3(3.4, 2.8, 3.8)
+windup_speed_mult = 0.25
+active_speed_mult = 0.3
+recovery_speed_mult = 0.3
+turn_mult = 0.3
+lunge_speed = 10.0
+lunge_duration = 0.16
+heat_cost = 14.0
+heat_on_hit = 6.0

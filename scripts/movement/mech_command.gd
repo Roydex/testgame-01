@@ -23,6 +23,8 @@ var parry_pressed: bool = false
 var ult_pressed: bool = false
 ## Held.
 var guard_held: bool = false
+var attack_held: bool = false
+var skill_held: bool = false
 
 
 func clear_edges() -> void:
@@ -46,3 +48,5 @@ func copy_from(other: MechCommand) -> void:
 	parry_pressed = other.parry_pressed
 	ult_pressed = other.ult_pressed
 	guard_held = other.guard_held
+	attack_held = other.attack_held
+	skill_held = other.skill_held

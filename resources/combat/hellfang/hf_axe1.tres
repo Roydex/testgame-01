@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_axe2.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"hf_axe1"
+display_name = "链斧·劈"
+windup = 0.26
+active = 0.12
+recovery = 0.34
+cancel_time = 0.5
+next_attack = ExtResource("2")
+whiff_recovery_extra = 0.15
+damage = 15.0
+knockback = 4.0
+knockback_up = 1.0
+stagger_time = 0.25
+hitstop = 0.08
+shake = 0.2
+hitbox_offset = Vector3(0, 2.4, -2.6)
+hitbox_size = Vector3(3.0, 2.6, 3.6)
+windup_speed_mult = 0.3
+active_speed_mult = 0.25
+recovery_speed_mult = 0.4
+turn_mult = 0.35
+heat_cost = 8.0
+heat_on_hit = 4.0

@@ -31,6 +31,12 @@ const KEY_BINDINGS := {
 	&"debug_reset": [KEY_F5],
 	&"debug_kill_target": [KEY_K],
 	&"debug_toggle_shooters": [KEY_F6],
+	# skill lab
+	&"lab_mech_1": [KEY_1],
+	&"lab_mech_2": [KEY_2],
+	&"lab_mech_3": [KEY_3],
+	&"lab_mech_4": [KEY_4],
+	&"lab_partner_next": [KEY_G],
 }
 
 const MOUSE_BINDINGS := {

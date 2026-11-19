@@ -1,0 +1,82 @@
+[shot] skill_hellfang_grapple.png
+1.81 Player→Sparring_Seraph 磁索钩爪 HIT 6.0
+1.81 Player kit grapple_pull
+[shot] skill_hellfang_ram_windup.png
+4.55 Player→Sparring_Seraph 熔炉超载冲撞 HIT 41.6
+5.76 Player kit overheat
+[shot] skill_hellfang_overheat.png
+7.39 Player kit overheat_end
+10.08 Turret→Sparring_Seraph 炮台孢弹 HIT 5.0
+10.99 Turret→Sparring_Seraph 炮台孢弹 HIT 5.0
+11.54 Turret2→Sparring_Seraph 炮台孢弹 HIT 5.0
+11.88 Turret→Sparring_Seraph 炮台孢弹 HIT 5.0
+12.44 Turret2→Sparring_Seraph 炮台孢弹 HIT 5.0
+[shot] skill_verdant_turrets_zone.png
+12.93 Turret→Sparring_Seraph 炮台孢弹 HIT 5.0
+[shot] skill_verdant_scatter.png
+13.42 Player→Sparring_Seraph 孢子散射炮 HIT 3.4
+13.43 Player→Sparring_Seraph 孢子散射炮 HIT 3.4
+13.43 Player→Sparring_Seraph 孢子散射炮 HIT 3.4
+13.43 Player→Sparring_Seraph 孢子散射炮 HIT 3.3
+13.47 Turret2→Sparring_Seraph 炮台孢弹 HIT 5.0
+13.82 Turret→Sparring_Seraph 炮台孢弹 HIT 5.0
+[shot] skill_azure_rail_laser.png
+15.72 Player→Sparring_Seraph 磁轨蓄力狙击 HIT 40.0
+[shot] skill_azure_missiles.png
+17.58 Player→Sparring_Seraph 导弹齐射 HIT 7.0
+17.58 Player→Sparring_Seraph 导弹齐射 HIT 7.0
+[shot] skill_azure_orbital_circle.png
+19.46 Player→Sparring_Seraph 轨道激光 HIT 34.0
+19.46 Player kit orbital_strike
+22.20 Sparring_Azure→Turret 脉冲炮 HIT 5.0
+22.53 Sparring_Azure→Turret 脉冲炮 HIT 5.0
+22.77 Sparring_Ranged→Player 脉冲弹（陶练机） HIT 8.5
+23.14 Turret→Sparring_Azure 炮台孢弹 HIT 5.0
+23.19 Sparring_Azure→Turret2 脉冲炮 HIT 5.0
+23.56 Sparring_Azure→Turret2 脉冲炮 HIT 5.0
+23.62 Player→Sparring_Azure 孢子散射炮 HIT 2.4
+23.62 Player→Sparring_Azure 孢子散射炮 HIT 2.4
+23.64 Player→Sparring_Azure 孢子散射炮 HIT 2.2
+24.04 Turret→Sparring_Azure 炮台孢弹 HIT 5.0
+24.26 Player→Sparring_Azure 孢子散射炮 HIT 2.4
+24.26 Player→Sparring_Azure 孢子散射炮 HIT 2.4
+24.39 Turret2→Sparring_Azure 炮台孢弹 HIT 5.0
+24.52 Sparring_Azure→Turret2 导弹齐射 HIT 7.0
+24.52 Sparring_Azure→Turret 导弹爆炸 HIT 4.0
+24.54 Player→@Node3D@927 孢子散射炮 HIT 4.5
+24.65 Sparring_Azure→Turret2 脉冲炮 HIT 5.0
+24.71 Sparring_Azure→Player 导弹齐射 HIT 6.0
+24.71 Sparring_Azure→Turret 导弹爆炸 HIT 4.0
+24.71 Sparring_Azure→Turret2 导弹爆炸 HIT 4.0
+24.71 Sparring_Azure→Player 导弹齐射 HIT 6.0
+24.71 Sparring_Azure→Turret 导弹爆炸 HIT 4.0
+24.71 Sparring_Azure→Turret2 导弹爆炸 HIT 4.0
+24.96 Turret→Sparring_Azure 炮台孢弹 HIT 5.0
+25.52 Player→Sparring_Azure 孢子散射炮 HIT 2.2
+25.52 Player→Sparring_Azure 孢子散射炮 HIT 2.2
+25.52 Player→Sparring_Azure 孢子散射炮 HIT 2.2
+25.77 Sparring_Azure→Player 脉冲炮 HIT 4.2
+25.80 Turret2→Sparring_Azure 炮台孢弹 HIT 5.0
+26.26 Player→Sparring_Azure 孢子散射炮 HIT 2.2
+26.26 Player→Sparring_Azure 孢子散射炮 HIT 2.2
+26.27 Player→Sparring_Azure 孢子散射炮 HIT 2.1
+26.36 Turret→Sparring_Azure 炮台孢弹 HIT 5.0
+26.71 Turret2→Sparring_Azure 炮台孢弹 HIT 5.0
+26.93 Sparring_Ranged→Player 脉冲弹（陶练机） HIT 8.5
+26.93 Player→Sparring_Azure 孢子散射炮 HIT 2.1
+26.93 Player→Sparring_Azure 孢子散射炮 HIT 2.1
+26.93 Player→Sparring_Azure 孢子散射炮 HIT 2.1
+27.26 Sparring_Azure→Player 脉冲炮 HIT 4.2
+27.29 Turret→Sparring_Azure 炮台孢弹 HIT 5.0
+27.37 Sparring_Azure→Player 轨道激光 HIT 28.9
+27.37 Sparring_Azure→Turret2 轨道激光 HIT 34.0
+27.37 Sparring_Azure→Turret 轨道激光 HIT 34.0
+27.37 Sparring_Azure kit orbital_strike
+27.64 Turret2→Sparring_Azure 炮台孢弹 HIT 5.0
+27.64 Sparring_Azure→Player 脉冲炮 HIT 4.2
+27.75 Player→Sparring_Azure 孢子散射炮 HIT 1.9
+27.75 Player→Sparring_Azure 孢子散射炮 HIT 1.9
+28.21 Sparring_Azure→Player 脉冲炮 HIT 4.2
+28.22 Turret→Sparring_Azure 炮台孢弹 HIT 5.0
+[shot] skill_busy_lab.png
+P12 busy lab (2 turrets, missiles, orbital, 2 partners): 1944 frames, avg 323 FPS, 1% low 213 FPS, worst 6.6 ms

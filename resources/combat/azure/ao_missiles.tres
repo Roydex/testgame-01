@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_missile_blast.tres" id="2"]
+[ext_resource type="Script" path="res://scripts/combat/specs/projectile_spec.gd" id="3"]
+
+[sub_resource type="Resource" id="ProjectileSpec_1"]
+script = ExtResource("3")
+pellets = 4
+spread_deg = 40.0
+homing_deg = 75.0
+arming_distance = 6.0
+shootable_hp = 1.0
+splash_radius = 2.5
+splash_attack = ExtResource("2")
+color = Color(1.0, 0.85, 0.35, 1.0)
+
+[resource]
+script = ExtResource("1")
+id = &"ao_missiles"
+display_name = "导弹齐射"
+attack_type = 1
+delivery = 1
+windup = 0.35
+active = 0.05
+recovery = 0.4
+cancel_time = 0.6
+telegraphed = true
+damage = 7.0
+knockback = 3.0
+knockback_up = 0.5
+stagger_time = 0.15
+hitstop = 0.04
+shake = 0.12
+windup_speed_mult = 0.4
+active_speed_mult = 0.5
+recovery_speed_mult = 0.6
+turn_mult = 0.5
+en_cost = 10.0
+cooldown = 7.0
+projectile_speed = 24.0
+projectile_range = 75.0
+projectile_radius = 0.35
+projectile_spec = SubResource("ProjectileSpec_1")

@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_axe1.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_hook.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_vent.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_ram.tres" id="5"]
+[ext_resource type="Script" path="res://scripts/combat/kits/heat_config.gd" id="6"]
+
+[sub_resource type="Resource" id="HeatConfig_1"]
+script = ExtResource("6")
+
+
+[resource]
+script = ExtResource("1")
+display_name = "02 HELLFANG 武装"
+max_hp = 340.0
+light_combo = ExtResource("2")
+skill = ExtResource("3")
+skill_hold = ExtResource("4")
+attack_hold = ExtResource("5")
+hold_threshold = 0.3
+kit = SubResource("HeatConfig_1")
+guard_damage_taken = 0.2
+guard_speed_mult = 0.45
+guard_en_per_damage = 0.5
+parry_window = 0.08
+parry_whiff_recovery = 0.45
+parry_causes_offbalance = false

@@ -123,3 +123,49 @@
 - **D-26 练习模式（默认开启，按 F12 切换）。** 由场景统一设置：HP 下限为 1；陪练机受伤 4 s 后自动回血；大招不限次数（`UltimateSystem.unlimited_uses`）；陪练机同阵营，使用 TRAINING 节奏。实战模式保留全部规则。练习相关的分支全部集中在场景层，战斗核心不知道“练习”的存在。
 - **D-27 近距离锁定取景。** 目标水平距离小于 8 m 时，镜头逐渐偏到肩侧（3.2 m）并抬高 1.8 m，避免目标和出招动作被玩家自己的机体挡住。
 - **D-28 UiFont。** 运行时从系统字体中挑选第一个确实包含简体字形的字体（macOS 上 PingFang.ttc 的第一个字体是 PingFang HK，缺“远”等字，因此会选中 Hiragino Sans GB），应用到所有 HUD 和 Label3D。项目中不放入任何字体文件。
+
+---
+
+# 阶段 3a：四机体差异化（武装与资源）
+
+```
+ MechCommand（新增 attack_held / skill_held）
+        ▼
+ CombatStateMachine ── 短按 / 长按判定（hold_threshold）、CHARGE 状态（蓄力攻击）、F = 招架或防御动作
+   │  在固定接缝调用 ──▶ MechKit（HeatKit / DeployKit / MarkKit）：can_start、outgoing_mult、incoming_mult、
+   │                     guard_ratio_add、blocks_actions、on_attack_started / active / finished、on_hit_dealt、on_guarded
+   │  有效段开始时按 delivery 分发：
+   │    HITBOX（扫掠） / PROJECTILE（Projectile，可多弹、追踪、可击落、爆炸） / GRAPPLE（Grapple）
+   │    ORBITAL（OrbitalStrike） / DEPLOY（Deployables → Turret / SlowZone） / SELF（排气、后跃）
+   ▼
+ DamageSystem.resolve()：can_damage → 无敌（EVADED）→ 招架 → 格挡 → 命中；命中后施加状态
+   │  非机体受击体（炮台、导弹）：只结算伤害
+   ▼
+ StatusEffects（每台机体一个）：破甲 / 束缚 / 标记；移动影响合成一个 MovementModifier
+```
+
+| 文件 | 职责 |
+|---|---|
+| `scripts/combat/specs/*.gd` | 投送方式的数据：`ProjectileSpec`、`GrappleSpec`、`OrbitalSpec`、`DeploySpec`、`StatusEffectDefinition` |
+| `scripts/combat/kits/*.gd` | 机体资源组件 `MechKit` 及其配置 `KitConfig`：`HeatKit` / `DeployKit` / `MarkKit` |
+| `scripts/combat/status_effects.gd` | 计时状态效果 |
+| `scripts/combat/entities/*.gd` | `Grapple`、`Turret`、`SlowZone`、`OrbitalStrike`、`AreaBlast`、`Deployables` |
+| `scripts/level/skill_lab_scene.gd`、`scenes/test/skill_lab.tscn` | 技能测试场景 |
+| `scripts/debug/skill_demo.gd` | 技能演示（截图 + P12 帧率） |
+| `tests/phase3_tests.gd` | T28–T36 |
+| `tests/balance_sim.gd` | 平衡模拟（DPS 探针 + 脚本 1v1） |
+
+## 设计决策（续）
+
+- **D-29 MechKit 接缝，而不是按机体分支。** 战斗状态机不认识任何具体机体，只在固定接缝调用 kit。没有 kit 的机体（白祷）使用中性的基类，所以 2b 的行为不变（T14–T27 保持通过）。
+- **D-30 投送方式与伤害类型分开。** `attack_type` 决定招架、格挡规则（MELEE / PROJECTILE 可招架；BEAM / EXPLOSION 只能格挡；GRAB 都不行）；`delivery` 决定命中怎么产生。2b 的数据（`attack_type = PROJECTILE`、没有写 `delivery`）仍按弹丸发射（`get_delivery()` 兼容）。
+- **D-31 短按 / 长按。** 有长按技能时，X 短按在松开时触发（因此有约 0.1 s 的延迟），按住 0.3 s 触发长按技能；没有长按技能时（白祷）仍是按下即触发。左键长按只在 kit 允许时（赤狱热量 ≥ 60）才进入判定，否则左键照常按下即出招。
+- **D-32 蓄力是通用状态。** `CHARGE` 状态取代右键格挡（`charge_attack` 不为空时），蓄力开始时发出 telegraph 事件（瞄准激光就是预警），松开时按蓄力比例缩放伤害和弹速，达到阈值破防。
+- **D-33 弹丸改为球形扫掠**（解决 K12）。每帧用 `cast_motion` 扫掠半径为 `projectile_radius` 的球体，再在接触点查询碰到了什么：世界几何体（掩体）就停下，受击判定区就结算，友军和已死目标直接穿过。
+- **D-34 非机体受击体。** 炮台、导弹都有 `health`、`team_id`、`is_alive()` 和 `Hurtbox`。DamageSystem 对它们只结算伤害，没有招架、格挡和受击反应；敌对判断同样走 TeamRules，所以联盟的弹丸会穿过友方导弹。
+- **D-35 所有新攻击都先检查视线。** 钩爪、炮台火力、爆炸、后跃推开都要求与目标之间没有世界几何体；轨道激光检查的是目标到天空的视线，所以顶棚能挡住它。放置部署物时，如果和放置点之间有墙，放置点会退到墙前。
+- **D-36 状态不是硬控。** 束缚、破甲、标记都放在 StatusEffects 里，不进入硬控递减计数池；硬直、失衡、破防仍只由 CombatStateMachine 处理（D-19）。束缚只减速，不定身。
+- **D-37 钩爪的位移是运动修正。** 拉近自己和拽下空中目标都通过带 `forced` 的 MovementModifier 实现，结束时用 0.05 s 低速收尾，避免冲过目标；钩爪节点被销毁时一定移除修正器。
+- **D-38 苍藓资源按用户 2026-11-19 的要求改为“炮台位 + 冷却”**，取消孢核；已存在的炮台满 2 座时部署被拒绝（不顶掉旧炮台），这样资源状态更好读。
+- **D-39 标记全局可见、所有苍穹共用。** 标记是目标身上的状态，任何苍穹都能消耗它（FFA 中两台苍穹会互相“偷”标记）。这是小歧义，采用了简单方案，阶段 4 可以改成按施加者区分。
+- **D-40 陪练脚本的通用武装循环。** 有 kit 或长按技能的陪练机，按固定顺序循环“主攻击 → X 短按 → 主攻击 → X 长按 → 左键长按 / 蓄力”，并保持在机体的偏好距离。它仍然只是脚本（D-22），不是 AI。

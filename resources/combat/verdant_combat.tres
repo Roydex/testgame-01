@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/verdant/va_scatter.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/combat/verdant/va_turret.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/verdant/va_zone.tres" id="4"]
+[ext_resource type="Script" path="res://scripts/combat/kits/deploy_config.gd" id="5"]
+
+[sub_resource type="Resource" id="DeployConfig_1"]
+script = ExtResource("5")
+
+
+[resource]
+script = ExtResource("1")
+display_name = "03 VERDANT ARK 武装"
+max_hp = 360.0
+ranged = ExtResource("2")
+skill = ExtResource("3")
+skill_hold = ExtResource("4")
+hold_threshold = 0.3
+kit = SubResource("DeployConfig_1")
+guard_arc_deg = 160.0
+guard_damage_taken = 0.1
+guard_speed_mult = 0.08
+guard_en_per_damage = 0.35
+parry_window = 0.12
+parry_causes_offbalance = false

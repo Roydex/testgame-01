@@ -49,47 +49,29 @@ func _ready() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
+## The player's mech (PALE SERAPH here; the skill lab overrides it).
+func _create_player_motor(index: int) -> MechMotor:
+	var p := MechFactory.load_profile(index)
+	return MechFactory.create_mech(p, 0, MechFactory.COLORS[index % MechFactory.COLORS.size()], true,
+		load(MechFactory.COMBAT_SERAPH), &"seraph")
+
+
 func _spawn_player(index: int) -> void:
 	profile_index = index
-	var p := MechFactory.load_profile(index)
-	motor = MechFactory.create_mech(p, 0, MechFactory.COLORS[index % MechFactory.COLORS.size()], true,
-		load(MechFactory.COMBAT_SERAPH), &"seraph")
-	motor.name = "Player"
-	motor.position = GrayboxBuilder.POINTS.spawn
-	add_child(motor)
-	combat = motor.get_node("CombatStateMachine")
-
-	targeting = TargetingSystem.new()
-	targeting.name = "Targeting"
-	motor.add_child(targeting)
-
 	rig = CameraRig.new()
 	rig.name = "CameraRig"
 	add_child(rig)
-
-	targeting.setup(motor, rig.camera)
-	rig.setup(motor, targeting)
-
-	brain = PlayerBrain.new()
-	brain.name = "PlayerBrain"
-	motor.add_child(brain)
-	brain.setup(motor, rig, targeting)
-
 	hud = DebugHud.new()
 	hud.name = "DebugHud"
 	add_child(hud)
-	hud.setup(motor, combat, targeting, rig)
-
 	combat_hud = CombatHud.new()
 	combat_hud.name = "CombatHud"
 	add_child(combat_hud)
-	combat_hud.setup(motor, targeting)
-
 	feedback = CombatFeedback.new()
 	feedback.name = "CombatFeedback"
 	add_child(feedback)
 	feedback.rig = rig
-	feedback.focus_mech = motor
+	attach_player(_create_player_motor(index), GrayboxBuilder.POINTS.spawn)
 
 	pause_menu = PauseMenu.new()
 	pause_menu.name = "PauseMenu"
@@ -100,6 +82,28 @@ func _spawn_player(index: int) -> void:
 	pause_menu.practice_toggle_requested.connect(func():
 		set_practice(not practice_mode)
 		combat_hud.callout("练习模式" if practice_mode else "实战模式"))
+
+
+## Puts `m` in as the player: lock-on, camera, input brain and HUDs follow it.
+## Used at spawn and when the skill lab swaps mechs.
+func attach_player(m: MechMotor, at: Vector3) -> void:
+	motor = m
+	motor.name = "Player"
+	motor.position = at
+	add_child(motor)
+	combat = motor.get_node("CombatStateMachine")
+	targeting = TargetingSystem.new()
+	targeting.name = "Targeting"
+	motor.add_child(targeting)
+	targeting.setup(motor, rig.camera)
+	rig.setup(motor, targeting)
+	brain = PlayerBrain.new()
+	brain.name = "PlayerBrain"
+	motor.add_child(brain)
+	brain.setup(motor, rig, targeting)
+	hud.setup(motor, combat, targeting, rig)
+	combat_hud.setup(motor, targeting)
+	feedback.focus_mech = motor
 
 
 ## Two scripted sparring partners (陶练机): a melee one with the full PALE

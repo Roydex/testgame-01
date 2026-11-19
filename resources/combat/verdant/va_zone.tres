@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/status/restrained.tres" id="2"]
+[ext_resource type="Script" path="res://scripts/combat/specs/deploy_spec.gd" id="3"]
+
+[sub_resource type="Resource" id="DeploySpec_1"]
+script = ExtResource("3")
+kind = 1
+place_distance = 10.0
+max_place_range = 22.0
+lifetime = 6.0
+radius = 7.0
+zone_status = ExtResource("2")
+
+[resource]
+script = ExtResource("1")
+id = &"va_zone"
+display_name = "区域束缚装置"
+delivery = 4
+windup = 0.6
+active = 0.05
+recovery = 0.4
+cancel_time = 0.7
+telegraphed = true
+damage = 0.0
+windup_speed_mult = 0.15
+active_speed_mult = 0.15
+recovery_speed_mult = 0.4
+turn_mult = 0.4
+cooldown = 14.0
+deploy_spec = SubResource("DeploySpec_1")

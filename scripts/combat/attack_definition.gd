@@ -6,6 +6,9 @@ extends Resource
 @export var id: StringName = &"attack"
 @export var display_name: String = "Attack"
 @export var attack_type: CombatTypes.AttackType = CombatTypes.AttackType.MELEE
+## How the hit is delivered (hitbox sweep, projectile, grapple, orbital
+## strike, deployable, or a self action such as a vent / backstep).
+@export var delivery: CombatTypes.Delivery = CombatTypes.Delivery.HITBOX
 
 @export_group("Timing")
 @export var windup: float = 0.15
@@ -21,6 +24,9 @@ extends Resource
 ## Major attacks broadcast a telegraph at windup start (counter window).
 @export var telegraphed: bool = false
 
+## Extra recovery when the attack hits nothing (a whiffed heavy swing).
+@export var whiff_recovery_extra: float = 0.0
+
 @export_group("Damage")
 @export var damage: float = 8.0
 @export var guardable: bool = true
@@ -33,6 +39,11 @@ extends Resource
 @export var hitstop: float = 0.06
 ## Camera shake strength on hit (0..1), capped by CombatFeedback.
 @export var shake: float = 0.15
+
+## Statuses applied to the victim on a clean hit (and on a guarded hit
+## when status_on_guard is set).
+@export var status_effects: Array[StatusEffectDefinition] = []
+@export var status_on_guard: bool = false
 
 @export_group("Hitbox (local space, -Z forward)")
 @export var hitbox_offset: Vector3 = Vector3(0, 2.4, -2.2)
@@ -65,6 +76,40 @@ extends Resource
 @export var projectile_speed: float = 45.0
 @export var projectile_range: float = 120.0
 @export var projectile_radius: float = 0.35
+
+@export_group("Delivery specs")
+@export var projectile_spec: ProjectileSpec
+@export var grapple_spec: GrappleSpec
+@export var orbital_spec: OrbitalSpec
+@export var deploy_spec: DeploySpec
+
+@export_group("Self action")
+## Invulnerable for this long from the start of the active phase (backstep).
+@export var invuln_time: float = 0.0
+## Non-damaging push on hostile mechs within this radius at active start.
+@export var repulse_radius: float = 0.0
+@export var repulse_force: float = 0.0
+
+@export_group("Mech resource (read by the mech's kit)")
+## HELLFANG heat: added when the attack starts / when it lands.
+@export var heat_cost: float = 0.0
+@export var heat_on_hit: float = 0.0
+## Attack needs at least this much heat (overdrive ram).
+@export var min_heat: float = 0.0
+## Heat removed per second during the active phase (active vent).
+@export var heat_vent_rate: float = 0.0
+## A whiff forces an overheat (overdrive ram).
+@export var whiff_overheats: bool = false
+## AZURE ORACLE marks: damage bonus per mark stack on the victim, consumed on hit.
+@export var mark_consume_bonus: float = 0.0
+
+
+## Delivery, with the 2b data convention kept: a PROJECTILE-type attack
+## without an explicit delivery fires a projectile.
+func get_delivery() -> int:
+	if delivery == CombatTypes.Delivery.HITBOX and attack_type == CombatTypes.AttackType.PROJECTILE:
+		return CombatTypes.Delivery.PROJECTILE
+	return delivery
 
 
 func total_time() -> float:

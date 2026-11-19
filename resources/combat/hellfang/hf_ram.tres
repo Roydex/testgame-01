@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"hf_ram"
+display_name = "熔炉超载冲撞"
+windup = 0.6
+active = 0.5
+recovery = 0.8
+cancel_time = 1.1
+telegraphed = true
+whiff_recovery_extra = 0.3
+damage = 32.0
+guard_break = true
+knockback = 14.0
+knockback_up = 5.0
+stagger_time = 0.7
+hitstop = 0.15
+shake = 0.6
+hitbox_offset = Vector3(0, 2.2, -2.0)
+hitbox_size = Vector3(3.2, 3.2, 3.4)
+windup_speed_mult = 0.15
+active_speed_mult = 1.0
+recovery_speed_mult = 0.25
+turn_mult = 0.25
+lunge_speed = 30.0
+lunge_duration = 0.5
+lunge_steer_deg = 25.0
+vertical_track_speed = 6.0
+vertical_track_range = 4.0
+cooldown = 4.0
+heat_cost = 20.0
+min_heat = 60.0
+whiff_overheats = true

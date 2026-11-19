@@ -8,9 +8,22 @@ signal telegraph(attacker: Node3D, attack: AttackDefinition, duration: float)
 signal attack_started(attacker: Node3D, attack: AttackDefinition)
 ## The attack's active (damaging) phase begins: swing sound, weapon trail.
 signal attack_active(attacker: Node3D, attack: AttackDefinition)
+## The attack ended (finished, chained, cancelled or interrupted).
+## landed: it connected at least once (HIT / GUARDED / GUARD_BREAK).
+signal attack_finished(attacker: Node3D, attack: AttackDefinition, landed: bool)
 signal parried(defender: Node3D, attacker: Node3D, was_projectile: bool)
 signal mech_died(mech: Node3D)
 signal ultimate_phase(mech: Node3D, phase: String)
+## A delayed area attack / deployable announces where it will act
+## (orbital circle, zone, turret spot). kind: &"orbital" / &"zone" / &"turret".
+signal area_telegraph(owner: Node3D, position: Vector3, radius: float, duration: float, kind: StringName)
+## Kit events (overheat, vent, turret expired…), for HUD / feedback / tests.
+signal kit_event(mech: Node3D, id: StringName)
+signal status_changed(mech: Node3D, id: StringName, stacks: int)
+## Charge attack: level 0..1 while charging; -1 when it ends (fired / cancelled).
+signal charge_changed(mech: Node3D, level: float)
+signal entity_spawned(entity: Node3D, kind: StringName)
+signal entity_removed(entity: Node3D, kind: StringName, destroyed: bool)
 
 ## Rolling damage log for the debug overlay.
 var log_lines: PackedStringArray = []

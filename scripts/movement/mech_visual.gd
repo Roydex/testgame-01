@@ -56,6 +56,13 @@ var _parry_flash := 0.0
 ## Smoothed pose (applied each frame).
 var _pose := {}
 var _recoil_fire := 0.0
+# --- phase 3a styles
+var _heat_mat: StandardMaterial3D      ## HELLFANG furnace core / exhaust / seams
+var _hatch: Array[Node3D] = []         ## VERDANT back hatch doors
+var _array: Array[MeshInstance3D] = [] ## AZURE floating observation array
+var _laser: MeshInstance3D             ## AZURE railgun aiming laser (visible to everyone)
+var _laser_mat: StandardMaterial3D
+var _status_label: Label3D             ## marks / armor break / restraint above the mech
 
 
 func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -> void:
@@ -98,11 +105,29 @@ func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -
 		# refracting mirror shield on the left forearm
 		_shield = _box(_arm_l, Vector3(0.14, 1.7, 1.3), Vector3(-0.3, -0.9, -0.1), _shield_mat)
 		_build_seraph()
+	elif style == &"hellfang":
+		_build_hellfang(color, dark)
+	elif style == &"verdant":
+		_build_verdant(color, dark)
+	elif style == &"azure":
+		_build_azure(color, dark)
 	else:
 		# generic / ranged frame: forearm cannon
 		_lance = _box(_lance_pivot, Vector3(0.35, 1.8, 0.35), Vector3(0, -0.6, 0), dark)
 		_lance_tip = _pivot(_lance_pivot, Vector3(0, -1.5, 0))
 		_lance_base = _pivot(_lance_pivot, Vector3(0, 0, 0))
+	if _shield == null:
+		_shield = MeshInstance3D.new()  # pose code drives a shield glow; non-shield frames get an invisible stub
+		_arm_l.add_child(_shield)
+	_status_label = Label3D.new()
+	_status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_status_label.no_depth_test = true
+	_status_label.font = UiFont.get_font()
+	_status_label.font_size = 64
+	_status_label.pixel_size = 0.01
+	_status_label.outline_size = 10
+	_status_label.position = Vector3.UP * 5.6
+	add_child(_status_label)
 	_trail = WeaponTrail.new()
 	_trail.name = "WeaponTrail"
 	add_child(_trail)
@@ -113,6 +138,7 @@ func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -
 		CombatEvents.mech_died.connect(_on_died)
 		CombatEvents.parried.connect(_on_parried)
 		CombatEvents.attack_active.connect(_on_attack_active)
+		CombatEvents.status_changed.connect(_on_status)
 
 
 ## PALE SERAPH story read: an INCOMPLETE crown (3 of 4 arcs) above the head
@@ -132,6 +158,124 @@ func _build_seraph() -> void:
 		var w := _box(_torso, Vector3(0.12, 1.6, 0.9), Vector3(side * 0.85, 1.2, 0.9), _glow_mat)
 		w.rotation.z = side * 0.25
 		_wings.append(w)
+
+
+## HELLFANG: asymmetric heavy frame, chain axe (right), oversized power
+## claw (left), back exhaust stacks; the furnace core, stacks and armour
+## seams glow with heat.
+func _build_hellfang(color: Color, dark: StandardMaterial3D) -> void:
+	_heat_mat = _emissive(Color(1.0, 0.35, 0.1), 0.2)
+	_box(_torso, Vector3(1.3, 0.7, 1.1), Vector3(-1.0, 1.55, 0.0), _armor_mat)  # heavy left pauldron
+	_box(_torso, Vector3(0.55, 0.5, 0.12), Vector3(0, 0.75, -0.62), _heat_mat)   # furnace core
+	_box(_torso, Vector3(1.95, 0.06, 1.25), Vector3(0, 1.1, 0), _heat_mat)       # glowing seam
+	for x in [-0.55, 0.55]:
+		_box(_torso, Vector3(0.3, 1.6, 0.3), Vector3(x, 1.8, 0.95), dark)        # exhaust stacks
+		_box(_torso, Vector3(0.22, 0.25, 0.22), Vector3(x, 2.7, 0.95), _heat_mat)
+	# chain axe on the right hand
+	_lance = _box(_lance_pivot, Vector3(0.22, 2.6, 0.22), Vector3(0, -1.0, 0), dark)
+	_box(_lance_pivot, Vector3(0.18, 1.3, 1.1), Vector3(0, -2.0, -0.45), _armor_mat)
+	_box(_lance_pivot, Vector3(0.1, 1.3, 0.12), Vector3(0, -2.0, -1.02), _heat_mat)  # heated edge
+	_lance_tip = _pivot(_lance_pivot, Vector3(0, -2.4, -0.9))
+	_lance_base = _pivot(_lance_pivot, Vector3(0, -1.4, -0.4))
+	# power claw on the left forearm (the grapple launcher)
+	_box(_arm_l, Vector3(1.0, 1.0, 1.1), Vector3(0, -1.4, -0.1), _armor_mat)
+	for z in [-0.55, -0.15, 0.25]:
+		_box(_arm_l, Vector3(0.18, 0.7, 0.18), Vector3(0, -2.1, z - 0.2), dark)
+
+
+## VERDANT ARK: wide shell, mycelium tubes, back hatch that opens when
+## deploying, scatter cannon pod on the right arm.
+func _build_verdant(color: Color, dark: StandardMaterial3D) -> void:
+	var tube := _emissive(Color(0.45, 1.0, 0.55), 0.9)
+	_box(_torso, Vector3(2.8, 0.5, 2.3), Vector3(0, 1.55, 0.25), _armor_mat)   # shell
+	_box(_torso, Vector3(2.2, 0.45, 1.8), Vector3(0, 1.95, 0.3), _armor_mat)
+	for x in [-1.1, 1.1]:
+		_box(_torso, Vector3(0.12, 0.12, 2.0), Vector3(x, 1.25, 0.3), tube)
+	for side in [-1.0, 1.0]:
+		var hinge := _pivot(_torso, Vector3(side * 0.55, 2.2, 0.9))
+		_box(hinge, Vector3(1.0, 0.12, 0.9), Vector3(side * 0.45, 0, 0), _armor_mat)
+		_hatch.append(hinge)
+	_lance = _box(_lance_pivot, Vector3(0.75, 1.3, 0.75), Vector3(0, -0.4, 0), dark)
+	_box(_lance_pivot, Vector3(0.55, 0.12, 0.55), Vector3(0, -1.1, 0), tube)
+	_lance_tip = _pivot(_lance_pivot, Vector3(0, -1.2, 0))
+	_lance_base = _pivot(_lance_pivot, Vector3(0, 0, 0))
+	_shield = _box(_arm_l, Vector3(0.2, 1.9, 1.7), Vector3(-0.35, -0.8, -0.1), _shield_mat)  # turtle guard plate
+
+
+## AZURE ORACLE: slim frame, oversized single rail cannon on the right,
+## floating observation array; the aiming laser is drawn while charging.
+func _build_azure(color: Color, dark: StandardMaterial3D) -> void:
+	var lens := _emissive(Color(0.5, 0.85, 1.0), 1.5)
+	_lance = _box(_lance_pivot, Vector3(0.32, 4.2, 0.32), Vector3(0, -1.6, 0), dark)  # rail barrel
+	_box(_lance_pivot, Vector3(0.55, 1.0, 0.55), Vector3(0, -0.2, 0), _armor_mat)
+	_box(_lance_pivot, Vector3(0.12, 3.6, 0.12), Vector3(0.22, -1.7, 0), lens)       # rails
+	_lance_tip = _pivot(_lance_pivot, Vector3(0, -3.7, 0))
+	_lance_base = _pivot(_lance_pivot, Vector3(0, -0.4, 0))
+	for i in 3:
+		var a := _box(_torso, Vector3(0.28, 0.28, 0.28), Vector3(0, 2.6, 0), lens)
+		_array.append(a)
+	_laser_mat = _emissive(Color(1.0, 0.2, 0.15), 3.0)
+	_laser_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_laser = MeshInstance3D.new()
+	var lm := BoxMesh.new()
+	lm.size = Vector3(0.12, 0.12, 1.0)
+	_laser.mesh = lm
+	_laser.material_override = _laser_mat
+	_laser.top_level = true
+	_laser.visible = false
+	add_child(_laser)
+
+
+func _on_status(mech: Node3D, _id: StringName, _stacks: int) -> void:
+	if mech != motor or combat == null or _status_label == null:
+		return
+	var parts: PackedStringArray = []
+	var marks := combat.status.stacks(&"mark")
+	if marks > 0:
+		parts.append("◆".repeat(marks) + "◇".repeat(3 - marks))
+	if combat.status.has(&"armor_break"):
+		parts.append("破甲")
+	if combat.status.has(&"restrained"):
+		parts.append("束缚")
+	_status_label.text = "  ".join(parts)
+	_status_label.modulate = Color(0.55, 0.85, 1.0) if marks > 0 else Color(1.0, 0.6, 0.3)
+
+
+func _update_style(delta: float) -> void:
+	if _heat_mat and combat and combat.kit is HeatKit:
+		var hk := combat.kit as HeatKit
+		var k := hk.heat / hk.cfg().max_heat
+		var flicker := 0.5 + 0.5 * sin(Time.get_ticks_msec() * (0.02 if hk.is_overheated() else 0.008))
+		_heat_mat.emission_energy_multiplier = 0.2 + k * 4.0 + (3.0 * flicker if hk.is_overheated() else 0.0)
+		_heat_mat.emission = Color(1.0, 0.35 + 0.4 * k, 0.1) if not hk.is_overheated() else Color(1.0, 0.9, 0.85)
+	if not _hatch.is_empty() and combat:
+		var open := combat.state == CombatStateMachine.CombatState.ATTACK and combat.attack \
+			and combat.attack.get_delivery() == CombatTypes.Delivery.DEPLOY
+		for i in _hatch.size():
+			var side := -1.0 if i == 0 else 1.0
+			_hatch[i].rotation.z = lerpf(_hatch[i].rotation.z, (side * 1.2) if open else 0.0, 1.0 - exp(-10.0 * delta))
+	if not _array.is_empty():
+		var t := Time.get_ticks_msec() * 0.0015
+		for i in _array.size():
+			var a := t + TAU * i / 3.0
+			_array[i].position = Vector3(cos(a) * 0.9, 2.7 + sin(a * 2.0) * 0.15, sin(a) * 0.9)
+	if _laser:
+		var charging := combat != null and combat.is_charging()
+		_laser.visible = charging
+		if charging:
+			var a := _lance_tip.global_position
+			var b := a + motor.get_forward() * 80.0
+			if combat.aim_target and is_instance_valid(combat.aim_target):
+				b = combat.aim_target.call(&"get_lock_point") if combat.aim_target.has_method(&"get_lock_point") else combat.aim_target.global_position
+			var q := PhysicsRayQueryParameters3D.create(a, b, CombatTypes.WORLD_LAYER)
+			var hit := motor.get_world_3d().direct_space_state.intersect_ray(q)
+			if not hit.is_empty():
+				b = hit.position
+			var len := maxf(a.distance_to(b), 0.1)
+			var up := Vector3.UP if absf((b - a).normalized().y) < 0.99 else Vector3.RIGHT
+			_laser.global_transform = Transform3D(Basis.looking_at(b - a, up), (a + b) * 0.5)
+			_laser.scale = Vector3(1.0 + combat.charge_level * 2.0, 1.0 + combat.charge_level * 2.0, len)
+			_laser_mat.emission_energy_multiplier = 1.5 + combat.charge_level * 6.0
 
 
 # ------------------------------------------------------------------ events
@@ -312,6 +456,27 @@ func _attack_keys(id: StringName) -> Array:
 		&"seraph_final_spear":  # raised overhead charge → full lunge
 			return [_p({"tp": -0.2, "cr": 0.25, "rx": 2.2, "rp": -0.45, "ro": 0.5, "le": 1.6, "lx": 1.2, "lz": -0.6}),
 				_p({"tp": 0.45, "cr": 0.1, "rx": 1.57, "rp": 0.0, "ro": -1.0, "le": 2.3, "lx": -0.4})]
+		&"hf_axe1", &"hf_finisher":  # overhead chop (finisher: deeper wind-up)
+			var deep := 1.0 if id == &"hf_finisher" else 0.0
+			return [_p({"tp": -0.2 - 0.2 * deep, "cr": 0.1 + 0.2 * deep, "rx": 2.7, "rp": 0.3, "ro": 0.4, "lx": 0.9}),
+				_p({"tp": 0.35 + 0.15 * deep, "cr": 0.25, "rx": 0.9, "rp": 0.2, "ro": -0.4, "le": 1.1})]
+		&"hf_axe2":  # horizontal cleave
+			return [_p({"ty": 0.9, "rx": 1.4, "ry": 1.3, "rp": 0.1}), _p({"ty": -0.8, "rx": 1.4, "ry": -1.3, "rp": 0.1})]
+		&"hf_ram":  # shoulder charge: furnace forward, arms swept back
+			return [_p({"tp": 0.15, "cr": 0.4, "rx": -0.6, "lx": -0.6, "ty": 0.5}),
+				_p({"tp": 0.55, "cr": 0.2, "rx": -0.9, "lx": 1.2, "lz": -0.3, "ty": 0.6})]
+		&"hf_hook":  # claw thrown forward
+			return [_p({"lx": 0.4, "lz": -0.4, "ty": -0.3}), _p({"lx": 1.6, "lz": 0.0, "ty": 0.2})]
+		&"hf_vent":  # braced, venting
+			return [_p({"cr": 0.35, "tp": 0.2, "rx": 0.1, "lx": 0.1}), _p({"cr": 0.35, "tp": 0.25, "rx": 0.1, "lx": 0.1})]
+		&"va_turret", &"va_zone":  # braced deployment
+			return [_p({"cr": 0.4, "tp": 0.15, "rx": 0.3, "lx": 0.3}), _p({"cr": 0.3, "tp": 0.1, "rx": 0.4, "lx": 0.4})]
+		&"ao_orbital":  # cannon to the sky
+			return [_p({"tp": -0.25, "cr": 0.3, "rx": 2.9, "rp": 0.0}), _p({"tp": -0.3, "cr": 0.3, "rx": 3.0, "rp": 0.0})]
+		&"ao_missiles":  # shoulders up, array flares
+			return [_p({"tp": -0.15, "rx": 2.0, "rp": 0.2, "lx": 2.0}), _p({"tp": -0.05, "rx": 1.7, "rp": 0.0, "lx": 1.7})]
+		&"ao_backstep":
+			return [_p({"tp": -0.35, "cr": 0.2}), _p({"tp": -0.45, "cr": 0.1, "rx": 0.9})]
 		_:  # projectile / generic: aim forward
 			return [_p({"rx": 1.5, "rp": 0.0, "ty": -0.1}), _p({"rx": 1.62, "rp": 0.0})]
 
@@ -350,6 +515,8 @@ func _target_pose() -> Dictionary:
 			return _p({"tp": -0.6, "cr": 0.1, "rx": -0.6, "rp": 0.3, "lx": -0.6, "lz": -0.7, "ty": 0.3})
 		CombatStateMachine.CombatState.ULT_WINDUP:
 			return _p({"tp": -0.3, "cr": 0.2, "rx": 2.6, "rp": -0.6, "lx": 2.6, "lz": -0.5, "sh": 1.5})
+		CombatStateMachine.CombatState.CHARGE:  # railgun shouldered and aimed
+			return _p({"rx": 1.57, "rp": 0.0, "cr": 0.25, "tp": 0.05, "ro": 0.3, "lx": 1.3, "ly": -0.5})
 	return IDLE
 
 
@@ -382,6 +549,7 @@ func _process(delta: float) -> void:
 		+ (3.0 if _telegraph > 0.0 else 0.0)
 	_trail.update_trail(delta, _lance_tip.global_position if _lance_tip else Vector3.ZERO,
 		_lance_base.global_position if _lance_base else Vector3.ZERO)
+	_update_style(delta)
 	if _dead:
 		return
 	if motor.in_hitstop():

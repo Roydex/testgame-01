@@ -12,8 +12,8 @@ extends Node
 
 signal combat_state_changed(old_state: int, new_state: int)
 
-enum CombatState { READY, ACTION, STAGGER, ATTACK, GUARD, PARRY, OFFBALANCE, ULT_WINDUP, DEAD }
-const STATE_NAMES := ["READY", "ACTION", "STAGGER", "ATTACK", "GUARD", "PARRY", "OFFBALANCE", "ULT_WINDUP", "DEAD"]
+enum CombatState { READY, ACTION, STAGGER, ATTACK, GUARD, PARRY, OFFBALANCE, ULT_WINDUP, DEAD, CHARGE }
+const STATE_NAMES := ["READY", "ACTION", "STAGGER", "ATTACK", "GUARD", "PARRY", "OFFBALANCE", "ULT_WINDUP", "DEAD", "CHARGE"]
 
 const MOD_ACTION := &"combat_action"
 const MOD_STAGGER := &"combat_stagger"
@@ -23,6 +23,7 @@ const MOD_PARRY := &"combat_parry"
 const MOD_OFFBALANCE := &"combat_offbalance"
 const MOD_ULT_WINDUP := &"combat_ult_windup"
 const MOD_DEAD := &"combat_dead"
+const MOD_CHARGE := &"combat_charge"
 const INPUT_BUFFER := 0.25
 
 @export var motor_path: NodePath = ^".."
@@ -34,6 +35,8 @@ var profile: CombatProfile
 var health: Health
 var hurtbox: Hurtbox
 var ultimate: UltimateSystem
+var kit: MechKit
+var status: StatusEffects
 ## Current target, written by the brain (lock target / scripted target).
 var aim_target: Node3D
 ## Set while this mech is off-balance from a parry: the parrier.
@@ -56,12 +59,27 @@ var _attack_mod: MovementModifier
 var _force_unblockable := false
 var _attack_damage_mult := 1.0
 var _pending_counter: Node3D
+## Something landed (HIT / GUARDED / GUARD_BREAK) during the current attack.
+var _landed := false
+## Recovery added to the current attack (whiff, grapple miss).
+var _extra_recovery := 0.0
+## Charge level (0..1) the current attack was fired with.
+var _shot_charge := 0.0
+## Charge state level while holding the charge button.
+var charge_level: float = 0.0
+## Invulnerable (backstep i-frames) for this long.
+var invuln_left: float = 0.0
 
 # --- input buffers
 var _buf_attack := 0.0
 var _buf_skill := 0.0
 var _buf_parry := 0.0
 var _buf_ult := 0.0
+var _buf_skill_hold := 0.0
+var _buf_attack_hold := 0.0
+## >= 0 while a press is pending its tap / hold decision.
+var _skill_hold_t := -1.0
+var _attack_hold_t := -1.0
 
 # --- parry runtime
 var _parry_window_left := 0.0
@@ -98,6 +116,12 @@ func setup(p_profile: CombatProfile, p_motor: MechMotor) -> void:
 		ultimate.name = "UltimateSystem"
 		p_motor.add_child(ultimate)
 		ultimate.setup(profile.ultimate, self)
+	status = StatusEffects.new()
+	p_motor.add_child(status)
+	status.setup(p_motor)
+	kit = profile.kit.create_kit() if profile.kit else MechKit.new()
+	p_motor.add_child(kit)
+	kit.setup(self, profile.kit)
 
 
 ## Practice / debug: full HP, clear states, reset ultimate.
@@ -108,6 +132,9 @@ func restore_full() -> void:
 		motor.remove_modifier(id)
 	offbalance_by = null
 	cc_immune_left = 0.0
+	invuln_left = 0.0
+	status.clear()
+	kit.reset()
 	_cc_times.clear()
 	_cooldowns.clear()
 	_to_ready()
@@ -137,15 +164,49 @@ func get_cooldown(id: StringName) -> float:
 	return _cooldowns.get(id, 0.0)
 
 
+func is_invulnerable() -> bool:
+	return invuln_left > 0.0
+
+
+func is_charging() -> bool:
+	return state == CombatState.CHARGE
+
+
+## 0 windup, 1 active, 2 recovery; -1 when not attacking.
+func get_attack_phase() -> int:
+	if state != CombatState.ATTACK or attack == null:
+		return -1
+	if attack_time < attack.windup:
+		return 0
+	return 1 if attack_time < attack.windup + maxf(attack.active, attack.lunge_duration) else 2
+
+
 ## Incoming damage multiplier from this mech's own state (whiffed parry,
-## ultimate overload).
-func damage_taken_mult() -> float:
+## ultimate overload, statuses such as armor break, kit rules such as
+## overheat).
+func damage_taken_mult(hit: HitInfo = null) -> float:
 	var m := 1.0
 	if state == CombatState.PARRY and _parry_recovering:
 		m *= profile.parry_whiff_damage_mult
 	if ultimate:
 		m *= ultimate.damage_taken_mult()
+	m *= status.damage_taken_mult()
+	m *= kit.incoming_mult(hit)
 	return m
+
+
+## Guard damage ratio after armor break / kit modifiers, clamped to [0, 1].
+func guard_ratio() -> float:
+	return clampf(profile.guard_damage_taken + status.guard_ratio_add() + kit.guard_ratio_add(), 0.0, 1.0)
+
+
+## A delivery that resolves later (grapple, projectile) reports its outcome.
+func report_delivery(def: AttackDefinition, landed: bool, extra_recovery: float = 0.0) -> void:
+	if state == CombatState.ATTACK and attack == def:
+		_landed = _landed or landed
+		_extra_recovery += extra_recovery
+	elif not landed and extra_recovery > 0.0 and state == CombatState.READY:
+		start_action(extra_recovery, 0.3)  # cable still retracting after the attack ended
 
 
 # ==========================================================================
@@ -156,8 +217,17 @@ func _physics_process(delta: float) -> void:
 	if motor == null or state == CombatState.DEAD:
 		return
 	var cmd := motor.command
-	if cmd.attack_pressed: _buf_attack = INPUT_BUFFER
-	if cmd.skill_pressed: _buf_skill = INPUT_BUFFER
+	if cmd.attack_pressed:
+		if profile.attack_hold and state == CombatState.READY and kit.can_start(profile.attack_hold) \
+				and get_cooldown(profile.attack_hold.id) <= 0.0:
+			_attack_hold_t = 0.0
+		else:
+			_buf_attack = INPUT_BUFFER
+	if cmd.skill_pressed:
+		if profile.skill_hold:
+			_skill_hold_t = 0.0
+		else:
+			_buf_skill = INPUT_BUFFER
 	if cmd.parry_pressed: _buf_parry = INPUT_BUFFER
 	if cmd.ult_pressed and ultimate and ultimate.is_ready(): _buf_ult = INPUT_BUFFER
 	if motor.in_hitstop():
@@ -167,7 +237,11 @@ func _physics_process(delta: float) -> void:
 	_buf_skill = maxf(_buf_skill - delta, 0.0)
 	_buf_parry = maxf(_buf_parry - delta, 0.0)
 	_buf_ult = maxf(_buf_ult - delta, 0.0)
+	_buf_skill_hold = maxf(_buf_skill_hold - delta, 0.0)
+	_buf_attack_hold = maxf(_buf_attack_hold - delta, 0.0)
 	cc_immune_left = maxf(cc_immune_left - delta, 0.0)
+	invuln_left = maxf(invuln_left - delta, 0.0)
+	_tick_holds(delta, cmd)
 	for k in _cooldowns.keys():
 		_cooldowns[k] = maxf(_cooldowns[k] - delta, 0.0)
 	state_timer -= delta
@@ -190,7 +264,9 @@ func _physics_process(delta: float) -> void:
 			elif not cmd.guard_held:
 				_to_ready()
 			elif _buf_parry > 0.0:
-				_start_parry()
+				_defend()
+			elif _buf_skill_hold > 0.0 and profile.skill_hold and _start_attack(profile.skill_hold):
+				_buf_skill_hold = 0.0
 			elif _buf_skill > 0.0 and _try_skill():
 				pass
 			elif _buf_attack > 0.0:
@@ -207,6 +283,28 @@ func _physics_process(delta: float) -> void:
 			if state_timer <= 0.0:
 				_to_ready()
 				ultimate.enter_judgment()
+		CombatState.CHARGE:
+			_tick_charge(delta, cmd)
+
+
+## Tap / hold decision for buttons that have a hold variant.
+func _tick_holds(delta: float, cmd: MechCommand) -> void:
+	if _skill_hold_t >= 0.0:
+		_skill_hold_t += delta
+		if not cmd.skill_held:
+			_skill_hold_t = -1.0
+			_buf_skill = INPUT_BUFFER  # released early: tap
+		elif _skill_hold_t >= profile.hold_threshold:
+			_skill_hold_t = -1.0
+			_buf_skill_hold = INPUT_BUFFER
+	if _attack_hold_t >= 0.0:
+		_attack_hold_t += delta
+		if not cmd.attack_held:
+			_attack_hold_t = -1.0
+			_buf_attack = INPUT_BUFFER
+		elif _attack_hold_t >= profile.hold_threshold:
+			_attack_hold_t = -1.0
+			_buf_attack_hold = INPUT_BUFFER
 
 
 func _ready_inputs(cmd: MechCommand) -> void:
@@ -216,14 +314,36 @@ func _ready_inputs(cmd: MechCommand) -> void:
 		_buf_ult = 0.0
 		return
 	if _buf_parry > 0.0:
-		_start_parry()
+		_defend()
 		return
+	if _buf_skill_hold > 0.0:
+		_buf_skill_hold = 0.0
+		if _start_attack(profile.skill_hold):
+			return
+	if _buf_attack_hold > 0.0:
+		_buf_attack_hold = 0.0
+		if _start_attack(profile.attack_hold):
+			return
 	if _buf_skill > 0.0 and _try_skill():
 		return
 	if _buf_attack > 0.0 and _try_primary():
 		return
+	if _attack_hold_t >= 0.0 or _skill_hold_t >= 0.0:
+		return  # a press is still deciding tap / hold
 	if cmd.guard_held:
-		_enter_guard()
+		if profile.charge_attack:
+			_enter_charge()
+		else:
+			_enter_guard()
+
+
+## F: parry, or the mech's own defence action (backstep).
+func _defend() -> void:
+	_buf_parry = 0.0
+	if profile.defense_action:
+		_start_attack(profile.defense_action)
+	else:
+		_start_parry()
 
 
 # ==========================================================================
@@ -248,14 +368,18 @@ func _try_skill() -> bool:
 	return _start_attack(profile.skill)
 
 
-## Starts `def`. Returns false when on cooldown / not enough EN.
-func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0) -> bool:
+## Starts `def`. Returns false when on cooldown / not enough EN / the kit
+## refuses (heat, deploy limit, overheat).
+func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0, charge := 0.0) -> bool:
 	if def == null or get_cooldown(def.id) > 0.0:
+		return false
+	if kit.blocks_actions() or not kit.can_start(def):
 		return false
 	if def.en_cost > 0.0 and not motor.consume_en(def.en_cost * motor.get_en_cost_mult()):
 		return false
 	if def.cooldown > 0.0:
 		_cooldowns[def.id] = def.cooldown
+	_finish_attack()
 	_clear_state_mods()
 	attack = def
 	attack_time = 0.0
@@ -264,18 +388,32 @@ func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0)
 	_lunge_reached = false
 	_projectile_fired = false
 	_active_announced = false
+	_landed = false
+	_extra_recovery = 0.0
+	_shot_charge = charge
 	_force_unblockable = unblockable
-	_attack_damage_mult = dmg_mult
+	_attack_damage_mult = dmg_mult * kit.outgoing_mult(def)
 	_buf_attack = 0.0
 	_lunge_dir = _dir_to_target()
 	_attack_mod = MovementModifier.create(MOD_ATTACK)
 	motor.add_modifier(_attack_mod)
 	_enter(CombatState.ATTACK)
 	_update_attack_mod(0, 0.0)
+	kit.on_attack_started(def)
 	CombatEvents.attack_started.emit(motor, def)
 	if def.telegraphed:
 		CombatEvents.telegraph.emit(motor, def, def.windup)
 	return true
+
+
+## Tells the kit the current attack is over (finished, chained or interrupted).
+func _finish_attack() -> void:
+	if attack and state == CombatState.ATTACK:
+		var def := attack
+		var landed := _landed
+		attack = null  # re-entrancy: kit may start something
+		kit.on_attack_finished(def, landed)
+		CombatEvents.attack_finished.emit(motor, def, landed)
 
 
 func _tick_attack(delta: float, cmd: MechCommand) -> void:
@@ -286,35 +424,87 @@ func _tick_attack(delta: float, cmd: MechCommand) -> void:
 	if phase >= 1 and not _active_announced:
 		_active_announced = true
 		CombatEvents.attack_active.emit(motor, d)
+		kit.on_attack_active(d)
+		if state != CombatState.ATTACK or attack != d:
+			return
+		_on_active_start(d)
+		if state != CombatState.ATTACK or attack != d:
+			return
 
-	if d.attack_type == CombatTypes.AttackType.PROJECTILE:
-		if phase >= 1 and not _projectile_fired:
-			_fire_projectile()
-	elif phase == 1:
-		_sweep_hitbox()
-		if state != CombatState.ATTACK:
-			return  # got parried during the sweep
+	if d.get_delivery() == CombatTypes.Delivery.HITBOX:
+		if phase == 1:
+			_sweep_hitbox()
+			if state != CombatState.ATTACK:
+				return  # got parried during the sweep
 	_update_attack_mod(phase, delta)
+	# whiffed heavy swing: longer recovery
+	if phase == 2 and not _landed and d.get_delivery() == CombatTypes.Delivery.HITBOX and d.whiff_recovery_extra > 0.0 \
+			and _extra_recovery < d.whiff_recovery_extra:
+		_extra_recovery = d.whiff_recovery_extra
 
 	# combo chain at the end of the active phase
 	if attack_time >= t_active_end and _buf_attack > 0.0 and d.next_attack:
 		_start_attack(d.next_attack)
 		return
 	# cancel window: recovery can be cancelled into defence / skill / movement
-	if attack_time >= d.cancel_time:
+	# (a whiff pushes the window back by the extra recovery)
+	if attack_time >= d.cancel_time + _extra_recovery:
 		if _buf_parry > 0.0:
-			_start_parry()
+			_defend()
 			return
-		if phase == 2 and cmd.guard_held:
+		if phase == 2 and cmd.guard_held and not profile.charge_attack:
 			_enter_guard()
+			return
+		if phase == 2 and _buf_skill_hold > 0.0 and profile.skill_hold and _start_attack(profile.skill_hold):
+			_buf_skill_hold = 0.0
 			return
 		if phase == 2 and _buf_skill > 0.0 and _try_skill():
 			return
 		if phase == 2 and (cmd.dash_pressed or cmd.jump_pressed):
 			_to_ready()
 			return
-	if attack_time >= d.total_time():
+	if attack_time >= d.total_time() + _extra_recovery:
 		_to_ready()
+
+
+## Delivery at the start of the active phase.
+func _on_active_start(d: AttackDefinition) -> void:
+	match d.get_delivery():
+		CombatTypes.Delivery.PROJECTILE:
+			_fire_projectile()
+		CombatTypes.Delivery.GRAPPLE:
+			var g := Grapple.new()
+			motor.get_parent().add_child(g)
+			g.launch(self, d, _muzzle(), _aim_dir(_muzzle()))
+		CombatTypes.Delivery.ORBITAL:
+			OrbitalStrike.call_strike(self, d)
+		CombatTypes.Delivery.DEPLOY:
+			Deployables.deploy(self, d)
+		CombatTypes.Delivery.SELF:
+			pass
+	if d.invuln_time > 0.0:
+		invuln_left = d.invuln_time
+	if d.repulse_radius > 0.0:
+		_repulse(d)
+
+
+## Non-damaging push on nearby hostile mechs (backstep pulse). Cover blocks it.
+func _repulse(d: AttackDefinition) -> void:
+	var c := motor.global_position + Vector3.UP * 2.0
+	for t in TeamRules.get_valid_targets(motor, &"mechs"):
+		var tm := t as MechMotor
+		if tm == null:
+			continue
+		var p := tm.global_position + Vector3.UP * 2.0
+		if c.distance_to(p) > d.repulse_radius or not CombatTypes.has_line_of_sight(motor.get_world_3d(), c, p):
+			continue
+		var push := tm.global_position - motor.global_position
+		push.y = 0.0
+		tm.apply_impulse(push.normalized() * d.repulse_force + Vector3.UP * 1.5)
+		var tc := DamageSystem.get_combat(tm)
+		if tc and (tc.state == CombatState.ATTACK or tc.state == CombatState.CHARGE):
+			tc.interrupt()
+	CombatEvents.kit_event.emit(motor, &"repulse")
 
 
 func _update_attack_mod(phase: int, delta: float) -> void:
@@ -325,11 +515,11 @@ func _update_attack_mod(phase: int, delta: float) -> void:
 	m.block_dash = attack_time < d.cancel_time
 	m.block_jump = attack_time < d.cancel_time
 	var lunge_t := attack_time - d.windup
-	var lunging := phase == 1 and d.lunge_speed > 0.0 and lunge_t < d.lunge_duration and not _lunge_stopped
+	var lunging := phase == 1 and absf(d.lunge_speed) > 0.0 and lunge_t < d.lunge_duration and not _lunge_stopped
 	if lunging and d.stop_on_wall and lunge_t > 0.05 and motor.is_on_wall():
 		_lunge_stopped = true
 		lunging = false
-	if lunging and _target_valid():
+	if lunging and d.lunge_speed > 0.0 and _target_valid():
 		var to := _target_point() - (motor.global_position + Vector3.UP * 2.0)
 		if Vector2(to.x, to.z).length() < 2.2:
 			_lunge_reached = true  # on top of the target: no overshoot / no suction
@@ -382,19 +572,65 @@ func _sweep_hitbox() -> void:
 		var res := DamageSystem.resolve(hit)
 		if res == CombatTypes.HitResult.PARRIED or res == CombatTypes.HitResult.DEFLECTED:
 			return
+		if DamageSystem.is_landed(res):
+			_landed = true
 
 
 func _fire_projectile() -> void:
 	_projectile_fired = true
 	var d := attack
-	var origin := motor.global_position + Vector3.UP * 2.6 + motor.get_forward() * 1.6
-	var aim := origin + motor.get_forward() * d.projectile_range
+	var origin := _muzzle()
+	var dir := _aim_dir(origin)
+	var spec := d.projectile_spec
+	var n := spec.pellets if spec else 1
+	var speed := d.projectile_speed
+	var dmg := _attack_damage_mult
+	var guard_break := false
+	if spec and charge_level_used() > 0.0:
+		var k := inverse_lerp(profile.charge_min, 1.0, _shot_charge) if profile.charge_min < 1.0 else 1.0
+		k = clampf(k, 0.0, 1.0)
+		dmg *= lerpf(1.0, spec.charge_damage_mult, k)
+		speed *= lerpf(1.0, spec.charge_speed_mult, k)
+		guard_break = _shot_charge >= spec.charge_guard_break_at
+	var right := dir.cross(Vector3.UP)
+	if right.length() < 0.01:
+		right = motor.global_basis.x
+	right = right.normalized()
+	for i in n:
+		var pdir := dir
+		if n > 1 and spec.spread_deg > 0.0:
+			# deterministic fan: evenly across the cone horizontally, alternating slightly vertically
+			var a := deg_to_rad(spec.spread_deg) * (float(i) / float(n - 1) - 0.5)
+			var v := deg_to_rad(spec.spread_deg) * 0.25 * (1.0 if i % 2 == 0 else -1.0)
+			pdir = pdir.rotated(Vector3.UP, a)
+			pdir = pdir.rotated(right, v).normalized()
+		var p := Projectile.new()
+		motor.get_parent().add_child(p)
+		p.global_position = origin
+		p.launch(motor, d, pdir * speed, dmg)
+		p.guard_break = guard_break
+		if spec and spec.homing_deg > 0.0 and _target_valid():
+			p.homing_deg = spec.homing_deg
+			p.homing_target = aim_target
+
+
+## Charge the current shot was fired with (0 = not a charge attack).
+func charge_level_used() -> float:
+	return _shot_charge
+
+
+func _muzzle() -> Vector3:
+	return motor.global_position + Vector3.UP * 2.6 + motor.get_forward() * 1.6
+
+
+## Aim at the lock target if any (projectiles may fire upward: anti-air),
+## otherwise straight ahead.
+func _aim_dir(origin: Vector3) -> Vector3:
 	if _target_valid():
-		aim = _target_point()
-	var p := Projectile.new()
-	motor.get_parent().add_child(p)
-	p.global_position = origin
-	p.launch(motor, d, (aim - origin).normalized() * d.projectile_speed, _attack_damage_mult)
+		var to := _target_point() - origin
+		if to.length() > 0.5:
+			return to.normalized()
+	return motor.get_forward()
 
 
 func _dir_to_target() -> Vector3:
@@ -414,6 +650,43 @@ func _target_point() -> Vector3:
 	if aim_target.has_method(&"get_lock_point"):
 		return aim_target.call(&"get_lock_point")
 	return aim_target.global_position + Vector3.UP * 2.0
+
+
+# ==========================================================================
+# Charge (right button held: AZURE ORACLE railgun)
+# ==========================================================================
+
+func _enter_charge() -> void:
+	_clear_state_mods()
+	charge_level = 0.0
+	var m := MovementModifier.create(MOD_CHARGE)
+	m.speed_mult = profile.charge_speed_mult
+	m.block_dash = true
+	m.turn_mult = 0.6
+	motor.add_modifier(m)
+	_enter(CombatState.CHARGE)
+	# the visible aiming laser IS the telegraph (warning on the target)
+	CombatEvents.telegraph.emit(motor, profile.charge_attack, profile.charge_time)
+	CombatEvents.charge_changed.emit(motor, 0.0)
+
+
+func _tick_charge(delta: float, cmd: MechCommand) -> void:
+	charge_level = minf(charge_level + delta / maxf(profile.charge_time, 0.05), 1.0)
+	CombatEvents.charge_changed.emit(motor, charge_level)
+	if _buf_parry > 0.0:
+		charge_level = 0.0
+		CombatEvents.charge_changed.emit(motor, -1.0)
+		_to_ready()
+		_defend()
+		return
+	if cmd.guard_held:
+		return
+	var lvl := charge_level
+	charge_level = 0.0
+	CombatEvents.charge_changed.emit(motor, -1.0)
+	_to_ready()
+	if lvl >= profile.charge_min:
+		_start_attack(profile.charge_attack, false, 1.0, lvl)
 
 
 # ==========================================================================
@@ -472,9 +745,10 @@ func on_parried_melee(hit: HitInfo) -> int:
 	if attacker:
 		attacker.apply_hitstop(profile.parry_hitstop)
 	if ac:
-		if first:
+		if first and profile.parry_causes_offbalance:
 			ac.apply_offbalance(profile.offbalance_time, push * profile.offbalance_knockback + Vector3.UP, motor)
 		else:
+			# push-back parry (and later attackers in a multi-parry): interrupted and pushed
 			ac.interrupt()
 			attacker.apply_impulse(push * profile.offbalance_knockback * 0.6)
 	CombatEvents.parried.emit(motor, attacker, false)
@@ -582,8 +856,11 @@ func _add_cc_mod(id: StringName, d: float) -> void:
 func interrupt() -> void:
 	if state == CombatState.ULT_WINDUP and ultimate:
 		ultimate.on_windup_interrupted()
+	if state == CombatState.CHARGE:
+		charge_level = 0.0
+		CombatEvents.charge_changed.emit(motor, -1.0)
 	if state == CombatState.ATTACK or state == CombatState.GUARD or state == CombatState.PARRY \
-			or state == CombatState.ULT_WINDUP or state == CombatState.ACTION:
+			or state == CombatState.ULT_WINDUP or state == CombatState.ACTION or state == CombatState.CHARGE:
 		_to_ready()
 
 
@@ -619,6 +896,7 @@ func start_ult_windup(duration: float) -> void:
 # ==========================================================================
 
 func _on_died() -> void:
+	_finish_attack()
 	_clear_state_mods()
 	for id in [MOD_STAGGER, MOD_OFFBALANCE, MOD_ACTION]:
 		motor.remove_modifier(id)
@@ -638,13 +916,14 @@ func _on_died() -> void:
 
 
 func _clear_state_mods() -> void:
-	for id in [MOD_ATTACK, MOD_GUARD, MOD_PARRY, MOD_ULT_WINDUP, MOD_ACTION]:
+	for id in [MOD_ATTACK, MOD_GUARD, MOD_PARRY, MOD_ULT_WINDUP, MOD_ACTION, MOD_CHARGE]:
 		motor.remove_modifier(id)
 	_attack_mod = null
 	attack = null
 
 
 func _to_ready() -> void:
+	_finish_attack()
 	_clear_state_mods()
 	_enter(CombatState.READY)
 

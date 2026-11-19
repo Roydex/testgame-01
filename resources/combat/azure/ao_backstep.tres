@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ao_backstep"
+display_name = "推进后跃"
+delivery = 5
+windup = 0.04
+active = 0.25
+recovery = 0.25
+cancel_time = 0.5
+damage = 0.0
+windup_speed_mult = 1.0
+active_speed_mult = 1.0
+recovery_speed_mult = 0.5
+turn_mult = 0.2
+lunge_speed = -24.0
+lunge_duration = 0.25
+cooldown = 6.0
+invuln_time = 0.25
+repulse_radius = 5.0
+repulse_force = 12.0

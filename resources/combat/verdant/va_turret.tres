@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/verdant/va_turret_shot.tres" id="2"]
+[ext_resource type="Script" path="res://scripts/combat/specs/deploy_spec.gd" id="3"]
+
+[sub_resource type="Resource" id="DeploySpec_1"]
+script = ExtResource("3")
+kind = 0
+place_distance = 3.5
+max_place_range = 22.0
+lifetime = 20.0
+hp = 70.0
+arm_time = 0.7
+fire_range = 28.0
+fire_interval = 0.9
+turn_rate_deg = 110.0
+shot = ExtResource("2")
+
+[resource]
+script = ExtResource("1")
+id = &"va_turret"
+display_name = "自律炮台"
+delivery = 4
+windup = 0.8
+active = 0.05
+recovery = 0.35
+cancel_time = 0.7
+telegraphed = true
+damage = 0.0
+windup_speed_mult = 0.15
+active_speed_mult = 0.15
+recovery_speed_mult = 0.4
+turn_mult = 0.4
+cooldown = 6.0
+deploy_spec = SubResource("DeploySpec_1")

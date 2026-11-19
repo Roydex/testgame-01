@@ -10,6 +10,24 @@ extends Resource
 @export var skill: AttackDefinition
 @export var ranged: AttackDefinition
 @export var ultimate: UltimateDefinition
+## X held past hold_threshold (X tap fires on release when this exists).
+@export var skill_hold: AttackDefinition
+## Left button held past hold_threshold; only while the kit allows it
+## (otherwise the left button fires on press as usual).
+@export var attack_hold: AttackDefinition
+## Right button held = charge this attack, release = fire (replaces guard).
+@export var charge_attack: AttackDefinition
+## F performs this action instead of a parry (AZURE ORACLE backstep).
+@export var defense_action: AttackDefinition
+@export var hold_threshold: float = 0.3
+## Mech resource system (heat / deployables / marks). Empty = none.
+@export var kit: KitConfig
+
+@export_group("Charge (charge_attack)")
+@export var charge_time: float = 1.5
+## Released below this charge fraction = cancelled, nothing fired.
+@export_range(0.0, 1.0) var charge_min: float = 0.25
+@export var charge_speed_mult: float = 0.35
 
 @export_group("Guard")
 ## Total frontal arc covered by guard AND parry (deg).
@@ -31,6 +49,9 @@ extends Resource
 @export var offbalance_knockback: float = 7.0
 ## The parrier's first hit on an off-balance victim.
 @export var counter_damage_mult: float = 1.5
+## false: a parried melee attacker is only pushed back (interrupted), not
+## knocked off-balance, and there is no counter bonus (HELLFANG / VERDANT).
+@export var parry_causes_offbalance: bool = true
 ## Reflected projectile: damage and speed multipliers.
 @export var reflect_damage_mult: float = 0.8
 @export var reflect_speed_mult: float = 1.2
