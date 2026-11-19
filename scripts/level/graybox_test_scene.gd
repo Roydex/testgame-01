@@ -15,6 +15,7 @@ var combat: CombatStateMachine
 var profile_index: int = 0
 var shooters_on: bool = false
 var combat_hud: CombatHud
+var pause_menu: PauseMenu
 var feedback: CombatFeedback
 var dummies: Array[MechMotor] = []
 var alliance_mode: bool = false
@@ -40,6 +41,8 @@ func _ready() -> void:
 		cd.name = "CombatAutopilot"
 		add_child(cd)
 		cd.run(self)
+	elif "--pause-shot" in OS.get_cmdline_user_args():
+		_pause_shot.call_deferred()
 	elif "--practice-shot" in OS.get_cmdline_user_args():
 		_practice_shot.call_deferred()
 	else:
@@ -87,6 +90,16 @@ func _spawn_player(index: int) -> void:
 	add_child(feedback)
 	feedback.rig = rig
 	feedback.focus_mech = motor
+
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	add_child(pause_menu)
+	pause_menu.mode_text_provider = func() -> String:
+		return "当前：%s" % ("练习模式（不会阵亡 · 大招不限次数）" if practice_mode else "实战模式（会阵亡 · 大招每局 1 次）")
+	pause_menu.restart_requested.connect(func(): get_tree().reload_current_scene())
+	pause_menu.practice_toggle_requested.connect(func():
+		set_practice(not practice_mode)
+		combat_hud.callout("练习模式" if practice_mode else "实战模式"))
 
 
 ## Two scripted sparring partners (陶练机): a melee one with the full PALE
@@ -231,4 +244,26 @@ func _practice_shot() -> void:
 		get_viewport().get_texture().get_image().save_png(dir.path_join("practice_%d.png" % i))
 		print("[practice-shot] %d player HP %.0f state %s / partner %s" % [i, combat.health.hp, combat.get_state_name(),
 			(dummies[0].get_node(^"CombatStateMachine") as CombatStateMachine).get_state_name()])
+	get_tree().quit()
+
+
+## Debug: open the pause menu in the real window, screenshot it, check the
+## mouse capture round trip, then quit (`-- --pause-shot`).
+func _pause_shot() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	await get_tree().create_timer(2.5).timeout
+	var before := Input.mouse_mode
+	pause_menu.open()
+	pause_menu._controls.visible = true
+	await get_tree().create_timer(0.3, true).timeout
+	var during := Input.mouse_mode
+	var pos := motor.global_position
+	await get_tree().create_timer(1.0, true).timeout
+	var frozen := motor.global_position.is_equal_approx(pos)
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://docs/screenshots/pause_menu.png"))
+	pause_menu.resume()
+	await get_tree().create_timer(0.3).timeout
+	print("[pause-shot] mouse before %d, during pause %d, after resume %d (0 visible, 2 captured); tree paused now %s; world frozen while paused %s" % [
+		before, during, Input.mouse_mode, get_tree().paused, frozen])
 	get_tree().quit()

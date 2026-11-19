@@ -179,7 +179,7 @@ func _on_ult(mech: Node3D, phase: String) -> void:
 
 func _on_died(mech: Node3D) -> void:
 	if mech == motor:
-		show_overlay("机体沉默 — 按 F7 重开")
+		show_overlay("机体沉默 — 按 F7 重开（或 Esc 打开菜单）")
 	else:
 		var alive := 0
 		for m in TeamRules.get_valid_targets(motor, &"mechs"):

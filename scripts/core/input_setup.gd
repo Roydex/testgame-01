@@ -23,7 +23,7 @@ const KEY_BINDINGS := {
 	&"debug_practice": [KEY_F12],
 	&"target_next": [KEY_E],
 	&"target_prev": [KEY_R],
-	&"ui_release_mouse": [KEY_ESCAPE],
+	&"pause": [KEY_ESCAPE, KEY_P],
 	&"debug_toggle_hud": [KEY_F1],
 	&"debug_cycle_profile": [KEY_F2],
 	&"debug_stagger": [KEY_F3],

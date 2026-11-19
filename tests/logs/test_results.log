@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-19T08:45:47  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-19T09:37:27  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -413,7 +413,7 @@ PASS  T21
   ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 23.9 m and attacked via MechCommand
+  ok   partner moved 19.6 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -473,6 +473,15 @@ PASS  T25
   ok   hits on the focus mech shake the camera (trauma 0.37)
 PASS  T26
 
+--- T27  Pause menu: Esc freezes the world, resumes cleanly
+  info mouse capture is not available in this display mode (headless): capture checks are NOT verified here
+  ok   Esc opens the pause menu and pauses the tree
+  ok   world frozen for 1 s of pause (player moved 0.000 m, partner 0.000 m, combat clock +0.000 s)
+  ok   Esc again closes the menu and resumes
+  ok   simulation continues after resume (moved 7.54 m)
+  ok   P / Esc both bound to pause (reopened)
+PASS  T27
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -500,4 +509,5 @@ T23  PASS  C11 ultimate: unlock, windup, judgment, spear, overload
 T24  PASS  C12 melee rules: arc, local hitstop, multi-parry, ownership
 T25  PASS  Practice mode: no death, regen, training pace, unlimited ultimate
 T26  PASS  C09 support: attack animation poses + impact feedback exist
-26/26 passed
+T27  PASS  Pause menu: Esc freezes the world, resumes cleanly
+27/27 passed

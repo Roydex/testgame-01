@@ -15,6 +15,7 @@ var _filter := ""
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # the runner keeps driving tests while the tree is paused
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--only="):
 			_filter = a.substr(7)
@@ -56,6 +57,7 @@ func _run_all() -> void:
 		["T24", "C12 melee rules: arc, local hitstop, multi-parry, ownership", t24_melee_rules],
 		["T25", "Practice mode: no death, regen, training pace, unlimited ultimate", t25_practice_mode],
 		["T26", "C09 support: attack animation poses + impact feedback exist", t26_action_feedback],
+		["T27", "Pause menu: Esc freezes the world, resumes cleanly", t27_pause],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
@@ -2070,3 +2072,66 @@ func t26_action_feedback(res: Dictionary) -> void:
 	for n in [a, b, rig, fb]:
 		n.queue_free()
 	await _ticks(2)
+
+
+
+func _press_action(action: StringName) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await _ticks(1)
+	var up := InputEventAction.new()
+	up.action = action
+	up.pressed = false
+	Input.parse_input_event(up)
+	await _ticks(1)
+
+
+func t27_pause(res: Dictionary) -> void:
+	var sc := (load("res://scenes/test/graybox_test.tscn") as PackedScene).instantiate()
+	sc.process_mode = Node.PROCESS_MODE_PAUSABLE  # in the game it sits under root; the runner itself is ALWAYS
+	add_child(sc)
+	await _ticks(10)
+	var player := sc.get("motor") as MechMotor
+	var menu := sc.get("pause_menu") as PauseMenu
+	(sc.get("brain") as PlayerBrain).enabled = false
+	var dummies: Array = sc.get("dummies")
+	var walk := func() -> void:
+		player.command.move = Vector3(0, 0, -1)
+	# walk for a moment so things are in motion
+	for i in 30:
+		walk.call()
+		await get_tree().physics_frame
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var can_capture := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	if not can_capture:
+		_info("mouse capture is not available in this display mode (headless): capture checks are NOT verified here")
+	await _press_action(&"pause")
+	_check(res, menu.is_open() and get_tree().paused, "Esc opens the pause menu and pauses the tree")
+	if can_capture:
+		_check(res, Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "mouse released while paused")
+	var p0 := player.global_position
+	var d0: Vector3 = (dummies[0] as Node3D).global_position
+	var t0 := _cs(player).time
+	for i in 60:
+		walk.call()
+		await get_tree().physics_frame
+	_check(res, player.global_position.is_equal_approx(p0) and (dummies[0] as Node3D).global_position.is_equal_approx(d0) and is_equal_approx(_cs(player).time, t0),
+		"world frozen for 1 s of pause (player moved %.3f m, partner %.3f m, combat clock %+.3f s)" % [player.global_position.distance_to(p0), (dummies[0] as Node3D).global_position.distance_to(d0), _cs(player).time - t0])
+	await _press_action(&"pause")
+	_check(res, not menu.is_open() and not get_tree().paused, "Esc again closes the menu and resumes")
+	if can_capture:
+		_check(res, Input.mouse_mode == Input.MOUSE_MODE_CAPTURED, "mouse re-captured on resume")
+	for i in 30:
+		walk.call()
+		await get_tree().physics_frame
+	_check(res, player.global_position.distance_to(p0) > 1.0, "simulation continues after resume (moved %.2f m)" % player.global_position.distance_to(p0))
+	# P also toggles; menu buttons
+	await _press_action(&"pause")
+	_check(res, menu.is_open(), "P / Esc both bound to pause (reopened)")
+	menu.resume()
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	sc.queue_free()
+	await _ticks(3)
