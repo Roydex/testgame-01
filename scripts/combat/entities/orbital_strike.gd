@@ -1,16 +1,24 @@
 class_name OrbitalStrike
 extends Node3D
-## AZURE ORACLE 轨道激光. Called at a point (the lock target's ground
-## position at call time, or ahead of the caster): a ground circle shows for
-## `telegraph` s, then a vertical BEAM hits every damageable inside whose
-## line to the sky is clear. The circle never follows the target: moving
-## out of it dodges the strike; roofs block it. BEAM: guardable, not
-## parryable. Mark stacks on the target shrink the circle (same delay).
+## AZURE ORACLE 轨道激光. Called on the lock target (or a point ahead of
+## the caster when nothing is locked). The ground circle first FOLLOWS the
+## target (speed-limited, orange) for the follow time, then LOCKS (red) for
+## `lock_time`, then a vertical BEAM hits every damageable inside whose line
+## to the sky is clear. Leaving the locked circle dodges it; roofs block it.
+## BEAM: guardable, not parryable. Mark stacks shrink the circle and lengthen
+## the follow phase (the locked dodge window never changes).
+
+const FOLLOW_COLOR := Color(1.0, 0.6, 0.1, 0.35)
+const LOCK_COLOR := Color(1.0, 0.12, 0.08, 0.35)
 
 var owner_mech: Node3D
 var attack: AttackDefinition
 var spec: OrbitalSpec
 var radius: float = 5.0
+## Followed target (null: fixed point from the start).
+var target: Node3D
+var follow_duration := 0.0
+var telegraph := 0.0
 var _t := 0.0
 var _fired := false
 var _ring: MeshInstance3D
@@ -30,17 +38,25 @@ static func call_strike(combat: CombatStateMachine, def: AttackDefinition) -> Or
 	var m := combat.motor
 	var marks := 0
 	var at := m.global_position + m.get_forward() * spec.unlocked_distance
+	var followed: Node3D = null
 	var t := combat.aim_target
 	if t and is_instance_valid(t) and TeamRules.is_alive(t) and m.global_position.distance_to(t.global_position) <= spec.max_call_range:
 		at = t.global_position
+		followed = t
 		var tc := DamageSystem.get_combat(t)
 		if tc:
 			marks = tc.status.stacks(&"mark")
 	var s := OrbitalStrike.new()
 	m.get_parent().add_child(s)
 	s.global_position = ground_point(m.get_world_3d(), at)
+	s.target = followed
+	s.follow_duration = (spec.follow_time + spec.follow_per_mark * marks) if s.target else 0.0
 	s.setup(m, def, spec, clampf(spec.radius + spec.radius_per_mark * marks, spec.min_radius, maxf(spec.radius, spec.min_radius)))
 	return s
+
+
+func is_locked() -> bool:
+	return _t >= follow_duration
 
 
 func setup(p_owner: Node3D, def: AttackDefinition, p_spec: OrbitalSpec, p_radius: float) -> void:
@@ -49,12 +65,13 @@ func setup(p_owner: Node3D, def: AttackDefinition, p_spec: OrbitalSpec, p_radius
 	spec = p_spec
 	radius = p_radius
 	name = "OrbitalStrike"
+	telegraph = follow_duration + spec.lock_time
 	add_to_group(&"orbital_strikes")
 	_ring_mat = StandardMaterial3D.new()
-	_ring_mat.albedo_color = Color(1.0, 0.15, 0.1, 0.35)
+	_ring_mat.albedo_color = FOLLOW_COLOR if follow_duration > 0.0 else LOCK_COLOR
 	_ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_ring_mat.emission_enabled = true
-	_ring_mat.emission = Color(1.0, 0.1, 0.05)
+	_ring_mat.emission = Color(_ring_mat.albedo_color, 1.0)
 	_ring_mat.emission_energy_multiplier = 1.5
 	_ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_ring = MeshInstance3D.new()
@@ -66,21 +83,44 @@ func setup(p_owner: Node3D, def: AttackDefinition, p_spec: OrbitalSpec, p_radius
 	_ring.material_override = _ring_mat
 	_ring.position = Vector3.UP * 0.06
 	add_child(_ring)
-	CombatEvents.area_telegraph.emit(owner_mech, global_position, radius, spec.telegraph, &"orbital")
+	CombatEvents.area_telegraph.emit(owner_mech, global_position, radius, telegraph, &"orbital")
 	CombatEvents.entity_spawned.emit(self, &"orbital")
 
 
 func _physics_process(delta: float) -> void:
+	var was_locked := is_locked()
 	_t += delta
 	if not _fired:
+		if not is_locked():
+			_follow(delta)
+		elif not was_locked:
+			_ring_mat.albedo_color = Color(LOCK_COLOR, _ring_mat.albedo_color.a)
+			_ring_mat.emission = Color(LOCK_COLOR, 1.0)
+			_ring.scale = Vector3(0.96, 1.0, 0.96)  # tightens as it locks
+			CombatEvents.kit_event.emit(owner_mech, &"orbital_locked")
 		# the circle pulses faster as the strike approaches
-		var k := clampf(_t / spec.telegraph, 0.0, 1.0)
+		var k := clampf(_t / maxf(telegraph, 0.01), 0.0, 1.0)
 		_ring_mat.albedo_color.a = 0.25 + 0.4 * k * (0.5 + 0.5 * sin(_t * (8.0 + 20.0 * k)))
-		if _t >= spec.telegraph:
+		if _t >= telegraph:
 			_strike()
-	elif _t >= spec.telegraph + spec.beam_duration:
+	elif _t >= telegraph + spec.beam_duration:
 		CombatEvents.entity_removed.emit(self, &"orbital", false)
 		queue_free()
+
+
+## Following phase: slide toward the target's ground point at follow_speed.
+func _follow(delta: float) -> void:
+	if target == null or not is_instance_valid(target) or not TeamRules.is_alive(target):
+		follow_duration = minf(follow_duration, _t)  # lock where it is
+		telegraph = follow_duration + spec.lock_time
+		return
+	var want := ground_point(get_world_3d(), target.global_position)
+	var p := global_position
+	var flat := Vector2(want.x - p.x, want.z - p.z)
+	var step := spec.follow_speed * delta
+	if flat.length() > step:
+		flat = flat.normalized() * step
+	global_position = Vector3(p.x + flat.x, want.y, p.z + flat.y)
 
 
 func _strike() -> void:

@@ -5,7 +5,10 @@
 
 [sub_resource type="Resource" id="OrbitalSpec_1"]
 script = ExtResource("2")
-telegraph = 1.2
+follow_time = 0.5
+follow_per_mark = 0.1
+follow_speed = 12.0
+lock_time = 0.6
 radius = 5.0
 radius_per_mark = -0.8
 min_radius = 2.6
@@ -36,6 +39,6 @@ windup_speed_mult = 0.1
 active_speed_mult = 0.1
 recovery_speed_mult = 0.4
 turn_mult = 0.3
-en_cost = 15.0
-cooldown = 12.0
+en_cost = 8.0
+cooldown = 8.0
 orbital_spec = SubResource("OrbitalSpec_1")

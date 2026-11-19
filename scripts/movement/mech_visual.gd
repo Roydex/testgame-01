@@ -137,6 +137,7 @@ func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -
 		CombatEvents.ultimate_phase.connect(_on_ult_phase)
 		CombatEvents.mech_died.connect(_on_died)
 		CombatEvents.parried.connect(_on_parried)
+		CombatEvents.riposte_window.connect(_on_riposte_window)
 		CombatEvents.attack_active.connect(_on_attack_active)
 		CombatEvents.status_changed.connect(_on_status)
 
@@ -316,6 +317,12 @@ func _on_parried(defender: Node3D, _attacker: Node3D, _proj: bool) -> void:
 		_parry_flash = 0.35
 
 
+## Shield stays lit while the riposte window is open.
+func _on_riposte_window(mech: Node3D, target: Node3D, duration: float) -> void:
+	if mech == motor:
+		_parry_flash = maxf(_parry_flash, duration) if target != null else minf(_parry_flash, 0.05)
+
+
 func _on_ult_phase(mech: Node3D, phase: String) -> void:
 	if mech != motor:
 		return
@@ -441,7 +448,7 @@ static func _ease_in(t: float) -> float:
 ## Key poses per attack style: [windup end, active end].
 func _attack_keys(id: StringName) -> Array:
 	match id:
-		&"seraph_l1", &"seraph_judgment_counter":  # thrust
+		&"seraph_l1", &"seraph_judgment_counter", &"seraph_riposte":  # thrust
 			return [_p({"ty": 0.4, "rx": 0.85, "rp": 0.75, "ro": 0.55, "lx": 0.6}),
 				_p({"ty": -0.3, "tp": 0.15, "rx": 1.55, "rp": 0.0, "ro": -0.6, "le": 1.45})]
 		&"seraph_l2":  # horizontal sweep right → left
@@ -579,11 +586,21 @@ func _process(delta: float) -> void:
 	_recoil = _recoil.clamp(Vector2(-0.7, -0.5), Vector2(0.7, 0.5))
 	_body.rotation = Vector3(_lean.x + _recoil.x, 0.0, _lean.y + _recoil.y)
 
-	# --- legs: walk cycle on the ground, tucked in the air
+	# --- legs: walk cycle on the ground, tucked in the air. The gait follows
+	# the speed the legs could actually produce (capped at the walk top speed);
+	# a ground dash or a fast lunge is thruster-driven, so the legs brace in a
+	# skating pose instead of cycling faster (playtest feedback 2026-11-19).
 	var spd := h.length()
-	if motor.is_grounded_state():
-		_walk_phase += delta * (2.0 + spd * 0.55)
-		var amp := clampf(spd / 12.0, 0.0, 1.0) * 0.55
+	var walk_cap := motor.profile.ground_max_speed if motor.profile else 14.0
+	var skating := motor.state == MechMotor.MotionState.GROUND_DASH or spd > walk_cap * 1.15
+	if motor.is_grounded_state() and skating:
+		var sk := 1.0 - exp(-14.0 * delta)
+		_leg_l.rotation.x = lerpf(_leg_l.rotation.x, -0.35, sk)
+		_leg_r.rotation.x = lerpf(_leg_r.rotation.x, 0.25, sk)
+	elif motor.is_grounded_state():
+		var gait := minf(spd, walk_cap)
+		_walk_phase += delta * (2.0 + gait * 0.55)
+		var amp := clampf(gait / 12.0, 0.0, 1.0) * 0.55
 		_leg_l.rotation.x = sin(_walk_phase) * amp
 		_leg_r.rotation.x = -sin(_walk_phase) * amp
 	else:

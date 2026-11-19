@@ -551,6 +551,11 @@ func _spend(amount: float) -> void:
 		en_exhausted.emit()
 
 
+## Standing still on the ground: no move input and almost no horizontal speed.
+func is_idle_for_regen() -> bool:
+	return _cmd.move.length_squared() < 0.01 and get_horizontal_velocity().length() < profile.idle_regen_speed
+
+
 func _regen(delta: float) -> void:
 	_regen_timer = maxf(_regen_timer - delta, 0.0)
 	if _m_block_regen or _regen_timer > 0.0 or en >= profile.max_en:
@@ -558,6 +563,8 @@ func _regen(delta: float) -> void:
 	var rate := 0.0
 	if state == MotionState.GROUNDED or state == MotionState.LANDING:
 		rate = profile.ground_regen_per_sec
+		if is_idle_for_regen():
+			rate *= profile.idle_regen_mult
 	elif is_air_state():
 		rate = profile.air_regen_per_sec
 	if rate > 0.0:

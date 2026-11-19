@@ -3,7 +3,8 @@ extends Node3D
 ## HELLFANG 磁索钩爪. A hook that flies straight (travel time, no homing,
 ## sidestep to dodge) and stops on cover. A GRAB hit (unparryable,
 ## unguardable) either pulls the owner in (grounded target) or drags an
-## airborne target down. Both use MovementModifier motion correction; this
+## airborne target down. The target is interrupted and stays staggered until
+## the owner arrives (stagger = expected pull time + tail). Both use MovementModifier motion correction; this
 ## node never writes a mech's velocity. A miss costs extra recovery.
 
 const MOD_PULL := &"grapple_pull"
@@ -141,7 +142,8 @@ func _grab(victim: MechMotor) -> void:
 	var vc := DamageSystem.get_combat(victim)
 	var airborne := victim.is_air_state() and victim.get_height_above_ground(50.0) > spec.airborne_height
 	if vc:
-		vc.apply_stagger(spec.grab_stagger)
+		vc.interrupt()  # always breaks charge / windup / deploy / guard
+		vc.apply_stagger(grab_stagger_for(victim, airborne))
 	_t = 0.0
 	if airborne:
 		_state = 2
@@ -159,6 +161,16 @@ func _grab(victim: MechMotor) -> void:
 		owner_mech.add_modifier(_mod)
 		_mod_on = owner_mech
 		CombatEvents.kit_event.emit(owner_mech, &"grapple_pull")
+
+
+## Stagger long enough to cover the pull (or drag) plus a short tail.
+func grab_stagger_for(victim: MechMotor, airborne: bool) -> float:
+	var travel := spec.drag_down_time
+	if not airborne:
+		var to := victim.global_position - owner_mech.global_position
+		var flat := maxf(Vector3(to.x, 0.0, to.z).length() - spec.pull_stop_distance, 0.0)
+		travel = minf(flat / maxf(spec.pull_self_speed, 0.1), spec.pull_max_time)
+	return clampf(travel + spec.grab_stagger_tail, spec.grab_stagger, spec.grab_stagger_max)
 
 
 func _pull_owner(delta: float) -> void:

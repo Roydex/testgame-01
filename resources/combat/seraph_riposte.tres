@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"seraph_riposte"
+display_name = "反刺"
+windup = 0.05
+active = 0.12
+recovery = 0.3
+cancel_time = 0.32
+damage = 20.0
+guardable = false
+parryable = false
+knockback = 9.0
+knockback_up = 1.5
+stagger_time = 0.6
+hitstop = 0.14
+shake = 0.5
+hitbox_offset = Vector3(0, 2.4, -2.6)
+hitbox_size = Vector3(2.4, 3.0, 4.2)
+lunge_speed = 24.0
+lunge_duration = 0.15
+lunge_steer_deg = 90.0

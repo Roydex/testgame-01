@@ -26,5 +26,5 @@ lunge_duration = 0.32
 lunge_steer_deg = 90.0
 vertical_track_speed = 12.0
 vertical_track_range = 8.0
-en_cost = 20.0
+en_cost = 12.0
 cooldown = 2.5

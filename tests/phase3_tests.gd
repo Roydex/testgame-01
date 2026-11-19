@@ -1129,3 +1129,160 @@ func t36_team_rules(res: Dictionary) -> void:
 			by_t[hi.victim] += 1
 	r._check(res, by_t[x1] > 0 and by_t[x2] > 0, "FFA: the turret hits both hostile teams (team 1: %d, team 2: %d)" % [by_t[x1], by_t[x2]])
 	await _free([ark5, x1, x2])
+
+
+# ------------------------------------------------------------------ T37 playtest round 1
+
+## Fixes from the 2026-11-19 playtest: grapple stagger covers the pull and
+## interrupts; PALE SERAPH 反刺; EN costs / regen / idle regen; orbital circle
+## follows then locks; dash gait does not speed up the walk cycle.
+func t37_playtest_fixes(res: Dictionary) -> void:
+	# --- 1. grapple: target interrupted, still staggered when HELLFANG arrives
+	var hf := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 10))
+	var az := _mech(&"azure", 1, Vector3(0, 0.2, 10), Vector3(0, 0.2, 30))
+	await r._ticks(25)
+	var st := {"charging_before": false, "grab_f": -1, "after_grab_charging": true, "arrive_state": "", "arrive_d": 0.0}
+	var ev := _rec()
+	await _frames(ev, 150, func(i: int) -> void:
+		_aim(hf, az)
+		az.command.guard_held = st.grab_f < 0  # AZURE keeps charging the rail until grabbed
+		if i == 30:
+			st.charging_before = _cs(az).is_charging()
+		hf.command.skill_pressed = i == 30
+		if st.grab_f < 0 and _kit_events(ev, &"grapple_pull") > 0:
+			st.grab_f = i
+			st.after_grab_charging = _cs(az).is_charging()
+		var d := Vector2(az.global_position.x - hf.global_position.x, az.global_position.z - hf.global_position.z).length()
+		if st.grab_f >= 0 and st.arrive_state == "" and d <= 4.0:
+			st.arrive_state = _cs(az).get_state_name()
+			st.arrive_d = d)
+	_unrec()
+	r._check(res, st.charging_before and st.grab_f >= 0 and not st.after_grab_charging,
+		"grapple hit interrupts a charging rail (charging before %s, after grab %s)" % [st.charging_before, st.after_grab_charging])
+	r._check(res, st.arrive_state == "STAGGER", "target still STAGGER when HELLFANG arrives (%.1f m: %s)" % [st.arrive_d, st.arrive_state])
+	await _free([hf, az])
+
+	# --- 2. 反刺: attack inside the window → riposte, unguardable, ×counter
+	var cp := load(SERAPH) as CombatProfile
+	var rip := cp.parry_riposte
+	r._check(res, rip != null and not rip.guardable and not rip.parryable, "PALE SERAPH profile carries an unguardable riposte (%s)" % (rip.id if rip else &"none"))
+	for pid in [&"hellfang", &"verdant"]:
+		var pp := load(String((MechFactory.MECHS[pid] as Dictionary).combat)) as CombatProfile
+		r._check(res, pp.parry_riposte == null and not pp.parry_causes_offbalance, "%s parry: push-back only, no riposte" % pid)
+	for late in [false, true]:
+		var a := _mech(&"seraph", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 26.5))
+		var b := _mech(&"seraph", 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+		await r._ticks(20)
+		var ev2 := _rec()
+		var s2 := {"open": false, "press": -1}
+		await _frames(ev2, 110, func(i: int) -> void:
+			_aim(a, b)
+			_aim(b, a)
+			a.command.attack_pressed = i == 10
+			b.command.parry_pressed = i == 13
+			if not s2.open and _cs(b).riposte_target == a:
+				s2.open = true
+				s2.press = i + 2 if not late else i + 70
+			a.command.guard_held = s2.press >= 0 and i >= s2.press
+			b.command.attack_pressed = i == s2.press)
+		_unrec()
+		var hb := _hits(ev2, a)
+		var first: HitInfo = (hb[0][1] as HitInfo) if hb.size() > 0 else null
+		if not late:
+			r._check(res, s2.open and first != null and first.attack.id == rip.id and first.result == CombatTypes.HitResult.HIT \
+					and is_equal_approx(first.final_damage, rip.damage * cp.counter_damage_mult),
+				"parry → attack inside the window: %s %.1f dmg, guard ignored" % [first.attack.id if first else &"-", first.final_damage if first else 0.0])
+		else:
+			r._check(res, first != null and first.attack.id == cp.light_combo.id,
+				"attack after the window closed: normal %s (not a riposte)" % [first.attack.id if first else &"-"])
+		await _free([a, b])
+
+	# --- 3. EN: costs from resources, regen delay, idle regen ×2
+	var m := _mech(&"seraph", 0, Vector3(0, 0.2, 30))
+	await r._ticks(20)
+	var pr := m.profile
+	r._check(res, is_equal_approx(pr.ground_dash_cost, 16.0) and is_equal_approx(pr.ground_regen_per_sec, 32.0) and is_equal_approx(pr.regen_delay, 0.5) and is_equal_approx(pr.idle_regen_mult, 2.0),
+		"EN defaults: ground dash %.0f, regen %.0f/s, delay %.1f s, idle ×%.1f" % [pr.ground_dash_cost, pr.ground_regen_per_sec, pr.regen_delay, pr.idle_regen_mult])
+	var rates := []
+	for moving in [false, true]:
+		m.en = 20.0
+		m.consume_en(0.0)
+		m.command.move = Vector3.ZERO
+		await r._ticks(40)  # past the regen delay
+		var e0 := m.en
+		var ev3 := _rec()
+		await _frames(ev3, 30, func(_i: int) -> void:
+			m.command.move = Vector3(1, 0, 0) if moving else Vector3.ZERO)
+		_unrec()
+		rates.append((m.en - e0) / 0.5)
+		m.command.move = Vector3.ZERO
+		await r._ticks(30)
+	r._check(res, rates[0] > rates[1] * 1.8 and rates[1] > 0.0, "standing still regenerates %.0f EN/s vs %.0f EN/s while walking" % [rates[0], rates[1]])
+	await _free([m])
+
+	# --- 4. orbital: follows then locks; marks lengthen the follow
+	var spec := (load("res://resources/combat/azure/ao_orbital.tres") as AttackDefinition).orbital_spec
+	var o := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
+	var v := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
+	await r._ticks(25)
+	var s4 := {"strike": null, "p_call": Vector3.ZERO, "p_lock": Vector3.ZERO, "p_end": Vector3.ZERO, "locked_moved": 0.0}
+	var ev4 := _rec()
+	await _frames(ev4, 150, func(i: int) -> void:
+		_aim(o, v)
+		o.command.skill_pressed = i == 0
+		o.command.skill_held = i < 30
+		v.command.move = Vector3(1, 0, 0) if s4.strike != null else Vector3.ZERO  # strafe from the moment it appears
+		if s4.strike == null:
+			for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
+				s4.strike = n
+				s4.p_call = (n as Node3D).global_position
+		elif is_instance_valid(s4.strike):
+			var sn := s4.strike as OrbitalStrike
+			if not sn.is_locked():
+				s4.p_lock = sn.global_position
+			else:
+				s4.locked_moved = maxf(s4.locked_moved, sn.global_position.distance_to(s4.p_lock)))
+	_unrec()
+	var followed := Vector2(s4.p_lock.x - s4.p_call.x, s4.p_lock.z - s4.p_call.z).length()
+	r._check(res, followed > 3.0 and s4.locked_moved < 0.05,
+		"circle followed the strafing target %.1f m, then stayed put after locking (moved %.2f m)" % [followed, s4.locked_moved])
+	r._check(res, _hits(ev4, v, &"ao_orbital").is_empty(), "a target that keeps moving after the lock escapes (%d hits)" % _hits(ev4, v, &"ao_orbital").size())
+	var tel := 0.0
+	for e in ev4.area:
+		if e[5] == &"orbital": tel = e[4]
+	r._check(res, is_equal_approx(tel, spec.follow_time + spec.lock_time), "unmarked telegraph %.2f s = follow %.1f + lock %.1f" % [tel, spec.follow_time, spec.lock_time])
+	await _free([o, v])
+	var o2 := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
+	var v2 := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
+	await r._ticks(25)
+	var mark := load("res://resources/combat/status/mark.tres") as StatusEffectDefinition
+	_cs(v2).status.apply(mark, o2, 3)
+	_aim(o2, v2)
+	var strike := OrbitalStrike.call_strike(_cs(o2), load("res://resources/combat/azure/ao_orbital.tres"))
+	r._check(res, is_equal_approx(strike.follow_duration, spec.follow_time + 3 * spec.follow_per_mark),
+		"3 marks: follow %.2f s (lock window unchanged %.1f s)" % [strike.follow_duration, spec.lock_time])
+	strike.queue_free()
+	await _free([o2, v2])
+
+	# --- 5. dash gait: the walk cycle does not speed up during a ground dash
+	var g := MechFactory.create_by_id(&"seraph", 0, true)
+	g.position = Vector3(0, 0.2, 30)
+	r.arena.add_child(g)
+	await r._ticks(20)
+	var vis: Node = null
+	for c in g.get_children():
+		if c is MechVisual:
+			vis = c
+	var ph := []
+	for dash in [false, true]:
+		var ev5 := _rec()
+		var p0: float = vis.get(&"_walk_phase")
+		await _frames(ev5, 12, func(i: int) -> void:
+			g.command.move = Vector3(1, 0, 0)
+			g.command.dash_pressed = dash and i == 0)
+		_unrec()
+		ph.append(float(vis.get(&"_walk_phase")) - p0)
+		g.command.move = Vector3.ZERO
+		await r._ticks(40)
+	r._check(res, ph[1] <= ph[0] * 1.05 + 0.01, "walk-cycle advance over 0.2 s: walking %.2f rad, dashing %.2f rad (no faster)" % [ph[0], ph[1]])
+	await _free([g])

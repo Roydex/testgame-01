@@ -18,7 +18,14 @@ extends Resource
 @export var drag_down_speed: float = 14.0
 @export var drag_down_time: float = 0.45
 ## Hard-control (stagger) on the grabbed target; goes through CC protection.
+## The grab always interrupts the target first (charge, windup, deploy,
+## guard), whatever CC protection leaves of the stagger. The stagger then
+## lasts the expected pull / drag time + `grab_stagger_tail`, clamped to
+## [grab_stagger, grab_stagger_max], so the target is still staggered when
+## HELLFANG arrives (playtest feedback 2026-11-19).
 @export var grab_stagger: float = 0.45
+@export var grab_stagger_tail: float = 0.3
+@export var grab_stagger_max: float = 1.0
 @export_group("Miss")
 ## Extra recovery when the hook misses (retracting the cable).
 @export var miss_recovery: float = 0.55

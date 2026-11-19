@@ -152,7 +152,7 @@
 | `scripts/combat/entities/*.gd` | `Grapple`、`Turret`、`SlowZone`、`OrbitalStrike`、`AreaBlast`、`Deployables` |
 | `scripts/level/skill_lab_scene.gd`、`scenes/test/skill_lab.tscn` | 技能测试场景 |
 | `scripts/debug/skill_demo.gd` | 技能演示（截图 + P12 帧率） |
-| `tests/phase3_tests.gd` | T28–T36 |
+| `tests/phase3_tests.gd` | T28–T37 |
 | `tests/balance_sim.gd` | 平衡模拟（DPS 探针 + 脚本 1v1） |
 
 ## 设计决策（续）
@@ -169,3 +169,7 @@
 - **D-38 苍藓资源按用户 2026-11-19 的要求改为“炮台位 + 冷却”**，取消孢核；已存在的炮台满 2 座时部署被拒绝（不顶掉旧炮台），这样资源状态更好读。
 - **D-39 标记全局可见、所有苍穹共用。** 标记是目标身上的状态，任何苍穹都能消耗它（FFA 中两台苍穹会互相“偷”标记）。这是小歧义，采用了简单方案，阶段 4 可以改成按施加者区分。
 - **D-40 陪练脚本的通用武装循环。** 有 kit 或长按技能的陪练机，按固定顺序循环“主攻击 → X 短按 → 主攻击 → X 长按 → 左键长按 / 蓄力”，并保持在机体的偏好距离。它仍然只是脚本（D-22），不是 AI。
+- **D-41 反刺是招架者的资料，不是新状态。** `CombatProfile.parry_riposte` 为空的机体没有反刺。近战招架让对手失衡后，CombatStateMachine 记录 `riposte_target` 和剩余失衡时间；窗口内按左键（PARRY 或 READY 状态都可以）就以该目标为 `aim_target` 发动反刺。窗口随对手离开失衡而关闭。伤害仍走“失衡反击 ×1.5”，不另设倍率。表现层通过 `CombatEvents.riposte_window` 提示（第 1 轮试玩反馈）。
+- **D-42 抓取的打断与硬直分开。** 钩爪命中时先调用 `interrupt()`（不受硬控递减影响，只取消当前动作），再按预计拉近时间施加硬直（受递减保护）。这样硬控免疫期间仍能打断蓄力，但不会无限硬直。
+- **D-43 静止回能由机动层判定。** `MechMotor.is_idle_for_regen()`：着地、无移动输入、水平速度 < `idle_regen_speed`。战斗层不参与，格挡站桩也算静止。
+- **D-44 轨道光圈跟随后锁定。** OrbitalStrike 自己追目标（只读位置，速度上限 `follow_speed`），锁定后位置不再变；HUD 根据 `is_locked()` 给出“追踪中 / 锁定”两种提示。

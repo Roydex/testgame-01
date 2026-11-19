@@ -68,6 +68,7 @@ func _run_all() -> void:
 		["T34", "P07 counter windows for every major attack", p3.t34_counter_windows],
 		["T35", "P08 anti-air for every mech (grapple drag, upward fire)", p3.t35_anti_air],
 		["T36", "P09 deployables / missiles / zones / blasts / strikes follow TeamRules", p3.t36_team_rules],
+		["T37", "Playtest round 1: grapple stagger, riposte, EN regen, orbital follow, dash gait", p3.t37_playtest_fixes],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
@@ -395,11 +396,12 @@ func t05_en_exhaustion(res: Dictionary) -> void:
 		_clear(m)
 		var idle := func(_mm: MechMotor, _t: float) -> void:
 			pass
-		await _sim(m, 0.5, idle)
+		var early_t := maxf(m.profile.regen_delay - 0.15, 0.05)
+		await _sim(m, early_t, idle)
 		var en_early := m.en
 		await _sim(m, 1.0, idle)
 		var en_late := m.en
-		_check(res, en_early < 1.0 and en_late > 5.0, "[%s] regen after delay: %.1f @0.5s → %.1f @1.5s after landing" % [n, en_early, en_late])
+		_check(res, en_early < 1.0 and en_late > 5.0, "[%s] regen after delay %.1fs: %.1f @%.2fs → %.1f @%.2fs after landing" % [n, m.profile.regen_delay, en_early, early_t, en_late, early_t + 1.0])
 		m.command.jump_pressed = true
 		await _sim(m, 0.3, idle)
 		_check(res, m.is_air_state(), "[%s] can jump again after landing (%s)" % [n, m.get_state_name()])
@@ -1283,8 +1285,11 @@ func t17_defence(res: Dictionary) -> void:
 	await _frames(ev3, 25, punish)
 	var ha := _hits_on(ev3, a)
 	_unrecord()
-	_check(res, ha.size() > 0 and ha[0][2] == CombatTypes.HitResult.HIT and is_equal_approx(hp_a - _cs(a).health.hp, l1.damage * cp.counter_damage_mult),
-		"punish hit on off-balance attacker: %.1f dmg (= ×%.1f), guard ignored" % [hp_a - _cs(a).health.hp, cp.counter_damage_mult])
+	# since the 2026-11-19 playtest the press inside the window is the dedicated 反刺
+	var rip := cp.parry_riposte
+	_check(res, rip != null and ha.size() > 0 and ha[0][2] == CombatTypes.HitResult.HIT and (ha[0][1] as HitInfo).attack.id == rip.id \
+			and is_equal_approx(hp_a - _cs(a).health.hp, rip.damage * cp.counter_damage_mult),
+		"punish hit on off-balance attacker: %s %.1f dmg (= %.0f ×%.1f), guard ignored" % [(ha[0][1] as HitInfo).attack.id if ha.size() > 0 else &"-", hp_a - _cs(a).health.hp, rip.damage if rip else 0.0, cp.counter_damage_mult])
 	a.queue_free()
 	b.queue_free()
 	await _ticks(90)
@@ -1385,7 +1390,8 @@ func t18_reactions(res: Dictionary) -> void:
 
 func t19_telegraph_cc(res: Dictionary) -> void:
 	# data rule: every major attack is telegraphed with a perceivable windup
-	var exempt := {&"seraph_judgment_counter": "only after a successful parry (attacker already off-balance)"}
+	var exempt := {&"seraph_judgment_counter": "only after a successful parry (attacker already off-balance)",
+		&"seraph_riposte": "only after a successful parry (attacker already off-balance)"}
 	var defs := []
 	for f in DirAccess.get_files_at("res://resources/combat"):
 		var r := load("res://resources/combat/" + f)
@@ -2024,7 +2030,7 @@ func t25_practice_mode(res: Dictionary) -> void:
 		if u.in_judgment():
 			judgments += 1
 		await _ticks(int((u.definition.duration + u.definition.overload_duration + 0.5) / DT))
-	_check(res, judgments == 2 and u.phase == UltimateSystem.Phase.READY, "practice: ultimate used twice and READY again (%s)" % u.get_phase_name())
+	_check(res, judgments == 2 and u.phase == UltimateSystem.Phase.READY, "practice: ultimate used twice and READY again (%d judgments, %s)" % [judgments, u.get_phase_name()])
 	# F5-style restore
 	pc.restore_full()
 	_check(res, is_equal_approx(pc.health.hp, pc.health.max_hp) and u.phase == UltimateSystem.Phase.LOCKED, "restore: full HP, ultimate back to LOCKED")

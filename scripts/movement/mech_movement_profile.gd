@@ -22,7 +22,7 @@ extends Resource
 @export_group("Ground Dash")
 @export var ground_dash_speed: float = 30.0
 @export var ground_dash_duration: float = 0.32
-@export var ground_dash_cost: float = 18.0
+@export var ground_dash_cost: float = 16.0
 @export var dash_cooldown: float = 0.18
 
 @export_group("Jump / Takeoff")
@@ -61,8 +61,12 @@ extends Resource
 @export var max_en: float = 100.0
 @export var hover_cost_per_sec: float = 20.0
 @export var ascend_cost_per_sec: float = 28.0
-@export var ground_regen_per_sec: float = 22.0
-@export var regen_delay: float = 0.8
+@export var ground_regen_per_sec: float = 32.0
+@export var regen_delay: float = 0.5
+## Ground regen multiplier while standing still (grounded, no move input,
+## horizontal speed below `idle_regen_speed`). Playtest feedback 2026-11-19.
+@export var idle_regen_mult: float = 2.0
+@export var idle_regen_speed: float = 1.5
 ## EN regen while airborne. Spec: no natural regen in the air (keep 0).
 @export var air_regen_per_sec: float = 0.0
 

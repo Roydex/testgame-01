@@ -1,11 +1,19 @@
 class_name OrbitalSpec
 extends Resource
-## Delayed orbital strike (AZURE ORACLE 轨道激光). A ground circle shows for
-## `telegraph` seconds at the target's position at call time (it does not
-## follow), then a vertical BEAM hits everything inside whose line to the sky
-## is clear: roofs block it. PROTOTYPE values (待测试).
+## Delayed orbital strike (AZURE ORACLE 轨道激光). A ground circle appears
+## under the target, FOLLOWS it for `follow_time` (+ `follow_per_mark` per
+## mark stack) at most `follow_speed` (a dash outruns it; orange), then LOCKS
+## in place for `lock_time` (red), then a vertical BEAM hits everything inside
+## whose line to the sky is clear: roofs block it. Total telegraph =
+## follow + lock. Playtest feedback 2026-11-19: the old fixed 1.2 s circle was
+## escaped by walking two steps. PROTOTYPE values (待测试).
 
-@export var telegraph: float = 1.2
+@export var follow_time: float = 0.5
+@export var follow_per_mark: float = 0.1
+## Horizontal speed limit of the following circle (m/s).
+@export var follow_speed: float = 12.0
+## Locked (no longer moving) part of the telegraph: the dodge window.
+@export var lock_time: float = 0.6
 @export var radius: float = 5.0
 ## Each mark stack on the target shrinks the circle (more precise, same delay).
 @export var radius_per_mark: float = -0.8

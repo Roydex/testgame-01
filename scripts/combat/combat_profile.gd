@@ -35,7 +35,7 @@ extends Resource
 @export_range(0.0, 1.0) var guard_damage_taken: float = 0.25
 @export var guard_speed_mult: float = 0.5
 ## EN drained per point of damage blocked; guard breaks when EN runs out.
-@export var guard_en_per_damage: float = 0.6
+@export var guard_en_per_damage: float = 0.45
 @export var guard_break_stagger: float = 0.8
 
 @export_group("Parry (mirror shield)")
@@ -47,8 +47,13 @@ extends Resource
 ## Melee attacker knocked off-balance by a parry.
 @export var offbalance_time: float = 0.6
 @export var offbalance_knockback: float = 7.0
-## The parrier's first hit on an off-balance victim.
+## Damage multiplier for the parrier's hits on an off-balance victim.
 @export var counter_damage_mult: float = 1.5
+## Dedicated counter (PALE SERAPH 反刺): pressing attack while the parried
+## melee attacker is still off-balance starts this attack aimed at them
+## (lunges in, unguardable). The counter multiplier above still applies.
+## null = no riposte (HELLFANG / VERDANT parries do not cause off-balance).
+@export var parry_riposte: AttackDefinition
 ## false: a parried melee attacker is only pushed back (interrupted), not
 ## knocked off-balance, and there is no counter bonus (HELLFANG / VERDANT).
 @export var parry_causes_offbalance: bool = true

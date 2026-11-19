@@ -59,6 +59,9 @@ var _attack_mod: MovementModifier
 var _force_unblockable := false
 var _attack_damage_mult := 1.0
 var _pending_counter: Node3D
+## Riposte window after a melee parry that knocked the attacker off-balance.
+var riposte_target: Node3D
+var riposte_left := 0.0
 ## Something landed (HIT / GUARDED / GUARD_BREAK) during the current attack.
 var _landed := false
 ## Recovery added to the current attack (whiff, grapple miss).
@@ -131,6 +134,8 @@ func restore_full() -> void:
 	for id in [MOD_STAGGER, MOD_OFFBALANCE, MOD_DEAD, MOD_ACTION]:
 		motor.remove_modifier(id)
 	offbalance_by = null
+	riposte_target = null
+	riposte_left = 0.0
 	cc_immune_left = 0.0
 	invuln_left = 0.0
 	status.clear()
@@ -245,6 +250,7 @@ func _physics_process(delta: float) -> void:
 	for k in _cooldowns.keys():
 		_cooldowns[k] = maxf(_cooldowns[k] - delta, 0.0)
 	state_timer -= delta
+	_tick_riposte(delta)
 
 	if _pending_counter and is_instance_valid(_pending_counter) and TeamRules.is_alive(_pending_counter) \
 			and ultimate and ultimate.definition.judgment_counter:
@@ -272,7 +278,8 @@ func _physics_process(delta: float) -> void:
 			elif _buf_attack > 0.0:
 				_try_primary()
 		CombatState.PARRY:
-			_tick_parry(delta)
+			if not (_parry_success and _buf_attack > 0.0 and _try_riposte()):
+				_tick_parry(delta)
 		CombatState.ATTACK:
 			_tick_attack(delta, cmd)
 		CombatState.ACTION, CombatState.STAGGER, CombatState.OFFBALANCE:
@@ -315,6 +322,8 @@ func _ready_inputs(cmd: MechCommand) -> void:
 		return
 	if _buf_parry > 0.0:
 		_defend()
+		return
+	if _buf_attack > 0.0 and _try_riposte():
 		return
 	if _buf_skill_hold > 0.0:
 		_buf_skill_hold = 0.0
@@ -757,7 +766,45 @@ func on_parried_melee(hit: HitInfo) -> int:
 		ultimate.enter_judgment()
 	elif first and ultimate and ultimate.in_judgment():
 		_pending_counter = attacker  # 裁决反击 on our next tick
+	if first and profile.parry_riposte and _pending_counter == null and not (ultimate and ultimate.in_judgment()) \
+			and ac and ac.state == CombatState.OFFBALANCE and ac.offbalance_by == motor:
+		riposte_target = attacker
+		riposte_left = maxf(ac.state_timer, 0.0)
+		CombatEvents.riposte_window.emit(motor, attacker, riposte_left)
 	return CombatTypes.HitResult.PARRIED if first else CombatTypes.HitResult.DEFLECTED
+
+
+func _riposte_valid() -> bool:
+	if riposte_left <= 0.0 or riposte_target == null or not is_instance_valid(riposte_target) \
+			or not TeamRules.is_alive(riposte_target):
+		return false
+	var tc := DamageSystem.get_combat(riposte_target)
+	return tc != null and tc.state == CombatState.OFFBALANCE and tc.offbalance_by == motor
+
+
+func _tick_riposte(delta: float) -> void:
+	if riposte_target == null:
+		return
+	riposte_left -= delta
+	if not _riposte_valid():
+		_close_riposte()
+
+
+func _close_riposte() -> void:
+	riposte_target = null
+	riposte_left = 0.0
+	CombatEvents.riposte_window.emit(motor, null, 0.0)
+
+
+## Attack pressed inside the riposte window: 反刺 aimed at the parried attacker.
+func _try_riposte() -> bool:
+	if profile.parry_riposte == null or not _riposte_valid():
+		return false
+	var t := riposte_target
+	_close_riposte()
+	_buf_attack = 0.0
+	aim_target = t
+	return _start_attack(profile.parry_riposte, true)
 
 
 ## Called by DamageSystem when a projectile hits our parry window: the

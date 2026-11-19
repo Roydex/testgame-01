@@ -36,6 +36,7 @@ func setup(p_motor: MechMotor, p_targeting: TargetingSystem) -> void:
 	CombatEvents.ultimate_phase.connect(_on_ult)
 	CombatEvents.mech_died.connect(_on_died)
 	CombatEvents.kit_event.connect(_on_kit_event)
+	CombatEvents.riposte_window.connect(_on_riposte_window)
 
 
 func _ready() -> void:
@@ -241,7 +242,7 @@ func _update_warnings() -> void:
 		if s and is_instance_valid(s.owner_mech) and TeamRules.is_hostile(s.owner_mech, motor):
 			var d := motor.global_position - s.global_position
 			if Vector2(d.x, d.z).length() <= s.radius + 1.0:
-				w.append("⚠ 轨道打击落点 — 离开红圈")
+				w.append("⚠ 轨道打击锁定 — 离开红圈" if s.is_locked() else "⚠ 轨道打击追踪中 — 等锁定再躲")
 				break
 	for p in get_tree().get_nodes_in_group(&"projectiles"):
 		var pr := p as Projectile
@@ -252,6 +253,11 @@ func _update_warnings() -> void:
 	_warn.visible = not w.is_empty()
 
 
+func _on_riposte_window(mech: Node3D, target: Node3D, _duration: float) -> void:
+	if mech == motor and target != null:
+		callout("反刺！ 左键", Color(1.0, 0.95, 0.6), 0.6)
+
+
 func _on_kit_event(mech: Node3D, id: StringName) -> void:
 	if mech != motor:
 		return
@@ -260,3 +266,5 @@ func _on_kit_event(mech: Node3D, id: StringName) -> void:
 			callout("过热！", Color(1.0, 0.4, 0.2), 1.0)
 		&"grapple_miss":
 			callout("钩爪落空", Color(1.0, 0.7, 0.5), 0.6)
+		&"grapple_pull", &"grapple_drag":
+			callout("钩中 · 硬直", Color(1.0, 0.55, 0.25), 0.6)

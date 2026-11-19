@@ -12,6 +12,8 @@ signal attack_active(attacker: Node3D, attack: AttackDefinition)
 ## landed: it connected at least once (HIT / GUARDED / GUARD_BREAK).
 signal attack_finished(attacker: Node3D, attack: AttackDefinition, landed: bool)
 signal parried(defender: Node3D, attacker: Node3D, was_projectile: bool)
+## Riposte window opened (target, seconds) or closed (target null, 0).
+signal riposte_window(mech: Node3D, target: Node3D, duration: float)
 signal mech_died(mech: Node3D)
 signal ultimate_phase(mech: Node3D, phase: String)
 ## A delayed area attack / deployable announces where it will act
