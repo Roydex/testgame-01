@@ -6,7 +6,13 @@ extends Node3D
 
 @export_group("Follow")
 @export var focus_height: float = 3.2
-@export var distance: float = 7.5
+## Arm length presets (near / mid / far), cycled with the camera_zoom action.
+@export var distance_presets: PackedFloat32Array = PackedFloat32Array([7.5, 10.0, 13.0])
+@export var distance_preset_index: int = 1
+## How fast the arm length eases to a newly selected preset (1/s).
+@export var distance_change_sharpness: float = 5.0
+## Current base arm length (eases toward the selected preset).
+var distance: float = 10.0
 @export var shoulder_offset: float = 1.2
 ## Exponential follow sharpness (1/s). Vertical is softer so take-off and
 ## landing do not jolt the view.
@@ -37,7 +43,7 @@ extends Node3D
 ## Orbit pitch used for the camera POSITION while locked. Looking up at a high
 ## target tilts the view (look-at) instead of dropping the camera to the floor.
 @export var lock_orbit_pitch_min_deg: float = -35.0
-@export var lock_orbit_pitch_max_deg: float = 15.0
+@export var lock_orbit_pitch_max_deg: float = 8.0
 @export var lock_manual_yaw_deg: float = 25.0
 @export var lock_manual_pitch_deg: float = 15.0
 @export var lock_offset_return_delay: float = 0.8
@@ -103,6 +109,7 @@ func setup(p_mech: MechMotor, p_targeting: TargetingSystem) -> void:
 
 
 func snap() -> void:
+	distance = get_target_distance()
 	_focus = mech.global_position + Vector3.UP * focus_height
 	_cam_dist = distance
 	_initialized = true
@@ -118,7 +125,23 @@ func is_locked() -> bool:
 	return targeting != null and targeting.has_target()
 
 
+func get_target_distance() -> float:
+	if distance_presets.is_empty():
+		return distance
+	return distance_presets[clampi(distance_preset_index, 0, distance_presets.size() - 1)]
+
+
+## Selects the next distance preset (wraps around). Returns the new target length.
+func cycle_distance() -> float:
+	if not distance_presets.is_empty():
+		distance_preset_index = (distance_preset_index + 1) % distance_presets.size()
+	return get_target_distance()
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"camera_zoom"):
+		cycle_distance()
+		return
 	if not mouse_enabled:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -184,7 +207,8 @@ func _update_camera(delta: float, instant: bool) -> void:
 		_yaw_offset = 0.0
 		_pitch_offset = 0.0
 
-	# --- dynamic distance: pull back with speed
+	# --- dynamic distance: preset (eased), height difference, speed pull-back
+	distance = get_target_distance() if instant else lerpf(distance, get_target_distance(), 1.0 - exp(-distance_change_sharpness * delta))
 	var spd := mech.get_horizontal_velocity().length()
 	var p := mech.profile
 	var speed_t := clampf((spd - p.ground_max_speed) / maxf(p.air_dash_speed - p.ground_max_speed, 1.0), 0.0, 1.0)

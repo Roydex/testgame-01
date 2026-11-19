@@ -102,7 +102,8 @@
 | 参数 | 值 | 说明 |
 |---|---|---|
 | `base_fov` / `dash_fov` | 70° / 78° | 冲刺时 FOV，按速度插值 |
-| `distance` / `focus_height` / `shoulder_offset` | 7.5 m / 3.2 m / 1.2 m | 跟随距离、注视点高度、越肩偏移 |
+| `distance_presets` / `distance_preset_index` | 7.5 / **10** / 13 m，默认中档 | 跟随距离三档（近 / 中 / 远），按 `Z` 循环切换，以 `distance_change_sharpness` = 5 平滑过渡 |
+| `focus_height` / `shoulder_offset` | 3.2 m / 1.2 m | 注视点高度、越肩偏移 |
 | `follow_sharpness_h` / `follow_sharpness_v` | 22 / 7 (1/s) | 水平 / 垂直跟随锐度；垂直更柔和以平滑起降 |
 | `speed_pullback` | 1.2 m | 冲刺时镜头拉远 |
 | `mouse_sensitivity` | 0.0025 rad/px | 自由视角灵敏度 |
@@ -111,7 +112,7 @@
 | `lock_sharpness` | 5 (1/s) | 锁定跟随平滑 |
 | `lock_aim_weight` | 0.45 | 视线在“玩家→目标”之间的角度插值 |
 | `lock_player_max_angle_deg` | 26° | 玩家胸口始终保持在画面中心该角度内 |
-| `lock_orbit_pitch_min/max_deg` | -35° / 15° | 锁定时镜头位置俯仰（避免仰视高空目标时镜头钻地） |
+| `lock_orbit_pitch_min/max_deg` | -35° / 8° | 锁定时镜头位置俯仰（避免仰视高空目标时镜头钻地） |
 | `lock_height_distance_factor` / `lock_max_extra_distance` | 0.18 m/m / 5 m | 高度差越大镜头越远 |
 | `lock_manual_yaw_deg` / `lock_manual_pitch_deg` | ±25° / ±15° | 锁定时鼠标可做的偏移，0.8 s 后回正 |
 | `collision_radius` | 0.35 m | 遮挡球形扫掠半径 |

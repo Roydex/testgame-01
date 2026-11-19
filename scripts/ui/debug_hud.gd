@@ -57,7 +57,7 @@ func _ready() -> void:
 
 	_help = Label.new()
 	_help.add_theme_font_size_override(&"font_size", 13)
-	_help.text = "WASD move | Mouse look (click to capture, Esc release) | Space jump / hold ascend | C/Ctrl descend | Shift dash\nQ / MMB lock | E / R or wheel switch target | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters on/off"
+	_help.text = "WASD move | Mouse look (click to capture, Esc release) | Space jump / hold ascend | C/Ctrl descend | Shift dash\nQ / MMB lock | E / R or wheel switch target | Z camera distance | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters on/off"
 	_help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_help.position = Vector2(12, -52)
 	_help.add_theme_color_override(&"font_shadow_color", Color.BLACK)
@@ -96,7 +96,8 @@ func _process(_delta: float) -> void:
 			"  OCCLUDED %.1fs" % targeting.occluded_time if targeting.occluded_time > 0 else ""])
 	else:
 		lines.append("LOCK     none%s" % ("  (last: %s)" % targeting.last_lost_reason if targeting.last_lost_reason != "" else ""))
-	lines.append("CAMERA   fov %.1f  occluded:%s" % [rig.camera.fov, _yn(rig.occluded)])
+	lines.append("CAMERA   dist %.1f m (preset %d/%d)  fov %.1f  occluded:%s" % [rig.distance, rig.distance_preset_index + 1,
+		rig.distance_presets.size(), rig.camera.fov, _yn(rig.occluded)])
 	var mods := motor.get_modifier_descriptions()
 	lines.append("MODS     %s" % (", ".join(mods) if not mods.is_empty() else "-"))
 	lines.append("INCOMING hits %d  dodged %d  %s" % [TestProjectile.hits, TestProjectile.dodges, TestProjectile.last_result])

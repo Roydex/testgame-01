@@ -786,6 +786,27 @@ func t10_camera_lock(res: Dictionary) -> void:
 		mm.command.ascend = true
 	await _sim(m, 2.5, up, probe_o)
 	_check(res, so.inside == 0, "under 0.4 m slab while thrusting: camera inside geometry %d frames (occluded %d)" % [so.inside, so.occl])
+	# distance presets (Z key): cycle near/mid/far, eased, no jumps
+	_clear(m)
+	m.reset_to(GrayboxBuilder.POINTS.spawn)
+	rig.distance_preset_index = 1
+	rig.snap()
+	await _sim(m, 0.5, idle)
+	var arm_of := func() -> float:
+		return rig.camera.global_position.distance_to(m.global_position + Vector3.UP * rig.focus_height)
+	for expect: float in [13.0, 7.5, 10.0]:
+		var got := rig.cycle_distance()
+		var sz := {"max_step": 0.0, "prev": arm_of.call()}
+		var probe_z := func(_mm: MechMotor, _t: float) -> void:
+			var a: float = arm_of.call()
+			sz.max_step = maxf(sz.max_step, absf(a - sz.prev))
+			sz.prev = a
+		await _sim(m, 1.5, idle, probe_z)
+		var arm: float = arm_of.call()
+		# arm = base distance plus shoulder offset (hypotenuse)
+		var want := sqrt(expect * expect + rig.shoulder_offset * rig.shoulder_offset)
+		_check(res, is_equal_approx(got, expect) and absf(arm - want) < 0.3 and sz.max_step < 0.5,
+			"zoom preset %.1f m: arm %.2f (expected %.2f), largest per-frame change %.2f m (eased)" % [expect, arm, want, sz.max_step])
 	rig.queue_free()
 	m.queue_free()
 	await _ticks(2)

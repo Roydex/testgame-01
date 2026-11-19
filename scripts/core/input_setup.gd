@@ -11,6 +11,7 @@ const KEY_BINDINGS := {
 	&"descend": [KEY_C, KEY_CTRL],
 	&"dash": [KEY_SHIFT],
 	&"lock_toggle": [KEY_Q],
+	&"camera_zoom": [KEY_Z],
 	&"target_next": [KEY_E],
 	&"target_prev": [KEY_R],
 	&"ui_release_mouse": [KEY_ESCAPE],

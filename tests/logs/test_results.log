@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-19T05:35:16  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-19T06:52:40  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -263,32 +263,35 @@ PASS  T08
 PASS  T09
 
 --- T10  M06 lock camera framing & rotation limits
-  info stationary, target bobbing ±12 m: target in safe frame 100.0%, player 100.0%, telegraph visible 100.0% of 192 frames, max cam rotation 9°/s
+  info stationary, target bobbing ±12 m: target in safe frame 100.0%, player 100.0%, telegraph visible 100.0% of 192 frames, max cam rotation 8°/s
   ok   stationary, target bobbing ±12 m: locked target inside 90% safe frame ≥95% of frames (100.0%)
   ok   stationary, target bobbing ±12 m: player inside safe frame ≥98% (100.0%)
   ok   stationary, target bobbing ±12 m: attack telegraph visible ≥95% (100.0%)
-  ok   stationary, target bobbing ±12 m: camera rotation ≤ 240°/s (max 9)
-  info strafing + takeoff/landing: target in safe frame 100.0%, player 100.0%, telegraph visible 100.0% of 96 frames, max cam rotation 72°/s
+  ok   stationary, target bobbing ±12 m: camera rotation ≤ 240°/s (max 8)
+  info strafing + takeoff/landing: target in safe frame 100.0%, player 100.0%, telegraph visible 100.0% of 96 frames, max cam rotation 29°/s
   ok   strafing + takeoff/landing: locked target inside 90% safe frame ≥95% of frames (100.0%)
   ok   strafing + takeoff/landing: player inside safe frame ≥98% (100.0%)
   ok   strafing + takeoff/landing: attack telegraph visible ≥95% (100.0%)
-  ok   strafing + takeoff/landing: camera rotation ≤ 240°/s (max 72)
-  info cornered vs T2_high: arm 11.32 m, target on screen 100%, player 100%
-  ok   cornered against tower: arm 11.32 m ≥ 2.0, player on screen 60/60 frames
-  info switch T5_ground: cam (4.8, 3.5, 36.2) mech (0.0, 0.0, 30.0) target (-10.0, 1.6, 12.0) blend 1.00
-  ok   switch to T5_ground (Δh +1.6 m, 21 m): transition rotation ≤ 240°/s (max 36)
+  ok   strafing + takeoff/landing: camera rotation ≤ 240°/s (max 29)
+  info cornered vs T2_high: arm 14.02 m, target on screen 100%, player 100%
+  ok   cornered against tower: arm 14.02 m ≥ 2.0, player on screen 60/60 frames
+  info switch T5_ground: cam (6.0, 3.7, 38.4) mech (0.0, 0.0, 30.0) target (-10.0, 1.6, 12.0) blend 1.00
+  ok   switch to T5_ground (Δh +1.6 m, 21 m): transition rotation ≤ 240°/s (max 33)
   ok   switch to T5_ground: settled, target 100% / player 100% on screen, residual rotation 2.4°/s
-  info switch T2_high: cam (-3.5, 0.4, 40.2) mech (0.0, 0.0, 30.0) target (20.0, 26.0, -10.0) blend 1.00
-  ok   switch to T2_high (Δh +26.0 m, 52 m): transition rotation ≤ 240°/s (max 152)
+  info switch T2_high: cam (-4.8, 1.2, 43.2) mech (0.0, 0.0, 30.0) target (20.0, 26.0, -10.0) blend 1.00
+  ok   switch to T2_high (Δh +26.0 m, 52 m): transition rotation ≤ 240°/s (max 155)
   ok   switch to T2_high: settled, target 100% / player 100% on screen, residual rotation 8.9°/s
-  info switch T1_low-hover: cam (1.1, 2.8, 38.1) mech (0.0, 0.0, 30.0) target (0.0, 6.0, -15.0) blend 1.00
-  ok   switch to T1_low-hover (Δh +6.0 m, 45 m): transition rotation ≤ 240°/s (max 90)
+  info switch T1_low-hover: cam (1.1, 2.7, 40.6) mech (0.0, 0.0, 30.0) target (0.0, 6.0, -15.0) blend 1.00
+  ok   switch to T1_low-hover (Δh +6.0 m, 45 m): transition rotation ≤ 240°/s (max 84)
   ok   switch to T1_low-hover: settled, target 100% / player 100% on screen, residual rotation 4.1°/s
-  info switch T6_tower: cam (-3.0, 2.3, 41.1) mech (0.0, 0.0, 30.0) target (40.0, 18.0, -70.0) blend 1.00
-  ok   switch to T6_tower (Δh +18.0 m, 109 m): transition rotation ≤ 240°/s (max 63)
+  info switch T6_tower: cam (-3.9, 2.1, 43.4) mech (0.0, 0.0, 30.0) target (40.0, 18.0, -70.0) blend 1.00
+  ok   switch to T6_tower (Δh +18.0 m, 109 m): transition rotation ≤ 240°/s (max 61)
   ok   switch to T6_tower: settled, target 100% / player 100% on screen, residual rotation 3.4°/s
   ok   wall behind player: pulled in on 181 frames, camera inside geometry 0 frames
   ok   under 0.4 m slab while thrusting: camera inside geometry 0 frames (occluded 0)
+  ok   zoom preset 13.0 m: arm 13.03 (expected 13.06), largest per-frame change 0.08 m (eased)
+  ok   zoom preset 7.5 m: arm 7.60 (expected 7.60), largest per-frame change 0.41 m (eased)
+  ok   zoom preset 10.0 m: arm 10.05 (expected 10.07), largest per-frame change 0.07 m (eased)
 PASS  T10
 
 --- T11  Targeting: switch / destroyed / out of range / occluded
