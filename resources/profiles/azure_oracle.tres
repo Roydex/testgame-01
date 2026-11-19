@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="MechMovementProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/movement/mech_movement_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "04 AZURE ORACLE"
+ground_max_speed = 12.0
+ground_accel = 40.0
+ground_turn_grip = 45.0
+turn_speed_deg = 600.0
+air_max_speed = 14.0
+air_accel = 26.0
+air_decel = 16.0
+air_turn_grip = 20.0
+air_dash_speed = 30.0
+air_dash_steer_deg = 80.0
+ascend_speed = 8.5
+hover_brake = 35.0
+hover_cost_per_sec = 16.0
+gravity = 23.0

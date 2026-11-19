@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="MechMovementProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/movement/mech_movement_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "03 VERDANT ARK"
+ground_max_speed = 10.0
+ground_accel = 30.0
+ground_decel = 55.0
+ground_turn_grip = 45.0
+turn_speed_deg = 400.0
+ground_dash_speed = 24.0
+ground_dash_duration = 0.36
+air_max_speed = 10.0
+air_accel = 18.0
+air_decel = 20.0
+air_turn_grip = 22.0
+air_dash_speed = 26.0
+air_dash_steer_deg = 60.0
+ascend_speed = 7.0
+ascend_accel = 22.0
+hover_brake = 40.0
+hover_cost_per_sec = 14.0
+ascend_cost_per_sec = 24.0
+max_en = 110.0
+gravity = 26.0

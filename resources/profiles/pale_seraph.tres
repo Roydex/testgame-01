@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="MechMovementProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/movement/mech_movement_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "01 PALE SERAPH"
+ground_max_speed = 16.0
+ground_accel = 70.0
+ground_decel = 75.0
+ground_turn_grip = 75.0
+turn_speed_deg = 900.0
+ground_dash_speed = 34.0
+ground_dash_duration = 0.28
+dash_cooldown = 0.12
+air_max_speed = 15.0
+air_accel = 36.0
+air_decel = 14.0
+air_turn_grip = 34.0
+air_dash_speed = 36.0
+air_dash_duration = 0.26
+air_dash_steer_deg = 160.0
+ascend_speed = 10.0
+gravity = 22.0

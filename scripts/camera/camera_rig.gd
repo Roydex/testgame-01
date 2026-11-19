@@ -1,0 +1,311 @@
+class_name CameraRig
+extends Node3D
+## Unified third-person camera: free orbit, lock-on framing, smoothed
+## ground/air follow, height-difference tracking, dash FOV, occlusion pull-in.
+## Automatic rotation is rate-limited so it never yanks the view.
+
+@export_group("Follow")
+@export var focus_height: float = 3.2
+@export var distance: float = 7.5
+@export var shoulder_offset: float = 1.2
+## Exponential follow sharpness (1/s). Vertical is softer so take-off and
+## landing do not jolt the view.
+@export var follow_sharpness_h: float = 22.0
+@export var follow_sharpness_v: float = 7.0
+## Extra distance at full dash speed.
+@export var speed_pullback: float = 1.2
+
+@export_group("Free Look")
+@export var mouse_sensitivity: float = 0.0025
+@export var pitch_min_deg: float = -70.0
+@export var pitch_max_deg: float = 55.0
+
+@export_group("Lock-On")
+@export var lock_sharpness: float = 5.0
+## Max automatic rotation speed while locked (deg/s).
+@export var lock_max_turn_deg: float = 200.0
+@export var lock_pitch_factor: float = 0.6
+@export var lock_pitch_min_deg: float = -50.0
+@export var lock_pitch_max_deg: float = 42.0
+## 0 = look at player, 1 = look at target (angular blend).
+@export var lock_aim_weight: float = 0.45
+## The player's chest is kept within this angle of the view centre while locked.
+@export var lock_player_max_angle_deg: float = 26.0
+## Extra arm length per metre of height difference.
+@export var lock_height_distance_factor: float = 0.18
+@export var lock_max_extra_distance: float = 5.0
+## Orbit pitch used for the camera POSITION while locked. Looking up at a high
+## target tilts the view (look-at) instead of dropping the camera to the floor.
+@export var lock_orbit_pitch_min_deg: float = -35.0
+@export var lock_orbit_pitch_max_deg: float = 15.0
+@export var lock_manual_yaw_deg: float = 25.0
+@export var lock_manual_pitch_deg: float = 15.0
+@export var lock_offset_return_delay: float = 0.8
+@export var lock_offset_return_speed: float = 2.5
+
+@export_group("FOV")
+@export var base_fov: float = 70.0
+@export var dash_fov: float = 78.0
+@export var fov_sharpness: float = 6.0
+
+@export_group("Occlusion")
+@export var collision_radius: float = 0.35
+@export_flags_3d_physics var collision_mask: int = 1
+@export var occlusion_return_sharpness: float = 4.0
+## Below this arm length the rig tries a raised camera position instead.
+@export var min_comfort_distance: float = 2.8
+@export var raise_height: float = 4.0
+## Mech visual fades out between these arm lengths (camera too close).
+@export var fade_start_distance: float = 3.0
+@export var fade_end_distance: float = 1.2
+## How fast the arm swings to an alternative (unoccluded) position (1/s).
+@export var arm_swing_sharpness: float = 6.0
+
+var mech: MechMotor
+var targeting: TargetingSystem
+var camera: Camera3D
+var yaw: float = 0.0
+var pitch: float = deg_to_rad(-12.0)
+var occluded: bool = false
+var lock_blend: float = 0.0
+## Allow tests / autopilot to drive the free camera without a mouse.
+var mouse_enabled: bool = true
+
+var _focus: Vector3
+var _cam_dist: float
+var _yaw_offset := 0.0
+var _pitch_offset := 0.0
+var _offset_idle := 0.0
+var _aim_dir := Vector3.ZERO
+var _arm_dir := Vector3.ZERO
+var _prev_q := Quaternion.IDENTITY
+var _has_prev_q := false
+var _initialized := false
+
+
+func _ready() -> void:
+	top_level = true
+	camera = Camera3D.new()
+	camera.name = "Camera3D"
+	camera.fov = base_fov
+	camera.near = 0.1
+	camera.far = 1500.0
+	add_child(camera)
+	camera.current = true
+	process_physics_priority = 10
+
+
+func setup(p_mech: MechMotor, p_targeting: TargetingSystem) -> void:
+	mech = p_mech
+	targeting = p_targeting
+	yaw = mech.rotation.y
+	snap()
+
+
+func snap() -> void:
+	_focus = mech.global_position + Vector3.UP * focus_height
+	_cam_dist = distance
+	_initialized = true
+	_update_camera(0.0, true)
+
+
+## Horizontal basis used by brains to map input to world space.
+func get_yaw_basis() -> Basis:
+	return Basis(Vector3.UP, yaw)
+
+
+func is_locked() -> bool:
+	return targeting != null and targeting.has_target()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not mouse_enabled:
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif event.is_action_pressed(&"ui_release_mouse"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		add_look_input((event as InputEventMouseMotion).relative * mouse_sensitivity)
+
+
+## Look input in radians (x = yaw, y = pitch). In lock mode it becomes a
+## bounded offset that eases back.
+func add_look_input(delta_rad: Vector2) -> void:
+	if is_locked():
+		_yaw_offset = clampf(_yaw_offset - delta_rad.x, -deg_to_rad(lock_manual_yaw_deg), deg_to_rad(lock_manual_yaw_deg))
+		_pitch_offset = clampf(_pitch_offset - delta_rad.y, -deg_to_rad(lock_manual_pitch_deg), deg_to_rad(lock_manual_pitch_deg))
+		_offset_idle = 0.0
+	else:
+		yaw = wrapf(yaw - delta_rad.x, -PI, PI)
+		pitch = clampf(pitch - delta_rad.y, deg_to_rad(pitch_min_deg), deg_to_rad(pitch_max_deg))
+
+
+func _physics_process(delta: float) -> void:
+	if mech == null or not _initialized:
+		return
+	_update_camera(delta, false)
+
+
+func _update_camera(delta: float, instant: bool) -> void:
+	# --- focus follow (separate vertical smoothing for ground/air transitions)
+	var want_focus := mech.global_position + Vector3.UP * focus_height
+	var kh := 1.0 if instant else 1.0 - exp(-follow_sharpness_h * delta)
+	var kv := 1.0 if instant else 1.0 - exp(-follow_sharpness_v * delta)
+	_focus.x = lerpf(_focus.x, want_focus.x, kh)
+	_focus.z = lerpf(_focus.z, want_focus.z, kh)
+	_focus.y = lerpf(_focus.y, want_focus.y, kv)
+	# never let the lagging focus sit more than 3 m from the mech
+	if _focus.distance_to(want_focus) > 3.0:
+		_focus = want_focus + (_focus - want_focus).normalized() * 3.0
+
+	var locked := is_locked()
+	var extra_dist := 0.0
+	lock_blend = move_toward(lock_blend, 1.0 if locked else 0.0, (1.0 if instant else delta * 3.0))
+
+	if locked:
+		var tp := targeting.get_target_point()
+		var to := tp - _focus
+		var horiz := Vector2(to.x, to.z).length()
+		var desired_yaw := yaw - _yaw_offset_applied()
+		if horiz > 2.5:
+			desired_yaw = atan2(-to.x, -to.z)
+		var desired_pitch := clampf(atan2(to.y, maxf(horiz, 0.1)) * lock_pitch_factor,
+			deg_to_rad(lock_pitch_min_deg), deg_to_rad(lock_pitch_max_deg))
+		_offset_idle += delta
+		if _offset_idle > lock_offset_return_delay:
+			_yaw_offset = move_toward(_yaw_offset, 0.0, lock_offset_return_speed * delta * absf(_yaw_offset) + 0.2 * delta)
+			_pitch_offset = move_toward(_pitch_offset, 0.0, lock_offset_return_speed * delta * absf(_pitch_offset) + 0.2 * delta)
+		yaw = _approach_angle(yaw, desired_yaw + _yaw_offset, delta, instant)
+		pitch = _approach_angle(pitch, desired_pitch + _pitch_offset, delta, instant)
+		pitch = clampf(pitch, deg_to_rad(pitch_min_deg), deg_to_rad(pitch_max_deg))
+		extra_dist = clampf(absf(to.y) * lock_height_distance_factor + maxf(horiz - 40.0, 0.0) * 0.02, 0.0, lock_max_extra_distance)
+	else:
+		_yaw_offset = 0.0
+		_pitch_offset = 0.0
+
+	# --- dynamic distance: pull back with speed
+	var spd := mech.get_horizontal_velocity().length()
+	var p := mech.profile
+	var speed_t := clampf((spd - p.ground_max_speed) / maxf(p.air_dash_speed - p.ground_max_speed, 1.0), 0.0, 1.0)
+	var want_dist := distance + extra_dist + speed_t * speed_pullback
+
+	var basis_free := Basis.from_euler(Vector3(pitch, yaw, 0.0))
+	var orbit_pitch := pitch
+	if lock_blend > 0.0:
+		var clamped := clampf(pitch, deg_to_rad(lock_orbit_pitch_min_deg), deg_to_rad(lock_orbit_pitch_max_deg))
+		orbit_pitch = lerpf(pitch, clamped, lock_blend)
+	var basis_orbit := Basis.from_euler(Vector3(orbit_pitch, yaw, 0.0))
+	var desired_cam := _focus + basis_orbit.x * shoulder_offset + basis_orbit.z * want_dist
+
+	# --- occlusion: sphere sweep from the focus to the desired position.
+	# If the arm would collapse (backed against a wall), try a raised arm and,
+	# while locked (view is look-at driven), arms swung to either side.
+	var arm := desired_cam - _focus
+	var full_len := arm.length()
+	var safe_len := full_len * _sweep(_focus, desired_cam)
+	var best_arm := arm
+	if safe_len < min_comfort_distance:
+		var candidates: Array[Vector3] = [arm + Vector3.UP * raise_height]
+		if locked:
+			for a in [50.0, -50.0, 90.0, -90.0]:
+				candidates.append(arm.rotated(Vector3.UP, deg_to_rad(a)) + Vector3.UP * raise_height * 0.5)
+		var best_len := safe_len
+		for c in candidates:
+			var lc := c.length() * _sweep(_focus, _focus + c)
+			if lc > best_len + 0.5:
+				best_len = lc
+				best_arm = c
+	# smooth the arm DIRECTION, then re-sweep along it so the camera can never
+	# end up inside geometry while it swings
+	var arm_want := best_arm.normalized()
+	if instant or _arm_dir == Vector3.ZERO:
+		_arm_dir = arm_want
+	else:
+		_arm_dir = _arm_dir.slerp(arm_want, 1.0 - exp(-arm_swing_sharpness * delta)).normalized()
+	var arm_len := best_arm.length()
+	var safe := _sweep(_focus, _focus + _arm_dir * arm_len)
+	safe_len = arm_len * safe
+	occluded = safe < 0.999 or not best_arm.is_equal_approx(arm)
+	if instant or safe_len < _cam_dist:
+		_cam_dist = safe_len  # pull in immediately
+	else:
+		_cam_dist = lerpf(_cam_dist, safe_len, 1.0 - exp(-occlusion_return_sharpness * delta))
+	var cam_pos := _focus + _arm_dir * _cam_dist
+	var vis := mech.get_node_or_null(^"Visual")
+	if vis and vis.has_method(&"set_camera_fade"):
+		vis.call(&"set_camera_fade", inverse_lerp(fade_end_distance, fade_start_distance, _cam_dist))
+
+	# --- orientation: free basis blended with lock look-at.
+	# The lock view direction is an angular blend between "toward the player"
+	# and "toward the target", capped so the player always stays in frame.
+	var q_free := basis_free.get_rotation_quaternion()
+	var q := q_free
+	if lock_blend > 0.0 and locked:
+		var chest := mech.global_position + Vector3.UP * (focus_height - 0.7)
+		var d_p := (chest - cam_pos)
+		var d_t := (targeting.get_target_point() - cam_pos)
+		if d_p.length() > 0.5 and d_t.length() > 0.5:
+			d_p = d_p.normalized()
+			d_t = d_t.normalized()
+			var sep := d_p.angle_to(d_t)
+			var w := lock_aim_weight
+			if sep > 0.001:
+				w = minf(w, deg_to_rad(lock_player_max_angle_deg) / sep)
+			var want_dir := d_p.slerp(d_t, clampf(w, 0.0, 1.0)).normalized()
+			_aim_dir = want_dir if (instant or _aim_dir == Vector3.ZERO) else _aim_dir.slerp(want_dir, 1.0 - exp(-lock_sharpness * 1.5 * delta)).normalized()
+			if absf(_aim_dir.dot(Vector3.UP)) < 0.98:
+				var q_lock := Basis.looking_at(_aim_dir, Vector3.UP).get_rotation_quaternion()
+				q = q_free.slerp(q_lock, lock_blend)
+	elif lock_blend > 0.0 and _aim_dir != Vector3.ZERO:
+		# lock just released: ease from the last lock view back to the free view
+		var q_last := Basis.looking_at(_aim_dir, Vector3.UP).get_rotation_quaternion()
+		q = q_free.slerp(q_last, lock_blend)
+	if lock_blend <= 0.0:
+		_aim_dir = -basis_free.z
+	# rate-limit any automatic rotation (lock / switch / release)
+	if not instant and lock_blend > 0.0 and _has_prev_q:
+		var ang := _prev_q.angle_to(q)
+		var max_step := deg_to_rad(lock_max_turn_deg) * delta
+		if ang > max_step:
+			q = _prev_q.slerp(q, max_step / ang)
+	_prev_q = q
+	_has_prev_q = true
+	global_transform = Transform3D(Basis.IDENTITY, cam_pos)
+	camera.global_transform = Transform3D(Basis(q), cam_pos)
+
+	# --- FOV
+	var dashing := mech.state == MechMotor.MotionState.GROUND_DASH or mech.state == MechMotor.MotionState.AIR_DASH
+	var fov_t := 1.0 if dashing else speed_t
+	var want_fov := lerpf(base_fov, dash_fov, fov_t)
+	camera.fov = want_fov if instant else lerpf(camera.fov, want_fov, 1.0 - exp(-fov_sharpness * delta))
+
+
+func _yaw_offset_applied() -> float:
+	return _yaw_offset
+
+
+func _approach_angle(current: float, target: float, delta: float, instant: bool) -> float:
+	if instant:
+		return target
+	var diff := wrapf(target - current, -PI, PI)
+	var step := diff * (1.0 - exp(-lock_sharpness * delta))
+	var max_step := deg_to_rad(lock_max_turn_deg) * delta
+	step = clampf(step, -max_step, max_step)
+	return wrapf(current + step, -PI, PI)
+
+
+func _sweep(from: Vector3, to: Vector3) -> float:
+	var space := get_world_3d().direct_space_state
+	var shape := SphereShape3D.new()
+	shape.radius = collision_radius
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = shape
+	q.transform = Transform3D(Basis.IDENTITY, from)
+	q.motion = to - from
+	q.collision_mask = collision_mask
+	q.exclude = [mech.get_rid()]
+	var res := space.cast_motion(q)
+	if res.is_empty():
+		return 1.0
+	return res[0]

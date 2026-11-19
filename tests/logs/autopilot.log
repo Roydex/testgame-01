@@ -1,0 +1,14 @@
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/01_spawn_grounded.png  state=GROUNDED pos=(0.0, 0.000156, 30.0) en=100.0
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/02_ground_dash_fov.png  state=GROUND_DASH pos=(0.0, 0.001, 18.67777) en=82.0
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/03_ascend.png  state=HOVER pos=(0.0, 9.976206, -13.20139) en=49.7
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/04_hover.png  state=HOVER pos=(0.0, 9.976206, -21.0014) en=37.7
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/05_air_dash.png  state=AIR_DASH pos=(3.016989, 9.976206, -24.01838) en=9.7
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/06_descend_landed.png  state=GROUNDED pos=(27.64726, 0.001, -38.59889) en=24.8
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/07_lock_bobbing_target.png  state=GROUNDED pos=(27.64726, 0.001, -38.59889) en=51.2
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/08_lock_bobbing_target_later.png  state=GROUNDED pos=(27.64726, 0.001, -38.59889) en=91.2
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/09_lock_airborne_strafe.png  state=HOVER pos=(44.17785, 9.976206, -38.59889) en=55.3
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/10_occlusion_wall_close.png  state=GROUNDED pos=(0.0, 0.001, -41.40125) en=100.0
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/11_under_slab_ceiling.png  state=AIRBORNE pos=(-40.0, 3.999598, -50.0) en=47.7
+[autopilot] perf: 6231 frames, viewport (1920.0, 1080.0), avg 308.8 FPS, 1%-low 165.7 FPS, worst frame 150.0 ms (vsync off, Apple M1 Pro (Apple7))
+[autopilot] trace: 0.68 LANDING | 0.75 GROUNDED | 2.15 GROUND_DASH | 2.52 GROUNDED | 2.62 TAKEOFF | 2.76 AIRBORNE | 3.90 HOVER | 4.81 AIR_DASH | 5.07 HOVER | 5.30 FALLING | 6.16 LANDING | 6.25 GROUNDED | 11.09 TAKEOFF | 11.09 AIRBORNE | 12.24 HOVER | 12.65 FALLING | 13.39 LANDING | 13.47 GROUNDED | 15.02 FALLING | 15.12 LANDING | 15.22 GROUNDED | 16.93 FALLING | 16.94 LANDING | 17.02 GROUNDED | 17.62 TAKEOFF | 17.76 AIRBORNE | 19.74 FALLING | 20.10 LANDING | 20.18 GROUNDED
+[autopilot] done
