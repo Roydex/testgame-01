@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"sparring_pulse_shot"
+display_name = "脉冲弹（陶练机）"
+attack_type = 1
+windup = 0.5
+active = 0.05
+recovery = 0.5
+cancel_time = 0.6
+telegraphed = true
+damage = 10.0
+knockback = 3.0
+stagger_time = 0.2
+hitstop = 0.05
+shake = 0.15
+windup_speed_mult = 0.5
+active_speed_mult = 0.5
+recovery_speed_mult = 0.7
+projectile_speed = 45.0
+projectile_range = 120.0
+projectile_radius = 0.35

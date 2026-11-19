@@ -15,8 +15,21 @@ var _materials: Array[StandardMaterial3D] = []
 var _fade := 1.0
 
 
-func setup(p_motor: MechMotor, color: Color) -> void:
+var style: StringName = &"generic"
+var _crown: Array[MeshInstance3D] = []
+var _crown_missing: MeshInstance3D
+var _wings: Array[MeshInstance3D] = []
+var _glow_mat: StandardMaterial3D
+var _flash := 0.0
+var _flash_color := Color.WHITE
+var _telegraph := 0.0
+var _ult_phase := "LOCKED"
+var _dead := false
+
+
+func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -> void:
 	motor = p_motor
+	style = p_style
 	_armor_mat = StandardMaterial3D.new()
 	_armor_mat.albedo_color = color
 	_armor_mat.roughness = 0.55
@@ -40,6 +53,80 @@ func setup(p_motor: MechMotor, color: Color) -> void:
 	_box(_body, Vector3(1.4, 1.0, 0.5), Vector3(0, 2.7, 0.8), dark)          # backpack
 	for x in [-0.45, 0.45]:
 		_thrusters.append(_box(_body, Vector3(0.35, 0.8, 0.35), Vector3(x, 2.0, 1.05), _thruster_mat))
+	_glow_mat = StandardMaterial3D.new()
+	_glow_mat.albedo_color = Color(1.0, 0.95, 0.8)
+	_glow_mat.emission_enabled = true
+	_glow_mat.emission = Color(1.0, 0.92, 0.7)
+	_glow_mat.emission_energy_multiplier = 1.5
+	if style == &"seraph":
+		_build_seraph()
+	if motor and motor.has_node(^"CombatStateMachine"):
+		CombatEvents.telegraph.connect(_on_telegraph)
+		CombatEvents.hit_resolved.connect(_on_hit)
+		CombatEvents.ultimate_phase.connect(_on_ult_phase)
+		CombatEvents.mech_died.connect(_on_died)
+
+
+## PALE SERAPH placeholder story read: an INCOMPLETE crown (3 of 4 arcs)
+## above the head and folded light-wing plates. The ultimate completes the
+## crown and unfolds the wings.
+func _build_seraph() -> void:
+	for i in 4:
+		var a := TAU * i / 4.0
+		var seg := _box(_body, Vector3(0.5, 0.12, 0.12), Vector3(cos(a) * 0.5, 4.05, sin(a) * 0.5), _glow_mat)
+		seg.rotation.y = -a + PI * 0.5
+		if i == 3:
+			_crown_missing = seg
+			seg.visible = false
+		else:
+			_crown.append(seg)
+	for side in [-1.0, 1.0]:
+		var w := _box(_body, Vector3(0.12, 1.6, 0.9), Vector3(side * 0.85, 3.0, 0.9), _glow_mat)
+		w.rotation.z = side * 0.25
+		_wings.append(w)
+
+
+func _on_telegraph(attacker: Node3D, _attack: AttackDefinition, duration: float) -> void:
+	if attacker == motor:
+		_telegraph = maxf(duration, 0.2)
+
+
+func _on_hit(hit: HitInfo) -> void:
+	if hit.victim == motor:
+		match hit.result:
+			CombatTypes.HitResult.HIT:
+				flash(Color(1.0, 0.3, 0.2), 0.12)
+			CombatTypes.HitResult.GUARDED:
+				flash(Color(0.5, 0.7, 1.0), 0.08)
+			CombatTypes.HitResult.GUARD_BREAK:
+				flash(Color(1.0, 0.6, 0.1), 0.2)
+			CombatTypes.HitResult.PARRIED, CombatTypes.HitResult.DEFLECTED, CombatTypes.HitResult.REFLECTED:
+				flash(Color(1.0, 1.0, 1.0), 0.15)
+
+
+func _on_ult_phase(mech: Node3D, phase: String) -> void:
+	if mech != motor:
+		return
+	_ult_phase = phase
+	if _crown_missing:
+		_crown_missing.visible = phase == "WINDUP" or phase == "JUDGMENT"
+	for w in _wings:
+		var open := phase == "JUDGMENT" or phase == "WINDUP"
+		w.scale = Vector3(1, 1.8, 2.2) if open else Vector3.ONE
+	_glow_mat.emission_energy_multiplier = 6.0 if phase == "JUDGMENT" else (0.3 if phase == "OVERLOAD" else 1.5)
+	_glow_mat.emission = Color(1.0, 0.95, 0.75) if phase != "OVERLOAD" else Color(0.9, 0.3, 0.2)
+
+
+func _on_died(mech: Node3D) -> void:
+	if mech == motor:
+		_dead = true
+		_armor_mat.albedo_color = _armor_mat.albedo_color.darkened(0.6)
+		_body.rotation = Vector3(0.0, 0.0, 1.2)
+
+
+func flash(c: Color, t: float) -> void:
+	_flash = t
+	_flash_color = c
 
 
 func _box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
@@ -70,6 +157,18 @@ func set_camera_fade(alpha: float) -> void:
 
 func _process(delta: float) -> void:
 	if motor == null:
+		return
+	_flash = maxf(_flash - delta, 0.0)
+	_telegraph = maxf(_telegraph - delta, 0.0)
+	_armor_mat.emission_enabled = _flash > 0.0 or _telegraph > 0.0
+	if _flash > 0.0:
+		_armor_mat.emission = _flash_color
+		_armor_mat.emission_energy_multiplier = 2.5
+	elif _telegraph > 0.0:
+		# attack telegraph: pulsing warm glow
+		_armor_mat.emission = Color(1.0, 0.25, 0.1)
+		_armor_mat.emission_energy_multiplier = 1.2 + sin(Time.get_ticks_msec() * 0.03) * 0.8
+	if _dead or motor.in_hitstop():
 		return
 	var h := motor.get_horizontal_velocity()
 	var accel := (h - _prev_h) / maxf(delta, 0.001)

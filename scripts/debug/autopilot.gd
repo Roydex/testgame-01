@@ -15,6 +15,10 @@ func run(p_scene: Node3D) -> void:
 	scene = p_scene
 	motor = scene.motor
 	scene.brain.enabled = false
+	# movement showcase: park the sparring partners out of the way
+	for d in scene.dummies:
+		(d.get_node(^"SparringBrain") as SparringBrain).enabled = false
+		d.reset_to(Vector3(-80 + scene.dummies.find(d) * 6.0, 0.2, 80))
 	scene.rig.mouse_enabled = false
 	motor.record_transitions = true
 	out_dir = ProjectSettings.globalize_path("res://docs/screenshots")

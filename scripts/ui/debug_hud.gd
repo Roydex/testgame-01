@@ -57,7 +57,7 @@ func _ready() -> void:
 
 	_help = Label.new()
 	_help.add_theme_font_size_override(&"font_size", 13)
-	_help.text = "WASD move | Mouse look (click to capture, Esc release) | Space jump / hold ascend | C/Ctrl descend | Shift dash\nQ / MMB lock | E / R or wheel switch target | Z camera distance | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters on/off"
+	_help.text = "WASD move | Mouse look (click to capture, Esc release) | Space jump / hold ascend | C/Ctrl descend | Shift dash\nQ / MMB lock | E / R or wheel switch target | Z camera distance | LMB attack RMB guard F parry X dash-slash V ultimate | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters | F7 restart | F8 dummy teams | F9 melee dummy mode | F10 drop HP to 29%"
 	_help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_help.position = Vector2(12, -52)
 	_help.add_theme_color_override(&"font_shadow_color", Color.BLACK)
@@ -81,7 +81,8 @@ func _process(_delta: float) -> void:
 	lines.append("PROFILE  %s" % motor.profile.display_name)
 	lines.append("MOTION   %s  (%.2fs)%s" % [motor.get_state_name(), motor.state_time,
 		"  [hover engaged]" if motor.hover_engaged else ""])
-	lines.append("COMBAT   %s" % (combat.get_state_name() if combat else "-"))
+	lines.append("COMBAT   %s  HP %.0f/%.0f%s" % [combat.get_state_name(), combat.health.hp, combat.health.max_hp,
+		("  ULT %s" % combat.ultimate.get_phase_name()) if combat.ultimate else ""])
 	lines.append("VEL      (%.1f, %.1f, %.1f)  |h| %.1f  v %.1f m/s" % [v.x, v.y, v.z, h, v.y])
 	lines.append("EN       %.1f / %.0f" % [motor.en, motor.profile.max_en])
 	lines.append("HEIGHT   feet y %.2f  above ground %s  ceiling %.1f" % [motor.global_position.y,
@@ -104,6 +105,8 @@ func _process(_delta: float) -> void:
 	lines.append("FPS      %d" % Engine.get_frames_per_second())
 	lines.append("")
 	lines.append_array(_events)
+	lines.append("— damage log —")
+	lines.append_array(CombatEvents.log_lines)
 	_label.text = "\n".join(lines)
 	_en_bar.max_value = motor.profile.max_en
 	_en_bar.value = motor.en

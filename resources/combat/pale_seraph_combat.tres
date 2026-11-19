@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/seraph_l1.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/combat/seraph_dash_slash.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/pale_seraph_ultimate.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+display_name = "01 PALE SERAPH 武装"
+max_hp = 300.0
+light_combo = ExtResource("2")
+skill = ExtResource("3")
+ultimate = ExtResource("4")

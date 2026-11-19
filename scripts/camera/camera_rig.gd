@@ -87,6 +87,11 @@ var _arm_dir := Vector3.ZERO
 var _prev_q := Quaternion.IDENTITY
 var _has_prev_q := false
 var _initialized := false
+## Camera shake "trauma" (0..1); shake = trauma², decays quickly.
+var shake_trauma: float = 0.0
+@export_group("Shake")
+@export var shake_max_angle_deg: float = 1.6
+@export var shake_decay: float = 3.5
 
 
 func _ready() -> void:
@@ -117,6 +122,10 @@ func snap() -> void:
 
 
 ## Horizontal basis used by brains to map input to world space.
+func add_shake(amount: float) -> void:
+	shake_trauma = clampf(shake_trauma + amount, 0.0, 1.0)
+
+
 func get_yaw_basis() -> Basis:
 	return Basis(Vector3.UP, yaw)
 
@@ -296,7 +305,13 @@ func _update_camera(delta: float, instant: bool) -> void:
 	_prev_q = q
 	_has_prev_q = true
 	global_transform = Transform3D(Basis.IDENTITY, cam_pos)
-	camera.global_transform = Transform3D(Basis(q), cam_pos)
+	var cam_basis := Basis(q)
+	if shake_trauma > 0.0 and not instant:
+		shake_trauma = maxf(shake_trauma - shake_decay * delta, 0.0)
+		var s := shake_trauma * shake_trauma * deg_to_rad(shake_max_angle_deg)
+		var t := Time.get_ticks_msec() * 0.001
+		cam_basis = cam_basis * Basis.from_euler(Vector3(sin(t * 47.0) * s, sin(t * 39.0 + 1.3) * s, sin(t * 31.0 + 2.1) * s * 0.5))
+	camera.global_transform = Transform3D(cam_basis, cam_pos)
 
 	# --- FOV
 	var dashing := mech.state == MechMotor.MotionState.GROUND_DASH or mech.state == MechMotor.MotionState.AIR_DASH

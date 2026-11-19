@@ -18,6 +18,14 @@ var block_dash: bool = false
 ## Blocks ascend AND hover (the mech will fall).
 var block_thrust: bool = false
 var block_facing: bool = false
+## Motion correction: while `forced` is true the motor drives the mech at
+## `forced_velocity` (still colliding, still EN / bounds limited). Used by
+## lunges; the motor stays the only writer of velocity.
+var forced: bool = false
+var forced_velocity: Vector3 = Vector3.ZERO
+## Multiplies EN costs of dashes (ultimate buffs).
+var en_cost_mult: float = 1.0
+var block_en_regen: bool = false
 
 
 static func create(p_id: StringName, p_duration: float = -1.0) -> MovementModifier:
@@ -34,5 +42,8 @@ func describe() -> String:
 	if block_dash: flags.append("noDash")
 	if block_thrust: flags.append("noThrust")
 	if block_facing: flags.append("noFace")
+	if forced: flags.append("forced")
+	if block_en_regen: flags.append("noRegen")
+	if not is_equal_approx(en_cost_mult, 1.0): flags.append("en×%.2f" % en_cost_mult)
 	if not is_equal_approx(speed_mult, 1.0): flags.append("spd×%.2f" % speed_mult)
 	return "%s[%s]%s" % [id, ",".join(flags), (" %.1fs" % duration) if duration >= 0.0 else ""]

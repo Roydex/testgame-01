@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-19T06:52:40  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-19T08:02:11  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -259,7 +259,9 @@ PASS  T08
   ok   no EN spent while thrust blocked (100.0 → 100.0)
   ok   control returns after STAGGER (state AIRBORNE, vy 5.3)
   ok   spamming actions while holding ascend still ends on the ground (EN-limited)
-  ok   combat_state_machine.gd contains no velocity assignment (static check)
+  ok   combat_state_machine.gd writes no mech velocity (static check)
+  ok   damage_system.gd writes no mech velocity (static check)
+  ok   ultimate_system.gd writes no mech velocity (static check)
 PASS  T09
 
 --- T10  M06 lock camera framing & rotation limits
@@ -328,6 +330,128 @@ PASS  T12
   ok   direction change before the shot beats the lead (0/4 hit)
 PASS  T13
 
+--- T14  C01 hit detection: active frames only, one hit per attack
+  ok   single L1 press: exactly 1 hit on the target (1)
+  ok   hit landed at 0.133s, inside the active window [0.12, 0.22]
+  ok   out of range (12 m ahead): no damage (HP 300)
+  ok   behind the attacker: no damage (HP 300)
+  ok   same team in range: no damage (HP 300)
+PASS  T14
+
+--- T15  C02 damage system: single resolver, permissions
+  ok   HP lost 44.00 == sum of DamageSystem final_damage 44.00 over 4 hits
+  ok   first hit = L1 data damage 9.0
+  ok   same team: TeamRules.can_damage blocks the hit
+  ok   dead victim: hit ignored
+PASS  T15
+
+--- T16  C03 combo chain, input buffer, cancel window
+  info combo starts: [&"seraph_l1", &"seraph_l2", &"seraph_l3"] at [0.0, 0.23333333333333, 0.48333333333333]
+  ok   3 buffered presses chain L1 → L2 → L3
+  ok   chain points at 0.23s / 0.48s (data 0.22 / 0.46)
+  ok   back to READY after the finisher
+  ok   single press: only L1 (1 attacks)
+  ok   dash before cancel window ignored (still ATTACK)
+  ok   dash inside cancel window cancels recovery (GROUND_DASH / READY)
+PASS  T16
+
+--- T17  C04 guard / guard break / parry / whiff / reflect
+  ok   frontal guard: GUARDED, chip 2.25 (= 9 × 0.25)
+  ok   guard drains EN 5.4 (expected 5.4)
+  ok   guard without EN breaks (GUARD_BREAK)
+  ok   parry in window: PARRIED, defender HP unchanged (300)
+  ok   attacker knocked OFF-BALANCE by the parrier (OFFBALANCE)
+  ok   punish hit on off-balance attacker: 13.5 dmg (= ×1.5), guard ignored
+  ok   whiffed parry: hit during recovery for 10.8 (= ×1.2)
+  ok   projectile parried by the mirror shield: REFLECTED
+  ok   reflected shot hit its shooter for 8.0 (= 10 × 0.8)
+PASS  T17
+
+--- T18  C05 hit reactions: hitstop, stagger, knockback, airborne
+  ok   3-hit combo connected (3)
+  ok   hitstop on both attacker (12 f) and victim (12 f)
+  ok   knockback displaced the victim 2.04 m
+  ok   victim spent 50 frames in STAGGER
+  ok   airborne stagger: thrust blocked while holding ascend, dropped 2.84 m
+PASS  T18
+
+--- T19  C06 telegraphs + hard-control protection
+  ok   major attack seraph_dash_slash telegraphed with 0.20s windup
+  ok   major attack seraph_final_spear telegraphed with 1.00s windup
+  info seraph_judgment_counter exempt: only after a successful parry (attacker already off-balance)
+  ok   major attack seraph_l3 telegraphed with 0.30s windup
+  ok   dash slash broadcasts its telegraph on the first frame
+  info consecutive 1.0 s staggers every 0.4 s → [1.0, 0.7, 0.49, "immune", "immune"]
+  ok   diminishing durations, then CC immunity ([1.0, 0.7, 0.49, "immune", "immune"])
+  info 1v2 continuous pressure for 10 s: victim hard-controlled 32% of frames, longest chain 0.77s, 27 hits
+  ok   no permanent lock: CC 32% ≤ 70%, longest chain 0.77s ≤ 2.0s
+PASS  T19
+
+--- T20  C07 anti-air: limited vertical tracking, no teleport
+  info target hovering 5 m up, 11 m away: hit true, attacker max step 0.60 m/frame, max climb 12.0 m/s
+  ok   target hovering 5 m up, 11 m away → reached and hit
+  ok   target hovering 5 m up, 11 m away: no teleport/suction (step 0.60 ≤ 0.70 m, climb 12.0 ≤ 12.5 m/s)
+  info target hovering 14 m up (beyond tracking range): hit false, attacker max step 0.57 m/frame, max climb 0.0 m/s
+  ok   target hovering 14 m up (beyond tracking range) → not reachable (no hit)
+  ok   target hovering 14 m up (beyond tracking range): no teleport/suction (step 0.57 ≤ 0.70 m, climb 0.0 ≤ 12.5 m/s)
+PASS  T20
+
+--- T21  C08 death, invalid target, restart
+  ok   HP 0 → mech_died event, state DEAD
+  ok   dead mech is no longer a valid target
+  ok   lock released on death (last reason: destroyed)
+  ok   hits on the wreck are ignored
+  ok   dead mech accepts no actions
+  ok   player death shows the restart overlay
+  ok   restart (fresh scene instance): player and sparring partners at full HP
+PASS  T21
+
+--- T22  C10 shared components player / sparring partner
+  info player components: ["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "UltimateSystem"]
+  ok   Sparring_Melee shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "UltimateSystem"])
+  ok   Sparring_Melee differs only by its brain (SparringBrain)
+  ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox"])
+  ok   Sparring_Ranged differs only by its brain (SparringBrain)
+  ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
+  ok   partner moved 53.9 m and attacked via MechCommand
+PASS  T22
+
+--- T23  C11 ultimate: unlock, windup, judgment, spear, overload
+  ok   HP 100%: ultimate LOCKED, V does nothing
+  ok   HP 29% ≤ 30%: READY
+  ok   windup 0.37s (data 0.35) → JUDGMENT
+  ok   ultimate windup is telegraphed to everyone
+  ok   JUDGMENT speed 20.0 m/s (= 16 × 1.25)
+  ok   JUDGMENT dash cost 9.0 EN (= 18 × 0.5)
+  ok   JUDGMENT parry window 0.32s (= 0.15 × 2)
+  info skill presses in JUDGMENT: [&"seraph_final_spear", &"seraph_final_spear"] (charges left 0, 1.4s of judgment left)
+  ok   two 终审之矛 charges in JUDGMENT
+  ok   OVERLOAD reached and EN did not regenerate during it
+  ok   OVERLOAD damage taken ×1.3
+  ok   after overload: SPENT (uses_per_match 1)
+  ok   after the ultimate the skill is the normal dash slash again
+  info ultimate timeline: ["READY@0.17", "WINDUP@0.20", "JUDGMENT@0.57", "OVERLOAD@6.57", "SPENT@9.58"]
+  ok   once per match: V does nothing afterwards
+  ok   frontal hit during the windup is parried → JUDGMENT at once (PARRIED)
+  ok   JUDGMENT melee parry auto-triggers 裁决反击 and it lands
+  ok   flank hit during the windup interrupts it → COOLDOWN (COOLDOWN)
+  ok   interrupted ultimate becomes READY again after 10s
+  ok   parry-activation: JUDGMENT without windup (["JUDGMENT"])
+  ok   spear stopped by the wall (attacker z -38.6, wall -40), no hit through cover
+  ok   spear vs standing target → hit
+  ok   spear vs sidestep at the telegraph → dodged
+  ok   sparring partner unlocked and used the ultimate via MechCommand (["READY", "WINDUP", "JUDGMENT", "OVERLOAD"])
+PASS  T23
+
+--- T24  C12 melee rules: arc, local hitstop, multi-parry, ownership
+  ok   parry does not cover a 90° flank attack (HIT)
+  ok   guard does not cover a 90° flank attack (HIT)
+  ok   during 3 hitstop frames of A/B the third mech moved 0.58 m
+  ok   simultaneous attackers: ["PARRIED", "DEFLECTED"], 1 attacker off-balance
+  ok   FFA: reflected shot (now owned by the parrier) hits a hostile third party in its path
+  ok   alliance: reflected shot passes through the parrier's ally and hits the shooter
+PASS  T24
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -342,4 +466,15 @@ T10  PASS  M06 lock camera framing & rotation limits
 T11  PASS  Targeting: switch / destroyed / out of range / occluded
 T12  PASS  M03 support: movement-only pursuit of hovering target
 T13  PASS  M04 support: evading test-fixture shots in the air
-13/13 passed
+T14  PASS  C01 hit detection: active frames only, one hit per attack
+T15  PASS  C02 damage system: single resolver, permissions
+T16  PASS  C03 combo chain, input buffer, cancel window
+T17  PASS  C04 guard / guard break / parry / whiff / reflect
+T18  PASS  C05 hit reactions: hitstop, stagger, knockback, airborne
+T19  PASS  C06 telegraphs + hard-control protection
+T20  PASS  C07 anti-air: limited vertical tracking, no teleport
+T21  PASS  C08 death, invalid target, restart
+T22  PASS  C10 shared components player / sparring partner
+T23  PASS  C11 ultimate: unlock, windup, judgment, spear, overload
+T24  PASS  C12 melee rules: arc, local hitstop, multi-parry, ownership
+24/24 passed

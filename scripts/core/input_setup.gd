@@ -12,6 +12,13 @@ const KEY_BINDINGS := {
 	&"dash": [KEY_SHIFT],
 	&"lock_toggle": [KEY_Q],
 	&"camera_zoom": [KEY_Z],
+	&"parry": [KEY_F],
+	&"skill": [KEY_X],
+	&"ultimate": [KEY_V],
+	&"debug_restart": [KEY_F7],
+	&"debug_dummy_teams": [KEY_F8],
+	&"debug_dummy_mode": [KEY_F9],
+	&"debug_low_hp": [KEY_F10],
 	&"target_next": [KEY_E],
 	&"target_prev": [KEY_R],
 	&"ui_release_mouse": [KEY_ESCAPE],
@@ -26,6 +33,8 @@ const KEY_BINDINGS := {
 
 const MOUSE_BINDINGS := {
 	&"lock_toggle": [MOUSE_BUTTON_MIDDLE],
+	&"attack": [MOUSE_BUTTON_LEFT],
+	&"guard": [MOUSE_BUTTON_RIGHT],
 	&"target_next": [MOUSE_BUTTON_WHEEL_DOWN],
 	&"target_prev": [MOUSE_BUTTON_WHEEL_UP],
 }

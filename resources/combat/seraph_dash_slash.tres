@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"seraph_dash_slash"
+display_name = "瞬时突进斩"
+windup = 0.2
+active = 0.32
+recovery = 0.4
+cancel_time = 0.6
+telegraphed = true
+damage = 14.0
+knockback = 6.0
+knockback_up = 1.5
+stagger_time = 0.35
+hitstop = 0.08
+shake = 0.3
+hitbox_offset = Vector3(0, 2.2, -1.8)
+hitbox_size = Vector3(2.6, 3.2, 3.2)
+windup_speed_mult = 0.2
+active_speed_mult = 1.0
+lunge_speed = 34.0
+lunge_duration = 0.32
+lunge_steer_deg = 90.0
+vertical_track_speed = 12.0
+vertical_track_range = 8.0
+en_cost = 20.0
+cooldown = 2.5

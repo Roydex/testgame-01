@@ -71,3 +71,50 @@
 ## 4. 占位资源
 
 全部为程序化几何体（BoxMesh / SphereMesh）、引擎内置天空和自写的网格 shader（`shaders/graybox_grid.gdshader`），不含第三方资源，不存在许可证问题。**这些不是最终美术**，替换计划属于阶段 7。
+
+
+---
+
+# 阶段 2b：战斗层
+
+```
+ Brain ──MechCommand（attack / skill / parry / ult 按键沿、guard 持续按住）──▶ CombatStateMachine
+                                                                              │ 只通过以下接口影响机动：
+                                                                              │  · MovementModifier（限制 + forced 运动修正）
+                                                                              │  · MechMotor.apply_impulse / apply_hitstop / consume_en
+ 检测：Hitbox 形状扫掠（攻击活动段）/ Projectile 射线 ──HitInfo──▶ DamageSystem.resolve()
+                                                                     │ 结算顺序：can_damage → 招架 → 格挡 → 命中
+                                                                     ▼
+                                                     Health / 双方 CombatStateMachine 的反应
+                                                                     │
+                                                          CombatEvents（autoload 事件总线）
+                                                ┌────────────┬───────────────┼──────────────┐
+                                           CombatFeedback   CombatHud     MechVisual     伤害日志 / 测试
+```
+
+| 文件 | 职责 |
+|---|---|
+| `scripts/combat/attack_definition.gd` / `combat_profile.gd` / `ultimate_definition.gd` | 数据 Resource |
+| `scripts/combat/combat_state_machine.gd` | READY / ATTACK / GUARD / PARRY / STAGGER / OFFBALANCE / ULT_WINDUP / DEAD 状态（另保留 2a 的 ACTION） |
+| `scripts/combat/damage_system.gd` | 唯一的伤害结算入口 |
+| `scripts/combat/hit_info.gd` / `health.gd` / `hurtbox.gd` | 命中请求、生命值、受击判定区（物理层 5） |
+| `scripts/combat/projectile.gd` | 可被招架折射的弹丸 |
+| `scripts/combat/ultimate_system.gd` | 通用的低血量大招流程 |
+| `scripts/core/combat_events.gd` | 事件总线（autoload `CombatEvents`） |
+| `scripts/feedback/combat_feedback.gd` / `procedural_audio.gd` | 火花、占位音效、震屏 |
+| `scripts/control/sparring_brain.gd` | 脚本陶练机（不是 AI） |
+| `scripts/ui/combat_hud.gd` | 战斗 HUD |
+| `scripts/debug/combat_autopilot.gd` | 真实渲染下的战斗演示 |
+| `tests/check_scripts.gd` | 在完整工程环境（含 autoload）下编译全部脚本，有错误时立即失败 |
+
+## 设计决策（续）
+
+- **D-15 运动修正接口。** 突进类招式不直接写速度，而是由 `MovementModifier` 设置 `forced = true` 和 `forced_velocity`，MechMotor 仍是唯一写速度的地方，照常碰撞、受上升上限约束。T09 的静态检查覆盖战斗层的 3 个文件。
+- **D-16 判定方式。** 近战在攻击活动段内每帧做一次 BoxShape 扫掠，只查询受击判定区（Hurtbox，物理层 5），每个目标在一次攻击中只结算一次。弹丸每帧做射线扫掠，能检测判定区，不会穿透。
+- **D-17 结算顺序：权限 → 招架 → 格挡 → 命中。** 招架和格挡都只覆盖正面 120°。可招架的类型只有近战和弹丸；格挡对抓取以外的攻击都有效。
+- **D-18 顿帧是个体级的。** 只冻结当事双方（MechMotor 跳过物理更新，战斗计时暂停）；弹丸命中只冻结受害者；不修改 `Engine.time_scale`。
+- **D-19 硬控递减共享同一个计数池**（硬直、失衡、破防都计入）：4 s 窗口内第 n 次硬控时长 ×0.7ⁿ，第 4 次起免疫 1.5 s。目的是在多人围攻中防止永久控制。
+- **D-20 折射时转移弹丸归属。** 弹丸飞回原发射者，伤害权限按新归属者判断，因此乱斗和联盟模式共用同一套代码，不需要按模式写分支。
+- **D-21 大招解锁前按下的 V 不进入缓冲**，避免 HP 跌破阈值的那一刻自动发动。格挡中可以发动大招。
+- **D-22 陶练机不是 AI。** 它是固定循环的脚本，没有感知、导航和决策（这些属于阶段 4），只用来提供可重复的对练对象。
+- **D-23 程序合成占位音效。** 运行时用正弦波和滤波噪声生成，不引入外部文件，不存在许可证问题，阶段 7 替换。

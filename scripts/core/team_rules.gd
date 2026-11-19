@@ -17,6 +17,12 @@ static func is_hostile(a: Node, b: Node) -> bool:
 	return get_team(a) != get_team(b)
 
 
+## Damage permission. Prototype rule: hostile and alive. MatchRules
+## (phase 4/5) will extend this (friendly fire, mode rules) behind the same call.
+static func can_damage(attacker: Node, victim: Node) -> bool:
+	return is_hostile(attacker, victim) and is_alive(victim)
+
+
 static func is_alive(node: Node) -> bool:
 	if node == null or not is_instance_valid(node) or not node.is_inside_tree():
 		return false

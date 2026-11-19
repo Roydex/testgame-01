@@ -1,0 +1,31 @@
+[combat-demo] combat_01_combo_finisher.png  player ATTACK HP 300  ult LOCKED
+[combat-demo] combat_02_guarding.png  player GUARD HP 291  ult LOCKED
+[combat-demo] combat_03_after_parry.png  player READY HP 272  ult LOCKED
+[combat-demo] combat_04_reflect.png  player READY HP 272  ult LOCKED
+[combat-demo] combat_05_dash_slash_anti_air.png  player ATTACK HP 272  ult LOCKED
+[combat-demo] combat_06_crown_ready_low_hp.png  player READY HP 75  ult READY
+[combat-demo] combat_07_ultimate_windup.png  player ULT_WINDUP HP 75  ult WINDUP
+[combat-demo] combat_08_judgment.png  player READY HP 75  ult JUDGMENT
+[combat-demo] combat_09_final_spear_charge.png  player ATTACK HP 75  ult JUDGMENT
+[combat-demo] combat_10_final_spear_lunge.png  player ATTACK HP 75  ult JUDGMENT
+[combat-demo] combat_11_overload.png  player READY HP 75  ult OVERLOAD
+[combat-demo] perf (screenshot frames excluded): 5871 frames, avg 248.0 FPS, 1%-low 164.3 FPS, worst 149.6 ms, viewport (1920.0, 1080.0), vsync off
+[combat-demo] log:
+  2.41 Player→Sparring_Melee 光矛·刺 HIT 9.0
+  2.69 Player→Sparring_Melee 光矛·横扫 HIT 10.0
+  3.19 Player→Sparring_Melee 光矛·贯 HIT 16.0
+  4.12 Sparring_Melee→Player 光矛·刺 GUARDED 2.2
+  4.41 Sparring_Melee→Player 光矛·横扫 GUARDED 2.5
+  4.85 Sparring_Melee→Player 光矛·贯 GUARDED 4.0
+  6.76 Sparring_Melee→Player 光矛·刺 PARRIED 0.0
+  7.03 Sparring_Melee→Player 光矛·刺 HIT 9.0
+  7.33 Sparring_Melee→Player 光矛·横扫 HIT 10.0
+  11.63 Sparring_Ranged→Player 脉冲弹（陶练机） REFLECTED 0.0
+  12.02 Player→Sparring_Ranged 脉冲弹（陶练机） HIT 8.0
+  15.67 Player→Sparring_Melee 瞬时突进斩 HIT 14.0
+  17.53 Player ULT READY
+  18.30 Player ULT WINDUP
+  18.61 Player ULT JUDGMENT
+  20.63 Player→Sparring_Melee 终审之矛 HIT 30.0
+  24.96 Player ULT OVERLOAD
+[combat-demo] done

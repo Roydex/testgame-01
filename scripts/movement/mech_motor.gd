@@ -58,6 +58,11 @@ var _m_block_jump := false
 var _m_block_dash := false
 var _m_block_thrust := false
 var _m_block_facing := false
+var _m_forced := false
+var _forced_mod: MovementModifier
+var _m_en_cost := 1.0
+var _m_block_regen := false
+var _hitstop := 0.0
 
 var _jump_buffer := 0.0
 var _dash_buffer := 0.0
@@ -109,6 +114,12 @@ func add_modifier(mod: MovementModifier) -> void:
 func remove_modifier(id: StringName) -> void:
 	if _modifiers.erase(id):
 		_recompute_modifiers()
+
+
+## Re-read modifier fields after a caller mutated one in place (e.g. a
+## lunge toggling `forced`).
+func refresh_modifiers() -> void:
+	_recompute_modifiers()
 
 
 func has_modifier(id: StringName) -> bool:
@@ -186,11 +197,47 @@ func can_afford(cost: float) -> bool:
 	return en >= cost
 
 
+## Spend EN for an action (skills, guard). Returns false (and spends
+## nothing) when there is not enough.
+func consume_en(amount: float) -> bool:
+	if amount <= 0.0:
+		return true
+	if en < amount:
+		return false
+	_spend(amount)
+	return true
+
+
+## Local hitstop: this mech freezes (no movement, timers paused) for `t`.
+func apply_hitstop(t: float) -> void:
+	_hitstop = maxf(_hitstop, t)
+
+
+func in_hitstop() -> bool:
+	return _hitstop > 0.0
+
+
+func get_en_cost_mult() -> float:
+	return _m_en_cost
+
+
+func get_lock_point() -> Vector3:
+	return global_position + Vector3.UP * 2.2
+
+
+func is_alive() -> bool:
+	var h := get_node_or_null(^"Health") as Health
+	return h == null or not h.dead
+
+
 # --------------------------------------------------------------------------
 # Main loop
 # --------------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	if _hitstop > 0.0:
+		_hitstop -= delta
+		return  # frozen; buffered command edges are kept for after the stop
 	_tick_modifiers(delta)
 	_cmd.copy_from(command)
 	command.clear_edges()
@@ -205,15 +252,18 @@ func _physics_process(delta: float) -> void:
 	_dash_cooldown = maxf(_dash_cooldown - delta, 0.0)
 	state_time += delta
 
-	match state:
-		MotionState.GROUNDED, MotionState.LANDING:
-			_update_ground(delta)
-		MotionState.GROUND_DASH:
-			_update_ground_dash(delta)
-		MotionState.AIR_DASH:
-			_update_air_dash(delta)
-		_:
-			_update_air(delta)
+	if _m_forced:
+		_update_forced(delta)
+	else:
+		match state:
+			MotionState.GROUNDED, MotionState.LANDING:
+				_update_ground(delta)
+			MotionState.GROUND_DASH:
+				_update_ground_dash(delta)
+			MotionState.AIR_DASH:
+				_update_air_dash(delta)
+			_:
+				_update_air(delta)
 
 	_enforce_ceiling()
 	_update_facing(delta)
@@ -224,6 +274,26 @@ func _physics_process(delta: float) -> void:
 	_post_move(vy_before, delta)
 	_regen(delta)
 	_enforce_bounds()
+
+
+# --------------------------------------------------------------------------
+# Motion correction (lunges)
+# --------------------------------------------------------------------------
+
+func _update_forced(delta: float) -> void:
+	velocity = _forced_mod.forced_velocity
+	if is_air_state():
+		air_time += delta
+	if velocity.y > 0.5 and is_grounded_state():
+		takeoff_height = global_position.y
+		hover_engaged = false
+		air_time = 0.0
+		_set_state(MotionState.AIRBORNE)
+	elif state == MotionState.GROUND_DASH or state == MotionState.AIR_DASH:
+		_set_state(MotionState.FALLING if is_air_state() else MotionState.GROUNDED)
+	# never let a lunge carry the mech above its thrust ceiling
+	if velocity.y > 0.0 and global_position.y >= get_ascent_ceiling():
+		velocity.y = 0.0
 
 
 # --------------------------------------------------------------------------
@@ -247,7 +317,7 @@ func _update_ground(delta: float) -> void:
 
 	if _jump_buffer > 0.0 and not _m_block_jump:
 		_do_jump()
-	elif _dash_buffer > 0.0 and _can_dash(profile.ground_dash_cost):
+	elif _dash_buffer > 0.0 and _can_dash(profile.ground_dash_cost * _m_en_cost):
 		_start_dash(false)
 
 
@@ -288,7 +358,7 @@ func _update_air(delta: float) -> void:
 	velocity.x = h.x
 	velocity.z = h.z
 
-	if _dash_buffer > 0.0 and _can_dash(profile.air_dash_cost):
+	if _dash_buffer > 0.0 and _can_dash(profile.air_dash_cost * _m_en_cost):
 		_start_dash(true)
 		return
 
@@ -356,12 +426,12 @@ func _start_dash(in_air: bool) -> void:
 	dir.y = 0.0
 	_dash_dir = dir.normalized()
 	if in_air:
-		_spend(profile.air_dash_cost)
+		_spend(profile.air_dash_cost * _m_en_cost)
 		hover_engaged = true
 		velocity = _dash_dir * profile.air_dash_speed
 		_set_state(MotionState.AIR_DASH)
 	else:
-		_spend(profile.ground_dash_cost)
+		_spend(profile.ground_dash_cost * _m_en_cost)
 		velocity = _dash_dir * profile.ground_dash_speed
 		_set_state(MotionState.GROUND_DASH)
 	dashed.emit(in_air)
@@ -483,7 +553,7 @@ func _spend(amount: float) -> void:
 
 func _regen(delta: float) -> void:
 	_regen_timer = maxf(_regen_timer - delta, 0.0)
-	if _regen_timer > 0.0 or en >= profile.max_en:
+	if _m_block_regen or _regen_timer > 0.0 or en >= profile.max_en:
 		return
 	var rate := 0.0
 	if state == MotionState.GROUNDED or state == MotionState.LANDING:
@@ -541,6 +611,9 @@ func _recompute_modifiers() -> void:
 	_m_block_dash = false
 	_m_block_thrust = false
 	_m_block_facing = false
+	_m_forced = false
+	_m_en_cost = 1.0
+	_m_block_regen = false
 	for m: MovementModifier in _modifiers.values():
 		_m_speed *= m.speed_mult
 		_m_accel *= m.accel_mult
@@ -551,7 +624,13 @@ func _recompute_modifiers() -> void:
 		_m_block_dash = _m_block_dash or m.block_dash
 		_m_block_thrust = _m_block_thrust or m.block_thrust
 		_m_block_facing = _m_block_facing or m.block_facing
+		_m_en_cost *= m.en_cost_mult
+		_m_block_regen = _m_block_regen or m.block_en_regen
+		if m.forced:
+			_m_forced = true
+			_forced_mod = m
 	_m_speed = clampf(_m_speed, 0.0, 2.0)
+	_m_en_cost = clampf(_m_en_cost, 0.25, 4.0)
 	_m_gravity = clampf(_m_gravity, 0.5, 3.0)
 
 

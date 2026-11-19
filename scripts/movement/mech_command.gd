@@ -16,10 +16,22 @@ var dash_pressed: bool = false
 ## Desired facing (world, horizontal). ZERO = face movement direction.
 var face_dir: Vector3 = Vector3.ZERO
 
+# --- combat intent (consumed by CombatStateMachine, ignored by the motor)
+var attack_pressed: bool = false
+var skill_pressed: bool = false
+var parry_pressed: bool = false
+var ult_pressed: bool = false
+## Held.
+var guard_held: bool = false
+
 
 func clear_edges() -> void:
 	jump_pressed = false
 	dash_pressed = false
+	attack_pressed = false
+	skill_pressed = false
+	parry_pressed = false
+	ult_pressed = false
 
 
 func copy_from(other: MechCommand) -> void:
@@ -29,3 +41,8 @@ func copy_from(other: MechCommand) -> void:
 	jump_pressed = other.jump_pressed
 	dash_pressed = other.dash_pressed
 	face_dir = other.face_dir
+	attack_pressed = other.attack_pressed
+	skill_pressed = other.skill_pressed
+	parry_pressed = other.parry_pressed
+	ult_pressed = other.ult_pressed
+	guard_held = other.guard_held

@@ -20,7 +20,12 @@ static func load_profile(index: int) -> MechMovementProfile:
 	return load(PROFILES[index % PROFILES.size()]) as MechMovementProfile
 
 
-static func create_mech(profile: MechMovementProfile, team_id: int = 0, color: Color = Color(0.7, 0.7, 0.7), with_visual: bool = true) -> MechMotor:
+const COMBAT_SERAPH := "res://resources/combat/pale_seraph_combat.tres"
+const COMBAT_SPARRING_RANGED := "res://resources/combat/sparring_ranged_combat.tres"
+
+
+static func create_mech(profile: MechMovementProfile, team_id: int = 0, color: Color = Color(0.7, 0.7, 0.7), with_visual: bool = true,
+		combat_profile: CombatProfile = null, visual_style: StringName = &"generic") -> MechMotor:
 	var m := MechMotor.new()
 	m.name = "Mech"
 	m.profile = profile
@@ -37,9 +42,10 @@ static func create_mech(profile: MechMovementProfile, team_id: int = 0, color: C
 	var combat := CombatStateMachine.new()
 	combat.name = "CombatStateMachine"
 	m.add_child(combat)
+	combat.setup(combat_profile, m)
 	if with_visual:
 		var vis := MechVisual.new()
 		vis.name = "Visual"
 		m.add_child(vis)
-		vis.setup(m, color)
+		vis.setup(m, color, visual_style)
 	return m

@@ -1,14 +1,14 @@
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/01_spawn_grounded.png  state=GROUNDED pos=(0.0, 0.000156, 30.0) en=100.0
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/02_ground_dash_fov.png  state=GROUND_DASH pos=(0.0, 0.001, 18.67777) en=82.0
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/03_ascend.png  state=HOVER pos=(0.0, 9.976206, -13.20139) en=49.7
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/04_hover.png  state=HOVER pos=(0.0, 9.976206, -21.0014) en=37.7
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/05_air_dash.png  state=AIR_DASH pos=(3.016989, 9.976206, -24.01838) en=9.7
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/06_descend_landed.png  state=GROUNDED pos=(27.64726, 0.001, -38.59889) en=24.8
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/07_lock_bobbing_target.png  state=GROUNDED pos=(27.64726, 0.001, -38.59889) en=51.2
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/08_lock_bobbing_target_later.png  state=GROUNDED pos=(27.64726, 0.001, -38.59889) en=91.2
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/09_lock_airborne_strafe.png  state=HOVER pos=(44.17785, 9.976206, -38.59889) en=55.3
-[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/10_occlusion_wall_close.png  state=GROUNDED pos=(0.0, 0.001, -41.40125) en=100.0
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/01_spawn_grounded.png  state=GROUNDED pos=(0.0, 0.000144, 30.0) en=100.0
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/02_ground_dash_fov.png  state=GROUND_DASH pos=(0.0, 0.001, 16.69722) en=82.0
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/03_ascend.png  state=HOVER pos=(0.0, 9.963062, -19.19444) en=50.4
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/04_hover.png  state=HOVER pos=(0.0, 9.963062, -28.19444) en=38.4
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/05_air_dash.png  state=AIR_DASH pos=(3.394113, 9.963062, -31.58856) en=10.4
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/06_descend_landed.png  state=GROUNDED pos=(26.06427, 0.001, -38.59914) en=24.8
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/07_lock_bobbing_target.png  state=GROUNDED pos=(26.06427, 0.001, -38.59914) en=51.2
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/08_lock_bobbing_target_later.png  state=GROUNDED pos=(26.06427, 0.001, -38.59914) en=91.2
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/09_lock_airborne_strafe.png  state=HOVER pos=(46.04094, 9.963062, -38.59914) en=55.9
+[autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/10_occlusion_wall_close.png  state=GROUNDED pos=(0.0, 0.001, -41.41055) en=100.0
 [autopilot] screenshot /Volumes/KIOXIA/Claude_proj/实验游戏/机甲乱斗/docs/screenshots/11_under_slab_ceiling.png  state=AIRBORNE pos=(-40.0, 3.999598, -50.0) en=47.7
-[autopilot] perf: 6039 frames, viewport (1920.0, 1080.0), avg 299.2 FPS, 1%-low 175.3 FPS, worst frame 149.3 ms (vsync off, Apple M1 Pro (Apple7))
-[autopilot] trace: 0.81 LANDING | 0.90 GROUNDED | 2.29 GROUND_DASH | 2.67 GROUNDED | 2.75 TAKEOFF | 2.91 AIRBORNE | 4.04 HOVER | 4.96 AIR_DASH | 5.22 HOVER | 5.46 FALLING | 6.32 LANDING | 6.42 GROUNDED | 11.20 TAKEOFF | 11.20 AIRBORNE | 12.33 HOVER | 12.78 FALLING | 13.51 LANDING | 13.59 GROUNDED | 15.14 FALLING | 15.26 LANDING | 15.35 GROUNDED | 17.05 FALLING | 17.06 LANDING | 17.15 GROUNDED | 17.74 TAKEOFF | 17.89 AIRBORNE | 19.87 FALLING | 20.22 LANDING | 20.31 GROUNDED
+[autopilot] perf: 4835 frames, viewport (1920.0, 1080.0), avg 239.6 FPS, 1%-low 138.8 FPS, worst frame 150.0 ms (vsync off, Apple M1 Pro (Apple7))
+[autopilot] trace: 0.82 LANDING | 0.94 GROUNDED | 2.33 GROUND_DASH | 2.69 GROUNDED | 2.79 TAKEOFF | 2.95 AIRBORNE | 4.00 HOVER | 5.01 AIR_DASH | 5.25 HOVER | 5.50 FALLING | 6.38 LANDING | 6.46 GROUNDED | 11.29 TAKEOFF | 11.31 AIRBORNE | 12.36 HOVER | 12.90 FALLING | 13.63 LANDING | 13.72 GROUNDED | 15.26 FALLING | 15.38 LANDING | 15.46 GROUNDED | 17.18 FALLING | 17.18 LANDING | 17.28 GROUNDED | 17.85 TAKEOFF | 18.01 AIRBORNE | 19.99 FALLING | 20.34 LANDING | 20.43 GROUNDED
 [autopilot] done

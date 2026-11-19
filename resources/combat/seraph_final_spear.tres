@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"seraph_final_spear"
+display_name = "终审之矛"
+windup = 1.0
+active = 0.75
+recovery = 0.6
+cancel_time = 2.05
+telegraphed = true
+damage = 30.0
+guard_break = true
+knockback = 14.0
+knockback_up = 3.0
+stagger_time = 0.7
+hitstop = 0.14
+shake = 0.55
+hitbox_offset = Vector3(0, 2.2, -2.4)
+hitbox_size = Vector3(2.4, 3.0, 4.0)
+windup_speed_mult = 0.1
+active_speed_mult = 1.0
+turn_mult = 0.6
+lunge_speed = 60.0
+lunge_duration = 0.75
+lunge_steer_deg = 25.0
+vertical_track_speed = 6.0
+vertical_track_range = 10.0

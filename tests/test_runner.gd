@@ -43,6 +43,17 @@ func _run_all() -> void:
 		["T11", "Targeting: switch / destroyed / out of range / occluded", t11_targeting],
 		["T12", "M03 support: movement-only pursuit of hovering target", t12_pursuit_support],
 		["T13", "M04 support: evading test-fixture shots in the air", t13_air_evasion],
+		["T14", "C01 hit detection: active frames only, one hit per attack", t14_hit_detection],
+		["T15", "C02 damage system: single resolver, permissions", t15_damage_system],
+		["T16", "C03 combo chain, input buffer, cancel window", t16_combo],
+		["T17", "C04 guard / guard break / parry / whiff / reflect", t17_defence],
+		["T18", "C05 hit reactions: hitstop, stagger, knockback, airborne", t18_reactions],
+		["T19", "C06 telegraphs + hard-control protection", t19_telegraph_cc],
+		["T20", "C07 anti-air: limited vertical tracking, no teleport", t20_anti_air],
+		["T21", "C08 death, invalid target, restart", t21_death_restart],
+		["T22", "C10 shared components player / sparring partner", t22_shared_components],
+		["T23", "C11 ultimate: unlock, windup, judgment, spear, overload", t23_ultimate],
+		["T24", "C12 melee rules: arc, local hitstop, multi-parry, ownership", t24_melee_rules],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
@@ -639,9 +650,13 @@ func t09_combat_layer(res: Dictionary) -> void:
 			s.landed = true
 	await _sim(m, 15.0, spam, probe)
 	_check(res, s.landed, "spamming actions while holding ascend still ends on the ground (EN-limited)")
-	var src := FileAccess.get_file_as_string("res://scripts/combat/combat_state_machine.gd")
-	var rx := RegEx.create_from_string("velocity\\s*[+\\-*/]?=")
-	_check(res, rx.search(src) == null, "combat_state_machine.gd contains no velocity assignment (static check)")
+	# static architecture check: no combat-layer file writes a mech's velocity
+	# (writes to MovementModifier.forced_velocity — the motion-correction
+	# interface — are allowed)
+	var rx := RegEx.create_from_string("(?<![\\w.])velocity\\s*[+\\-*/]?=(?!=)|motor\\.velocity\\s*[+\\-*/]?=(?!=)")
+	for f: String in ["combat_state_machine.gd", "damage_system.gd", "ultimate_system.gd"]:
+		var src := FileAccess.get_file_as_string("res://scripts/combat/" + f)
+		_check(res, rx.search(src) == null, "%s writes no mech velocity (static check)" % f)
 	m.queue_free()
 	await _ticks(2)
 
@@ -981,3 +996,945 @@ func t13_air_evasion(res: Dictionary) -> void:
 	_check(res, results.descend.hits <= 1, "controlled descent at the telegraph dodges (%d/4 hit)" % results.descend.hits)
 	_check(res, results.lead_strafe.hits >= 3, "control: leading shot hits a constant strafe (%d/4)" % results.lead_strafe.hits)
 	_check(res, results.lead_reverse.hits <= 1, "direction change before the shot beats the lead (%d/4 hit)" % results.lead_reverse.hits)
+
+
+
+# ======================================================================
+# Phase 2b combat tests
+# ======================================================================
+
+const SERAPH := "res://resources/combat/pale_seraph_combat.tres"
+const RANGED := "res://resources/combat/sparring_ranged_combat.tres"
+
+var _rec_conns: Array = []
+
+
+func _fighter(combat_path: String, team: int, pos: Vector3, look := Vector3.INF) -> MechMotor:
+	var m := MechFactory.create_mech(MechFactory.load_profile(1), team, Color.GRAY, false, load(combat_path))
+	m.position = pos
+	if look != Vector3.INF:
+		m.rotation.y = atan2(-(look.x - pos.x), -(look.z - pos.z))
+	arena.add_child(m)
+	return m
+
+
+func _cs(m: Node) -> CombatStateMachine:
+	return m.get_node(^"CombatStateMachine") as CombatStateMachine
+
+
+func _record() -> Dictionary:
+	var ev := {"hits": [], "attacks": [], "telegraphs": [], "parries": [], "ult": [], "deaths": [], "frame": 0}
+	var c1 := func(h: HitInfo) -> void: ev.hits.append([ev.frame, h, h.result, h.final_damage])
+	var c2 := func(a: Node3D, d: AttackDefinition) -> void: ev.attacks.append([ev.frame, a, d.id])
+	var c3 := func(a: Node3D, d: AttackDefinition, t: float) -> void: ev.telegraphs.append([ev.frame, a, d.id if d else &"ultimate_windup", t])
+	var c4 := func(d: Node3D, a: Node3D, p: bool) -> void: ev.parries.append([ev.frame, d, a, p])
+	var c5 := func(m: Node3D, ph: String) -> void: ev.ult.append([ev.frame, m, ph])
+	var c6 := func(m: Node3D) -> void: ev.deaths.append([ev.frame, m])
+	CombatEvents.hit_resolved.connect(c1)
+	CombatEvents.attack_started.connect(c2)
+	CombatEvents.telegraph.connect(c3)
+	CombatEvents.parried.connect(c4)
+	CombatEvents.ultimate_phase.connect(c5)
+	CombatEvents.mech_died.connect(c6)
+	_rec_conns = [[CombatEvents.hit_resolved, c1], [CombatEvents.attack_started, c2], [CombatEvents.telegraph, c3],
+		[CombatEvents.parried, c4], [CombatEvents.ultimate_phase, c5], [CombatEvents.mech_died, c6]]
+	return ev
+
+
+func _unrecord() -> void:
+	for c in _rec_conns:
+		(c[0] as Signal).disconnect(c[1])
+	_rec_conns.clear()
+
+
+## Steps n physics frames, running `each` (optional) before every frame.
+func _frames(ev: Dictionary, n: int, each := Callable()) -> void:
+	for i in n:
+		if each.is_valid():
+			each.call(i)
+		await get_tree().physics_frame
+		ev.frame += 1
+
+
+func _hits_on(ev: Dictionary, victim: Node) -> Array:
+	var out := []
+	for h in ev.hits:
+		if (h[1] as HitInfo).victim == victim:
+			out.append(h)
+	return out
+
+
+func _face(m: MechMotor, at: Node3D) -> void:
+	var to := at.global_position - m.global_position
+	m.command.face_dir = Vector3(to.x, 0, to.z)
+
+
+func t14_hit_detection(res: Dictionary) -> void:
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var ev := _record()
+	a.command.attack_pressed = true
+	_cs(a).aim_target = b
+	await _frames(ev, 40)
+	var hb := _hits_on(ev, b)
+	var l1 := load("res://resources/combat/seraph_l1.tres") as AttackDefinition
+	var first_f: int = hb[0][0] if hb.size() > 0 else -1
+	var t_first := first_f * DT
+	_check(res, hb.size() == 1, "single L1 press: exactly 1 hit on the target (%d)" % hb.size())
+	_check(res, hb.size() > 0 and t_first >= l1.windup - DT and t_first <= l1.windup + l1.active + DT,
+		"hit landed at %.3fs, inside the active window [%.2f, %.2f]" % [t_first, l1.windup, l1.windup + l1.active])
+	# out of range / behind / ally
+	var cases := [["out of range (12 m ahead)", Vector3(0, 0.2, 18), 1], ["behind the attacker", Vector3(0, 0.2, 33.5), 1], ["same team in range", Vector3(0, 0.2, 26.5), 0]]
+	for c in cases:
+		b.queue_free()
+		await _ticks(2)
+		b = _fighter(SERAPH, c[2], c[1], Vector3(0, 0.2, 30))
+		await _ticks(30)
+		var hp0 := _cs(b).health.hp
+		var ev2 := _record()
+		a.command.attack_pressed = true
+		_cs(a).aim_target = null
+		await _frames(ev2, 40)
+		var any_hit := false
+		for h in _hits_on(ev2, b):
+			if h[2] != CombatTypes.HitResult.IGNORED:
+				any_hit = true
+		_unrecord()
+		_check(res, not any_hit and is_equal_approx(_cs(b).health.hp, hp0), "%s: no damage (HP %.0f)" % [c[0], _cs(b).health.hp])
+	_unrecord()
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+
+
+func t15_damage_system(res: Dictionary) -> void:
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var ev := _record()
+	var hp0 := _cs(b).health.hp
+	_cs(a).aim_target = b
+	var spam := func(i: int) -> void:
+		if i % 12 == 0:
+			a.command.attack_pressed = true
+	await _frames(ev, 120, spam)
+	var total := 0.0
+	var resolved := 0
+	for h in _hits_on(ev, b):
+		total += h[3]
+		resolved += 1
+	_check(res, resolved >= 2 and absf((hp0 - _cs(b).health.hp) - total) < 0.01,
+		"HP lost %.2f == sum of DamageSystem final_damage %.2f over %d hits" % [hp0 - _cs(b).health.hp, total, resolved])
+	var l1 := load("res://resources/combat/seraph_l1.tres") as AttackDefinition
+	_check(res, resolved > 0 and is_equal_approx(_hits_on(ev, b)[0][3], l1.damage), "first hit = L1 data damage %.1f" % l1.damage)
+	# direct resolve: same team and dead victims are ignored
+	var ally := _fighter(SERAPH, 0, Vector3(5, 0.2, 30))
+	await _ticks(5)
+	var hi := HitInfo.new()
+	hi.attacker = a
+	hi.victim = ally
+	hi.attack = l1
+	hi.source_position = a.global_position
+	_check(res, DamageSystem.resolve(hi) == CombatTypes.HitResult.IGNORED and is_equal_approx(_cs(ally).health.hp, _cs(ally).health.max_hp),
+		"same team: TeamRules.can_damage blocks the hit")
+	_cs(b).health.take(_cs(b).health.hp)
+	var hd := HitInfo.new()
+	hd.attacker = a
+	hd.victim = b
+	hd.attack = l1
+	hd.source_position = a.global_position
+	_check(res, DamageSystem.resolve(hd) == CombatTypes.HitResult.IGNORED, "dead victim: hit ignored")
+	_unrecord()
+	for n in [a, b, ally]:
+		n.queue_free()
+	await _ticks(2)
+
+
+func t16_combo(res: Dictionary) -> void:
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var l1 := load("res://resources/combat/seraph_l1.tres") as AttackDefinition
+	var l2 := l1.next_attack
+	var l3 := l2.next_attack
+	var ev := _record()
+	var presses := func(i: int) -> void:
+		if i == 0 or i == 9 or i == 22:
+			a.command.attack_pressed = true
+	await _frames(ev, 90, presses)
+	var ids := []
+	var starts := []
+	for e in ev.attacks:
+		if e[1] == a:
+			ids.append(e[2])
+			starts.append(e[0] * DT)
+	_info("combo starts: %s at %s" % [ids, starts])
+	_check(res, ids == [&"seraph_l1", &"seraph_l2", &"seraph_l3"], "3 buffered presses chain L1 → L2 → L3")
+	var exp2 := l1.windup + l1.active
+	var exp3 := exp2 + l2.windup + l2.active
+	_check(res, starts.size() == 3 and absf(starts[1] - exp2) <= 2.0 * DT and absf(starts[2] - exp3) <= 2.0 * DT,
+		"chain points at %.2fs / %.2fs (data %.2f / %.2f)" % [starts[1] if starts.size() > 1 else -1.0, starts[2] if starts.size() > 2 else -1.0, exp2, exp3])
+	await _frames(ev, 40)
+	_check(res, _cs(a).state == CombatStateMachine.CombatState.READY, "back to READY after the finisher")
+	# single press: no chain
+	ev.attacks.clear()
+	a.command.attack_pressed = true
+	await _frames(ev, 60)
+	_check(res, ev.attacks.size() == 1, "single press: only L1 (%d attacks)" % ev.attacks.size())
+	# cancel window: dash before cancel_time is blocked, after it cancels the recovery
+	a.command.attack_pressed = true
+	await _frames(ev, 1)
+	var st := {"dash_early": false}
+	var early := func(i: int) -> void:
+		if i == 3:
+			a.command.dash_pressed = true
+	await _frames(ev, int(l1.cancel_time / DT) - 3, early)
+	st.dash_early = a.state == MechMotor.MotionState.GROUND_DASH
+	_check(res, not st.dash_early and _cs(a).state == CombatStateMachine.CombatState.ATTACK, "dash before cancel window ignored (still %s)" % _cs(a).get_state_name())
+	await _frames(ev, 10)
+	a.command.dash_pressed = true
+	await _frames(ev, 3)
+	_check(res, a.state == MechMotor.MotionState.GROUND_DASH and _cs(a).state == CombatStateMachine.CombatState.READY,
+		"dash inside cancel window cancels recovery (%s / %s)" % [a.get_state_name(), _cs(a).get_state_name()])
+	_unrecord()
+	a.queue_free()
+	await _ticks(2)
+
+
+## A attacks B with L1; `defend.call(frame)` drives B. Returns the hit entries on B.
+func _duel(a: MechMotor, b: MechMotor, frames: int, defend: Callable, attack_frame: int = 10) -> Dictionary:
+	var ev := _record()
+	_cs(a).aim_target = b
+	var drive := func(i: int) -> void:
+		_face(b, a)
+		_face(a, b)
+		if i == attack_frame:
+			a.command.attack_pressed = true
+		defend.call(i)
+	await _frames(ev, frames, drive)
+	_unrecord()
+	return ev
+
+
+func t17_defence(res: Dictionary) -> void:
+	var cp := load(SERAPH) as CombatProfile
+	var l1 := cp.light_combo
+	# --- guard (frontal)
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var en0 := b.en
+	var guard := func(_i: int) -> void:
+		b.command.guard_held = true
+	var ev := await _duel(a, b, 40, guard)
+	var h := _hits_on(ev, b)
+	_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.GUARDED and is_equal_approx(h[0][3], l1.damage * cp.guard_damage_taken),
+		"frontal guard: GUARDED, chip %.2f (= %.0f × %.2f)" % [h[0][3] if h.size() else -1.0, l1.damage, cp.guard_damage_taken])
+	_check(res, absf((en0 - b.en) - l1.damage * cp.guard_en_per_damage) < 0.5, "guard drains EN %.1f (expected %.1f)" % [en0 - b.en, l1.damage * cp.guard_en_per_damage])
+	# --- guard with no EN -> break
+	await _ticks(60)
+	var guard_no_en := func(_i: int) -> void:
+		b.command.guard_held = true
+		b.en = 0.0
+	ev = await _duel(a, b, 40, guard_no_en)
+	h = _hits_on(ev, b)
+	_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.GUARD_BREAK and _cs(b).state == CombatStateMachine.CombatState.STAGGER or (h.size() > 0 and h[0][2] == CombatTypes.HitResult.GUARD_BREAK),
+		"guard without EN breaks (%s)" % (CombatTypes.RESULT_NAMES[h[0][2]] if h.size() else "no hit"))
+	a.queue_free()
+	b.queue_free()
+	await _ticks(90)
+	# --- parry melee inside the window
+	a = _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	b = _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var hp_b := _cs(b).health.hp
+	var parry_at := func(i: int) -> void:
+		if i == 13:  # attack at 10, active from +7 frames, window 9 frames
+			b.command.parry_pressed = true
+	ev = await _duel(a, b, 20, parry_at)
+	h = _hits_on(ev, b)
+	_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.PARRIED and is_equal_approx(_cs(b).health.hp, hp_b),
+		"parry in window: PARRIED, defender HP unchanged (%.0f)" % _cs(b).health.hp)
+	_check(res, _cs(a).state == CombatStateMachine.CombatState.OFFBALANCE and _cs(a).offbalance_by == b,
+		"attacker knocked OFF-BALANCE by the parrier (%s)" % _cs(a).get_state_name())
+	# counter window: the parrier's first hit deals ×1.5 and cannot be guarded
+	var hp_a := _cs(a).health.hp
+	var ev3 := _record()
+	_cs(b).aim_target = a
+	var punish := func(i: int) -> void:
+		_face(b, a)
+		if i == 0:
+			b.command.attack_pressed = true
+		a.command.guard_held = true
+	await _frames(ev3, 25, punish)
+	var ha := _hits_on(ev3, a)
+	_unrecord()
+	_check(res, ha.size() > 0 and ha[0][2] == CombatTypes.HitResult.HIT and is_equal_approx(hp_a - _cs(a).health.hp, l1.damage * cp.counter_damage_mult),
+		"punish hit on off-balance attacker: %.1f dmg (= ×%.1f), guard ignored" % [hp_a - _cs(a).health.hp, cp.counter_damage_mult])
+	a.queue_free()
+	b.queue_free()
+	await _ticks(90)
+	# --- whiffed parry: recovery takes ×1.2
+	a = _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	b = _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	hp_b = _cs(b).health.hp
+	var early := func(i: int) -> void:
+		if i == 6:  # window ends before the active frames, recovery covers them
+			b.command.parry_pressed = true
+	ev = await _duel(a, b, 30, early)
+	h = _hits_on(ev, b)
+	_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.HIT and is_equal_approx(hp_b - _cs(b).health.hp, l1.damage * cp.parry_whiff_damage_mult),
+		"whiffed parry: hit during recovery for %.1f (= ×%.1f)" % [hp_b - _cs(b).health.hp, cp.parry_whiff_damage_mult])
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+	# --- projectile parry -> reflected back to the shooter
+	var s := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var r := _fighter(RANGED, 1, Vector3(0, 0.2, 10), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var hp_r := _cs(r).health.hp
+	var ev4 := _record()
+	_cs(r).aim_target = s
+	var st := {"parried": false}
+	var shoot := func(i: int) -> void:
+		_face(s, r)
+		_face(r, s)
+		if i == 2:
+			r.command.attack_pressed = true
+		if not st.parried:
+			for p in get_tree().get_nodes_in_group(&"projectiles"):
+				if (p as Node3D).global_position.distance_to(s.global_position + Vector3.UP * 2.5) < 6.0:
+					s.command.parry_pressed = true
+					st.parried = true
+	await _frames(ev4, 150, shoot)
+	_unrecord()
+	var refl := false
+	for e in ev4.hits:
+		if (e[1] as HitInfo).victim == s and e[2] == CombatTypes.HitResult.REFLECTED:
+			refl = true
+	var pulse := (load(RANGED) as CombatProfile).ranged
+	_check(res, refl, "projectile parried by the mirror shield: REFLECTED")
+	_check(res, is_equal_approx(hp_r - _cs(r).health.hp, pulse.damage * cp.reflect_damage_mult),
+		"reflected shot hit its shooter for %.1f (= %.0f × %.1f)" % [hp_r - _cs(r).health.hp, pulse.damage, cp.reflect_damage_mult])
+	s.queue_free()
+	r.queue_free()
+	await _ticks(2)
+
+
+func t18_reactions(res: Dictionary) -> void:
+	var cp := load(SERAPH) as CombatProfile
+	var l3 := cp.light_combo.next_attack.next_attack
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var ev := _record()
+	_cs(a).aim_target = b
+	var st := {"stop_a": 0, "stop_b": 0, "stag": 0, "z0": b.global_position.z}
+	var drive := func(i: int) -> void:
+		_face(a, b)
+		if i in [0, 9, 22]:
+			a.command.attack_pressed = true
+		if a.in_hitstop(): st.stop_a += 1
+		if b.in_hitstop(): st.stop_b += 1
+		if _cs(b).state == CombatStateMachine.CombatState.STAGGER: st.stag += 1
+	await _frames(ev, 120, drive)
+	_unrecord()
+	var hits := _hits_on(ev, b)
+	_check(res, hits.size() == 3, "3-hit combo connected (%d)" % hits.size())
+	_check(res, st.stop_a > 0 and st.stop_b > 0, "hitstop on both attacker (%d f) and victim (%d f)" % [st.stop_a, st.stop_b])
+	_check(res, absf(b.global_position.z - st.z0) > 1.5, "knockback displaced the victim %.2f m" % absf(b.global_position.z - st.z0))
+	_check(res, st.stag > int(l3.stagger_time * 0.5 / DT), "victim spent %d frames in STAGGER" % st.stag)
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+	# airborne victim: stagger blocks thrust, it falls
+	a = _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	b = _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	b.command.jump_pressed = true
+	var hold := func(i: int) -> void:
+		b.command.ascend = i < 20
+	var ev2 := _record()
+	await _frames(ev2, 50, hold)
+	var y0 := b.global_position.y
+	_cs(b).apply_stagger(0.6, Vector3(3, 0, 0))
+	var asc := func(_i: int) -> void:
+		b.command.ascend = true
+	await _frames(ev2, 30, asc)
+	_unrecord()
+	_check(res, b.global_position.y < y0 - 0.5, "airborne stagger: thrust blocked while holding ascend, dropped %.2f m" % (y0 - b.global_position.y))
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+
+
+func t19_telegraph_cc(res: Dictionary) -> void:
+	# data rule: every major attack is telegraphed with a perceivable windup
+	var exempt := {&"seraph_judgment_counter": "only after a successful parry (attacker already off-balance)"}
+	var defs := []
+	for f in DirAccess.get_files_at("res://resources/combat"):
+		var r := load("res://resources/combat/" + f)
+		if r is AttackDefinition:
+			defs.append(r)
+	for d: AttackDefinition in defs:
+		var major := d.damage >= 14.0 or d.guard_break or d.stagger_time >= 0.35
+		if not major:
+			continue
+		if exempt.has(d.id):
+			_info("%s exempt: %s" % [d.id, exempt[d.id]])
+			continue
+		_check(res, d.telegraphed and d.windup >= 0.2, "major attack %s telegraphed with %.2fs windup" % [d.id, d.windup])
+	# runtime: telegraph event fires at windup start
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var ev := _record()
+	a.command.skill_pressed = true
+	await _frames(ev, 5)
+	_check(res, ev.telegraphs.size() == 1 and ev.telegraphs[0][2] == &"seraph_dash_slash" and ev.telegraphs[0][0] <= 1,
+		"dash slash broadcasts its telegraph on the first frame")
+	_unrecord()
+	await _ticks(90)
+	# hard-control protection
+	var c := _cs(a)
+	var durs := []
+	for k in 5:
+		var before := c.state_timer
+		var was_immune := c.cc_immune_left > 0.0
+		c.apply_stagger(1.0)
+		var applied := c.state_timer if not is_equal_approx(c.state_timer, before) else 0.0
+		durs.append("immune" if (was_immune or c.cc_immune_left > 0.0) and applied == 0.0 else snappedf(applied, 0.01))
+		await _ticks(24)
+	_info("consecutive 1.0 s staggers every 0.4 s → %s" % [durs])
+	_check(res, is_equal_approx(float(durs[0]), 1.0) and float(durs[1]) < 1.0 and float(durs[2]) < float(durs[1]) and durs[3] == "immune" and durs[4] == "immune",
+		"diminishing durations, then CC immunity (%s)" % [durs])
+	a.queue_free()
+	await _ticks(2)
+	# 1v2: two attackers alternating combos cannot keep the victim locked
+	var v := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var e1 := _fighter(SERAPH, 1, Vector3(-2, 0.2, 26.8))
+	var e2 := _fighter(SERAPH, 2, Vector3(2, 0.2, 26.8))
+	_cs(v).health.max_hp = 99999.0
+	_cs(v).health.hp = 99999.0
+	await _ticks(20)
+	var ev2 := _record()
+	var st := {"cc": 0, "run": 0, "max_run": 0}
+	var gank := func(i: int) -> void:
+		_face(e1, v)
+		_face(e2, v)
+		_cs(e1).aim_target = v
+		_cs(e2).aim_target = v
+		if i % 12 == 0:
+			e1.command.attack_pressed = true
+		if i % 12 == 6:
+			e2.command.attack_pressed = true
+		var s2 := _cs(v).state
+		if s2 == CombatStateMachine.CombatState.STAGGER or s2 == CombatStateMachine.CombatState.OFFBALANCE:
+			st.cc += 1
+			st.run += 1
+			st.max_run = maxi(st.max_run, st.run)
+		else:
+			st.run = 0
+	await _frames(ev2, 600, gank)
+	_unrecord()
+	var pct: float = 100.0 * st.cc / 600.0
+	_info("1v2 continuous pressure for 10 s: victim hard-controlled %.0f%% of frames, longest chain %.2fs, %d hits" % [pct, st.max_run * DT, _hits_on(ev2, v).size()])
+	_check(res, pct <= 70.0 and st.max_run * DT <= 2.0, "no permanent lock: CC %.0f%% ≤ 70%%, longest chain %.2fs ≤ 2.0s" % [pct, st.max_run * DT])
+	for n in [v, e1, e2]:
+		n.queue_free()
+	await _ticks(2)
+
+
+func t20_anti_air(res: Dictionary) -> void:
+	var ds := (load(SERAPH) as CombatProfile).skill
+	for case in [["target hovering 5 m up, 11 m away", 5.0, true], ["target hovering 14 m up (beyond tracking range)", 14.0, false]]:
+		var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+		var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 19))
+		await _ticks(20)
+		# put b in a hover at the requested height (harness keeps EN topped up)
+		b.command.jump_pressed = true
+		var climb := func(_i: int) -> void:
+			b.en = b.profile.max_en
+			b.command.ascend = b.global_position.y < case[1]
+		var ev0 := _record()
+		await _frames(ev0, 150, climb)
+		_unrecord()
+		var ev := _record()
+		_cs(a).aim_target = b
+		var st := {"max_step": 0.0, "max_vy": 0.0, "prev": a.global_position}
+		var go := func(i: int) -> void:
+			b.en = b.profile.max_en
+			b.command.ascend = b.global_position.y < case[1]
+			_face(a, b)
+			if i == 0:
+				a.command.skill_pressed = true
+			var p: Vector3 = a.global_position
+			st.max_step = maxf(st.max_step, p.distance_to(st.prev))
+			st.max_vy = maxf(st.max_vy, a.velocity.y)
+			st.prev = p
+		await _frames(ev, 70, go)
+		_unrecord()
+		var hit := false
+		for h in _hits_on(ev, b):
+			if h[2] == CombatTypes.HitResult.HIT:
+				hit = true
+		_info("%s: hit %s, attacker max step %.2f m/frame, max climb %.1f m/s" % [case[0], hit, st.max_step, st.max_vy])
+		_check(res, hit == case[2], "%s → %s" % [case[0], "reached and hit" if case[2] else "not reachable (no hit)"])
+		_check(res, st.max_step <= ds.lunge_speed * DT * 1.15 + 0.05 and st.max_vy <= ds.vertical_track_speed + 0.5,
+			"%s: no teleport/suction (step %.2f ≤ %.2f m, climb %.1f ≤ %.1f m/s)" % [case[0], st.max_step, ds.lunge_speed * DT * 1.15 + 0.05, st.max_vy, ds.vertical_track_speed + 0.5])
+		a.queue_free()
+		b.queue_free()
+		await _ticks(2)
+
+
+func t21_death_restart(res: Dictionary) -> void:
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	b.add_to_group(&"lock_targets")
+	var tg := TargetingSystem.new()
+	a.add_child(tg)
+	tg.setup(a, null)
+	await _ticks(20)
+	tg._set_target(b, "test")
+	var ev := _record()
+	_cs(b).health.hp = 5.0
+	_cs(a).aim_target = b
+	var drive := func(i: int) -> void:
+		_face(a, b)
+		if i == 0:
+			a.command.attack_pressed = true
+	await _frames(ev, 30, drive)
+	_check(res, ev.deaths.size() == 1 and ev.deaths[0][1] == b and _cs(b).is_dead(), "HP 0 → mech_died event, state DEAD")
+	_check(res, not TeamRules.get_valid_targets(a, &"mechs").has(b) and not b.is_alive(), "dead mech is no longer a valid target")
+	_check(res, not tg.has_target(), "lock released on death (last reason: %s)" % tg.last_lost_reason)
+	var hp_dead := _cs(b).health.hp
+	b.command.attack_pressed = true
+	ev.hits.clear()
+	a.command.attack_pressed = true
+	await _frames(ev, 30)
+	_check(res, _hits_on(ev, b).size() == 0 or _hits_on(ev, b)[0][2] == CombatTypes.HitResult.IGNORED, "hits on the wreck are ignored")
+	_check(res, _cs(b).is_dead() and _cs(b).attack == null and is_equal_approx(_cs(b).health.hp, hp_dead), "dead mech accepts no actions")
+	_unrecord()
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+	# restart: the playable scene rebuilt from scratch has full HP everywhere
+	var scene_res := load("res://scenes/test/graybox_test.tscn") as PackedScene
+	var sc := scene_res.instantiate()
+	add_child(sc)
+	await _ticks(10)
+	var pc := sc.get("combat") as CombatStateMachine
+	pc.health.take(pc.health.hp)
+	await _ticks(5)
+	_check(res, pc.is_dead() and (sc.get("combat_hud") as CombatHud)._overlay.visible, "player death shows the restart overlay")
+	sc.queue_free()
+	await _ticks(3)
+	var sc2 := scene_res.instantiate()
+	add_child(sc2)
+	await _ticks(10)
+	var pc2 := sc2.get("combat") as CombatStateMachine
+	var ok := not pc2.is_dead() and is_equal_approx(pc2.health.hp, pc2.health.max_hp)
+	for d in sc2.get("dummies"):
+		ok = ok and _cs(d).health.hp == _cs(d).health.max_hp
+	_check(res, ok, "restart (fresh scene instance): player and sparring partners at full HP")
+	sc2.queue_free()
+	await _ticks(3)
+
+
+func t22_shared_components(res: Dictionary) -> void:
+	var sc := (load("res://scenes/test/graybox_test.tscn") as PackedScene).instantiate()
+	add_child(sc)
+	await _ticks(10)
+	var player := sc.get("motor") as MechMotor
+	var comps := func(m: Node) -> Array:
+		var out := []
+		for c in m.get_children():
+			var cls: String = (c.get_script() as Script).get_global_name() if c.get_script() else c.get_class()
+			if cls in ["PlayerBrain", "SparringBrain", "MechVisual", "TargetingSystem"]:
+				continue
+			out.append(cls)
+		out.sort()
+		return out
+	var pset: Array = comps.call(player)
+	_info("player components: %s" % [pset])
+	for d in sc.get("dummies"):
+		var dset: Array = comps.call(d)
+		var dm := d as MechMotor
+		var same_core: bool = dset.has("CombatStateMachine") and dset.has("Health") and dset.has("Hurtbox") and dm.get_script() == player.get_script()
+		_check(res, same_core, "%s shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (%s)" % [d.name, dset])
+		_check(res, d.get_node_or_null(^"SparringBrain") != null and d.get_node_or_null(^"PlayerBrain") == null, "%s differs only by its brain (SparringBrain)" % d.name)
+	var melee := (sc.get("dummies") as Array)[0] as MechMotor
+	_check(res, pset == comps.call(melee), "melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem")
+	# the partner acts only through MechCommand: it moves / attacks in the real scene
+	var p0 := melee.global_position
+	var ev := _record()
+	await _frames(ev, 240)
+	_unrecord()
+	var attacked := false
+	for e in ev.attacks:
+		if e[1] == melee:
+			attacked = true
+	_check(res, melee.global_position.distance_to(p0) > 2.0 and attacked, "partner moved %.1f m and attacked via MechCommand" % melee.global_position.distance_to(p0))
+	sc.queue_free()
+	await _ticks(3)
+
+
+func _low_hp(m: MechMotor) -> void:
+	var c := _cs(m)
+	c.health.take(c.health.hp - c.health.max_hp * 0.29)
+
+
+func t23_ultimate(res: Dictionary) -> void:
+	var ud := (load(SERAPH) as CombatProfile).ultimate
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	await _ticks(20)
+	var u := _cs(a).ultimate
+	var ev := _record()
+	a.command.ult_pressed = true
+	await _frames(ev, 10)
+	_check(res, u.phase == UltimateSystem.Phase.LOCKED and _cs(a).state == CombatStateMachine.CombatState.READY, "HP 100%: ultimate LOCKED, V does nothing")
+	_low_hp(a)
+	await _frames(ev, 2)
+	_check(res, u.phase == UltimateSystem.Phase.READY, "HP 29%% ≤ %d%%: READY" % int(ud.hp_threshold * 100))
+	a.command.ult_pressed = true
+	var st := {"windup_f": 0}
+	var count := func(_i: int) -> void:
+		if u.phase == UltimateSystem.Phase.WINDUP:
+			st.windup_f += 1
+	await _frames(ev, 30, count)
+	_check(res, absf(st.windup_f * DT - ud.windup) <= 2.0 * DT and u.in_judgment(), "windup %.2fs (data %.2f) → JUDGMENT" % [st.windup_f * DT, ud.windup])
+	var tele := false
+	for t in ev.telegraphs:
+		if t[1] == a and t[2] == &"ultimate_windup":
+			tele = true
+	_check(res, tele, "ultimate windup is telegraphed to everyone")
+	# judgment buffs: speed and dash cost
+	var run := func(_i: int) -> void:
+		a.command.move = Vector3(1, 0, 0)
+	await _frames(ev, 60, run)
+	var spd := a.get_horizontal_velocity().length()
+	_check(res, absf(spd - a.profile.ground_max_speed * ud.speed_mult) < 0.3, "JUDGMENT speed %.1f m/s (= %.0f × %.2f)" % [spd, a.profile.ground_max_speed, ud.speed_mult])
+	var en0 := a.en
+	a.command.dash_pressed = true
+	await _frames(ev, 2, run)
+	_check(res, absf((en0 - a.en) - a.profile.ground_dash_cost * ud.dash_cost_mult) < 0.6, "JUDGMENT dash cost %.1f EN (= %.0f × %.1f)" % [en0 - a.en, a.profile.ground_dash_cost, ud.dash_cost_mult])
+	_clear(a)
+	await _frames(ev, 30)
+	# parry window doubled
+	a.command.parry_pressed = true
+	var pw := {"f": 0}
+	var countp := func(_i: int) -> void:
+		if _cs(a).is_parrying():
+			pw.f += 1
+	await _frames(ev, 30, countp)
+	var cp := load(SERAPH) as CombatProfile
+	_check(res, absf(pw.f * DT - cp.parry_window * ud.parry_window_mult) <= 2.0 * DT, "JUDGMENT parry window %.2fs (= %.2f × %.0f)" % [pw.f * DT, cp.parry_window, ud.parry_window_mult])
+	# spear: 2 charges inside JUDGMENT (wait out the whiffed-parry recovery first)
+	await _frames(ev, 30)
+	var ids := []
+	for k in 2:
+		ev.attacks.clear()
+		a.command.skill_pressed = true
+		await _frames(ev, 3)
+		if ev.attacks.size() > 0:
+			ids.append(ev.attacks[0][2])
+		await _frames(ev, 145)
+	_info("skill presses in JUDGMENT: %s (charges left %d, %.1fs of judgment left)" % [ids, u.spear_charges_left, u.phase_time_left])
+	_check(res, ids == [&"seraph_final_spear", &"seraph_final_spear"] and u.spear_charges_left == 0, "two 终审之矛 charges in JUDGMENT")
+	# overload: EN does not regenerate, damage taken ×1.3
+	var ov := {"seen": false, "en_rise": false, "en": 0.0, "mult": 1.0}
+	var watch := func(_i: int) -> void:
+		if u.phase == UltimateSystem.Phase.OVERLOAD:
+			if not ov.seen:
+				ov.seen = true
+				a.en = 20.0
+				ov.en = 20.0
+				ov.mult = _cs(a).damage_taken_mult()
+			elif a.en > ov.en + 0.01:
+				ov.en_rise = true
+	await _frames(ev, int((u.phase_time_left + ud.overload_duration + 0.5) / DT), watch)
+	_check(res, ov.seen and not ov.en_rise, "OVERLOAD reached and EN did not regenerate during it")
+	_check(res, is_equal_approx(ov.mult, ud.overload_damage_taken_mult), "OVERLOAD damage taken ×%.1f" % ov.mult)
+	_check(res, u.phase == UltimateSystem.Phase.SPENT, "after overload: SPENT (uses_per_match %d)" % ud.uses_per_match)
+	ev.attacks.clear()
+	a.command.skill_pressed = true
+	await _frames(ev, 3)
+	_check(res, ev.attacks.size() > 0 and ev.attacks[0][2] == &"seraph_dash_slash", "after the ultimate the skill is the normal dash slash again")
+	var tl := []
+	for e in ev.ult:
+		tl.append("%s@%.2f" % [e[2], e[0] * DT])
+	_info("ultimate timeline: %s" % [tl])
+	await _frames(ev, 60)
+	a.command.ult_pressed = true
+	await _frames(ev, 5)
+	_check(res, u.phase == UltimateSystem.Phase.SPENT and _cs(a).state != CombatStateMachine.CombatState.ULT_WINDUP, "once per match: V does nothing afterwards")
+	_unrecord()
+	a.queue_free()
+	await _ticks(2)
+
+	# windup parries frontal melee and enters judgment immediately
+	a = _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await _ticks(20)
+	_low_hp(a)
+	await _ticks(2)
+	var ev2 := _record()
+	var wp := func(i: int) -> void:
+		_face(a, b)
+		_face(b, a)
+		_cs(b).aim_target = a
+		if i == 0:
+			b.command.attack_pressed = true
+		if i == 4:
+			a.command.ult_pressed = true
+	await _frames(ev2, 20, wp)
+	var hres := _hits_on(ev2, a)
+	_check(res, hres.size() > 0 and hres[0][2] == CombatTypes.HitResult.PARRIED and _cs(a).ultimate.in_judgment(),
+		"frontal hit during the windup is parried → JUDGMENT at once (%s)" % (CombatTypes.RESULT_NAMES[hres[0][2]] if hres.size() else "no hit"))
+	# judgment counter: next melee parry triggers 裁决反击 on the attacker
+	await _frames(ev2, 50)
+	ev2.attacks.clear()
+	ev2.hits.clear()
+	var jc := func(i: int) -> void:
+		_face(a, b)
+		_face(b, a)
+		if i == 0:
+			b.command.attack_pressed = true
+		if i == 5:
+			a.command.parry_pressed = true
+	await _frames(ev2, 40, jc)
+	var countered := false
+	for e in ev2.attacks:
+		if e[1] == a and e[2] == &"seraph_judgment_counter":
+			countered = true
+	var counter_hit := false
+	for h in _hits_on(ev2, b):
+		if (h[1] as HitInfo).attack.id == &"seraph_judgment_counter" and h[2] == CombatTypes.HitResult.HIT:
+			counter_hit = true
+	_check(res, countered and counter_hit, "JUDGMENT melee parry auto-triggers 裁决反击 and it lands")
+	_unrecord()
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+
+	# flank hit interrupts the windup → COOLDOWN, then READY again
+	a = _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	b = _fighter(SERAPH, 1, Vector3(3.5, 0.2, 30), Vector3(0, 0.2, 30))
+	a.rotation.y = 0.0  # facing -Z, b is on its right flank
+	await _ticks(20)
+	_low_hp(a)
+	await _ticks(2)
+	var ev3 := _record()
+	var fl := func(i: int) -> void:
+		_face(b, a)
+		_cs(b).aim_target = a
+		if i == 0:
+			b.command.attack_pressed = true
+		if i == 3:
+			a.command.ult_pressed = true
+	await _frames(ev3, 20, fl)
+	_check(res, _cs(a).ultimate.phase == UltimateSystem.Phase.COOLDOWN, "flank hit during the windup interrupts it → COOLDOWN (%s)" % _cs(a).ultimate.get_phase_name())
+	await _frames(ev3, int(ud.interrupt_cooldown / DT) + 5)
+	_check(res, _cs(a).ultimate.phase == UltimateSystem.Phase.READY, "interrupted ultimate becomes READY again after %.0fs" % ud.interrupt_cooldown)
+	# parry activation: V right after a successful parry skips the windup
+	ev3.ult.clear()
+	var pa := func(i: int) -> void:
+		_face(a, b)
+		_face(b, a)
+		if i == 0:
+			b.command.attack_pressed = true
+		if i == 5:
+			a.command.parry_pressed = true
+		if i == 14:
+			a.command.ult_pressed = true
+	await _frames(ev3, 30, pa)
+	var phases := []
+	for e in ev3.ult:
+		if e[1] == a:
+			phases.append(e[2])
+	_check(res, _cs(a).ultimate.in_judgment() and not phases.has("WINDUP"), "parry-activation: JUDGMENT without windup (%s)" % [phases])
+	_unrecord()
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+
+	# spear stops at walls; a sidestep at the telegraph dodges it
+	a = _fighter(SERAPH, 0, Vector3(0, 0.2, -25))
+	b = _fighter(SERAPH, 1, Vector3(0, 0.2, -50))  # behind the thick wall (z = -40)
+	await _ticks(20)
+	_low_hp(a)
+	await _ticks(2)
+	_cs(a).ultimate.enter_judgment()
+	_cs(a).aim_target = b
+	var ev4 := _record()
+	var spear := func(i: int) -> void:
+		_face(a, b)
+		if i == 0:
+			a.command.skill_pressed = true
+	await _frames(ev4, 150, spear)
+	_check(res, a.global_position.z > -40.0 and _hits_on(ev4, b).size() == 0, "spear stopped by the wall (attacker z %.1f, wall -40), no hit through cover" % a.global_position.z)
+	_unrecord()
+	a.queue_free()
+	b.queue_free()
+	await _ticks(2)
+	for dodge in [false, true]:
+		a = _fighter(SERAPH, 0, Vector3(0, 0.2, 40))
+		b = _fighter(SERAPH, 1, Vector3(0, 0.2, 12))
+		await _ticks(20)
+		_low_hp(a)
+		await _ticks(2)
+		_cs(a).ultimate.enter_judgment()
+		_cs(a).aim_target = b
+		var ev5 := _record()
+		var sp2 := func(i: int) -> void:
+			_face(a, b)
+			if i == 0:
+				a.command.skill_pressed = true
+			if dodge and i == 40:  # during the 1.0 s charge
+				b.command.move = Vector3(1, 0, 0)
+				b.command.dash_pressed = true
+			elif dodge and i > 40:
+				b.command.move = Vector3(1, 0, 0)
+		await _frames(ev5, 120, sp2)
+		var landed := false
+		for h in _hits_on(ev5, b):
+			if h[2] == CombatTypes.HitResult.HIT:
+				landed = true
+		_check(res, landed != dodge, "spear vs %s → %s" % ["sidestep at the telegraph" if dodge else "standing target", "dodged" if dodge else "hit"])
+		_unrecord()
+		a.queue_free()
+		b.queue_free()
+		await _ticks(2)
+
+	# the sparring partner uses the same ultimate interface on its own
+	var sc := (load("res://scenes/test/graybox_test.tscn") as PackedScene).instantiate()
+	add_child(sc)
+	await _ticks(10)
+	var melee := (sc.get("dummies") as Array)[0] as MechMotor
+	_low_hp(melee)
+	var player := sc.get("motor") as MechMotor
+	_cs(player).health.max_hp = 99999.0
+	_cs(player).health.hp = 99999.0
+	var ev6 := _record()
+	await _frames(ev6, 600)
+	_unrecord()
+	var dummy_phases := []
+	for e in ev6.ult:
+		if e[1] == melee:
+			dummy_phases.append(e[2])
+	_check(res, dummy_phases.has("JUDGMENT"), "sparring partner unlocked and used the ultimate via MechCommand (%s)" % [dummy_phases])
+	sc.queue_free()
+	await _ticks(3)
+
+
+func t24_melee_rules(res: Dictionary) -> void:
+	# frontal arc: parry / guard do not cover the flank
+	for mode in ["parry", "guard"]:
+		var v := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+		var e := _fighter(SERAPH, 1, Vector3(3.5, 0.2, 30), Vector3(0, 0.2, 30))
+		v.rotation.y = 0.0
+		await _ticks(20)
+		var ev := _record()
+		var drv := func(i: int) -> void:
+			_face(e, v)
+			_cs(e).aim_target = v
+			v.command.face_dir = Vector3(0, 0, -1)
+			if i == 0:
+				e.command.attack_pressed = true
+			if mode == "parry" and i == 3:
+				v.command.parry_pressed = true
+			if mode == "guard":
+				v.command.guard_held = true
+		await _frames(ev, 20, drv)
+		_unrecord()
+		var h := _hits_on(ev, v)
+		_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.HIT, "%s does not cover a 90° flank attack (%s)" % [mode, CombatTypes.RESULT_NAMES[h[0][2]] if h.size() else "no hit"])
+		v.queue_free()
+		e.queue_free()
+		await _ticks(2)
+	# local hitstop: a third mech keeps moving while two are frozen
+	var a := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var b := _fighter(SERAPH, 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	var c := _fighter(SERAPH, 2, Vector3(15, 0.2, 30))
+	await _ticks(20)
+	var ev2 := _record()
+	var st := {"frozen": 0, "c_moved": 0.0, "prev": c.global_position}
+	var drv2 := func(i: int) -> void:
+		_face(a, b)
+		_cs(a).aim_target = b
+		c.command.move = Vector3(0, 0, -1)
+		if i == 0:
+			a.command.attack_pressed = true
+		if a.in_hitstop() and b.in_hitstop():
+			st.frozen += 1
+			st.c_moved += c.global_position.distance_to(st.prev)
+		st.prev = c.global_position
+	await _frames(ev2, 40, drv2)
+	_unrecord()
+	_check(res, st.frozen > 0 and st.c_moved > 0.1, "during %d hitstop frames of A/B the third mech moved %.2f m" % [st.frozen, st.c_moved])
+	for n in [a, b, c]:
+		n.queue_free()
+	await _ticks(2)
+	# two attackers in one parry window: first PARRIED (off-balance), second DEFLECTED
+	var v2 := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+	var e1 := _fighter(SERAPH, 1, Vector3(-1.4, 0.2, 26.8), Vector3(0, 0.2, 30))
+	var e2 := _fighter(SERAPH, 2, Vector3(1.4, 0.2, 26.8), Vector3(0, 0.2, 30))
+	v2.rotation.y = 0.0
+	await _ticks(20)
+	var ev3 := _record()
+	var drv3 := func(i: int) -> void:
+		v2.command.face_dir = Vector3(0, 0, -1)
+		for e in [e1, e2]:
+			_face(e, v2)
+			_cs(e).aim_target = v2
+			if i == 0:
+				e.command.attack_pressed = true
+		if i == 4:
+			v2.command.parry_pressed = true
+	await _frames(ev3, 20, drv3)
+	_unrecord()
+	var results := []
+	for h in _hits_on(ev3, v2):
+		results.append(CombatTypes.RESULT_NAMES[h[2]])
+	var offb := int(_cs(e1).state == CombatStateMachine.CombatState.OFFBALANCE) + int(_cs(e2).state == CombatStateMachine.CombatState.OFFBALANCE)
+	_check(res, results.has("PARRIED") and results.has("DEFLECTED") and offb == 1, "simultaneous attackers: %s, %d attacker off-balance" % [results, offb])
+	for n in [v2, e1, e2]:
+		n.queue_free()
+	await _ticks(2)
+	# reflected projectile ownership: FFA third party gets hit, ally is passed through
+	for mode in ["FFA", "alliance"]:
+		var s := _fighter(SERAPH, 0, Vector3(0, 0.2, 30))
+		var r := _fighter(RANGED, 1, Vector3(0, 0.2, 6), Vector3(0, 0.2, 30))
+		var third := _fighter(SERAPH, 2 if mode == "FFA" else 0, Vector3(0, 0.2, 14))
+		await _ticks(20)
+		# third party crouches out of the way until the shot is reflected
+		third.global_position = Vector3(6, 0.2, 14)
+		var hp_t := _cs(third).health.hp
+		var hp_r := _cs(r).health.hp
+		var ev4 := _record()
+		_cs(r).aim_target = s
+		var st2 := {"parried": false, "moved": false}
+		var drv4 := func(i: int) -> void:
+			_face(s, r)
+			_face(r, s)
+			if i == 2:
+				r.command.attack_pressed = true
+			for p in get_tree().get_nodes_in_group(&"projectiles"):
+				var pp := p as Projectile
+				if not st2.parried and pp.global_position.distance_to(s.global_position + Vector3.UP * 2.5) < 6.0:
+					s.command.parry_pressed = true
+					st2.parried = true
+				if pp.reflected and not st2.moved:
+					third.global_position = Vector3(0, 0.2, 14)  # step into the return path
+					st2.moved = true
+		await _frames(ev4, 150, drv4)
+		_unrecord()
+		var t_hit := not is_equal_approx(_cs(third).health.hp, hp_t)
+		var r_hit := not is_equal_approx(_cs(r).health.hp, hp_r)
+		if mode == "FFA":
+			_check(res, st2.moved and t_hit, "FFA: reflected shot (now owned by the parrier) hits a hostile third party in its path")
+		else:
+			_check(res, st2.moved and not t_hit and r_hit, "alliance: reflected shot passes through the parrier's ally and hits the shooter")
+		for n in [s, r, third]:
+			n.queue_free()
+		await _ticks(2)

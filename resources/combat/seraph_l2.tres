@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/seraph_l3.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"seraph_l2"
+display_name = "光矛·横扫"
+windup = 0.14
+active = 0.1
+recovery = 0.3
+cancel_time = 0.34
+next_attack = ExtResource("2")
+damage = 10.0
+knockback = 4.0
+stagger_time = 0.25
+hitstop = 0.06
+shake = 0.18
+hitbox_offset = Vector3(0, 2.4, -2.0)
+hitbox_size = Vector3(4.4, 2.4, 3.0)
+lunge_speed = 6.0
+lunge_duration = 0.1

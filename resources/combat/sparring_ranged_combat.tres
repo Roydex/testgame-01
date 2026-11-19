@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/combat/sparring_pulse_shot.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+display_name = "陶练机（远程）"
+max_hp = 300.0
+ranged = ExtResource("2")

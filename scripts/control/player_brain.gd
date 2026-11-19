@@ -44,3 +44,14 @@ func _physics_process(_delta: float) -> void:
 		cmd.face_dir = Vector3(to.x, 0.0, to.z)
 	else:
 		cmd.face_dir = Vector3.ZERO
+	# combat intent (mouse buttons only count while the mouse is captured,
+	# so the click that captures it never fires an attack)
+	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	cmd.attack_pressed = cmd.attack_pressed or (captured and Input.is_action_just_pressed(&"attack"))
+	cmd.guard_held = captured and Input.is_action_pressed(&"guard")
+	cmd.parry_pressed = cmd.parry_pressed or Input.is_action_just_pressed(&"parry")
+	cmd.skill_pressed = cmd.skill_pressed or Input.is_action_just_pressed(&"skill")
+	cmd.ult_pressed = cmd.ult_pressed or Input.is_action_just_pressed(&"ultimate")
+	var combat := motor.get_node_or_null(^"CombatStateMachine") as CombatStateMachine
+	if combat:
+		combat.aim_target = targeting.current if targeting.has_target() else null
