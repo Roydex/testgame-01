@@ -124,17 +124,30 @@ func _sequence() -> void:
 	_cmd().skill_pressed = true
 	await _hold(0.9)
 	await _shot("azure_missiles")
-	await _hold(0.6, func(t: float):
+	# playtest round 3: X held → raised view, the ghost marks the ground
+	await _hold(1.0, func(t: float):
 		_cmd().skill_pressed = t < 0.02
-		_cmd().skill_held = true)
-	await _hold(0.4)
+		_cmd().skill_held = true
+		scene.brain.update_placement_aim(scene.combat))
+	await _shot("azure_orbital_aim")
+	await _hold(0.4, func(_t: float):
+		_cmd().skill_held = false
+		scene.brain.update_placement_aim(scene.combat))
 	await _shot("azure_orbital_circle")
 	await _hold(1.25)
 	await _shot("azure_orbital_burn")  # playtest round 2: the circle keeps burning
 	# --- playtest round 2: judgment + duel camera, shield wall, furnace burst
 	await _setup_round(&"seraph", SparringBrain.Mode.PASSIVE)
 	_partner().reset_to(Vector3(0, 0.2, 22))  # 8 m: inside the duel framing range
+	await _hold(0.8)
+	await _hold(0.05, func(t: float): _cmd().parry_pressed = t < 0.02)
+	await _shot("seraph_parry_swing")
+	await _hold(0.6)
 	scene.combat.ultimate.enter_judgment()
+	await _hold(0.3)
+	await _hold(0.05, func(t: float): _cmd().parry_pressed = t < 0.02)
+	await _shot("seraph_judgment_parry")
+	await _hold(0.5)
 	await _hold(1.2, func(t: float):
 		_cmd().attack_pressed = fmod(t, 0.35) < 0.02
 		_cmd().move = Vector3(1, 0, 0) if t < 0.6 else Vector3.ZERO)

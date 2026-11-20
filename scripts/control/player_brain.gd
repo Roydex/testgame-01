@@ -8,6 +8,7 @@ var motor: MechMotor
 var camera_rig: CameraRig
 var targeting: TargetingSystem
 var enabled: bool = true
+var _reticle: PlacementReticle
 
 
 func setup(p_motor: MechMotor, p_rig: CameraRig, p_targeting: TargetingSystem) -> void:
@@ -39,7 +40,11 @@ func _physics_process(_delta: float) -> void:
 	# OR-in edges so a press is never lost between motor ticks
 	cmd.jump_pressed = cmd.jump_pressed or Input.is_action_just_pressed(&"jump_ascend")
 	cmd.dash_pressed = cmd.dash_pressed or Input.is_action_just_pressed(&"dash")
-	if targeting.has_target():
+	var combat0 := motor.get_node_or_null(^"CombatStateMachine") as CombatStateMachine
+	if combat0 and combat0.is_aiming_placement():
+		var to0 := combat0.placement_point - motor.global_position
+		cmd.face_dir = Vector3(to0.x, 0.0, to0.z)
+	elif targeting.has_target():
 		var to := targeting.get_target_point() - motor.global_position
 		cmd.face_dir = Vector3(to.x, 0.0, to.z)
 	elif Experiments.free_aim:
@@ -64,7 +69,41 @@ func _physics_process(_delta: float) -> void:
 			_update_free_aim(combat)
 			if combat.aim_target == null:
 				combat.aim_target = combat.free_aim_target  # melee lunges steer to what you aim at
+		update_placement_aim(combat)
 
+
+## Hand-marked ground strike (AIM state): raise the camera, cast the view
+## ray onto the ground (clamped to the call range) and show the ghost.
+## Public so the scripted demo can drive it while the brain is disabled.
+func update_placement_aim(combat: CombatStateMachine) -> void:
+	var aiming := combat.is_aiming_placement()
+	camera_rig.set_placement_mode(aiming)
+	if not aiming:
+		if _reticle:
+			_reticle.visible = false
+		return
+	if _reticle == null:
+		_reticle = PlacementReticle.new()
+		camera_rig.add_child(_reticle)
+	var cam := camera_rig.camera
+	var origin := cam.global_position
+	var fwd := -cam.global_basis.z
+	var def := combat.aim_def
+	var spec := def.orbital_spec if def and def.orbital_spec else OrbitalSpec.new()
+	var q := PhysicsRayQueryParameters3D.create(origin, origin + fwd * 400.0, CombatTypes.WORLD_LAYER)
+	q.exclude = [motor.get_rid()]
+	var hit := motor.get_world_3d().direct_space_state.intersect_ray(q)
+	var p: Vector3 = hit.position if not hit.is_empty() else origin + fwd * spec.max_call_range
+	p = OrbitalStrike.clamp_to_range(motor.global_position, p, spec.max_call_range)
+	p = OrbitalStrike.ground_point(motor.get_world_3d(), p + Vector3.UP * 2.0)
+	combat.placement_point = p
+	combat.placement_set = true
+	var on_target := false
+	for t in TeamRules.get_valid_targets(motor, &"mechs"):
+		if Vector2(t.global_position.x - p.x, t.global_position.z - p.z).length() <= spec.radius:
+			on_target = true
+			break
+	_reticle.show_at(p, spec.radius, on_target)
 
 ## 自由瞄准: crosshair ray from the camera (starting at the mech's depth so
 ## nothing between camera and mech is aimed at) plus a small aim assist.

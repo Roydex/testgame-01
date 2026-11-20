@@ -53,6 +53,8 @@ var _walk_phase := 0.0
 var _recoil := Vector2.ZERO
 var _recoil_v := Vector2.ZERO
 var _parry_flash := 0.0
+## Live parry shield effect (disc + rim in front of the shield arm).
+var _parry_fx: Node3D
 ## Smoothed pose (applied each frame).
 var _pose := {}
 var _recoil_fire := 0.0
@@ -140,6 +142,7 @@ func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -
 		CombatEvents.riposte_window.connect(_on_riposte_window)
 		CombatEvents.attack_active.connect(_on_attack_active)
 		CombatEvents.status_changed.connect(_on_status)
+		combat.combat_state_changed.connect(_on_combat_state)
 		if combat.ultimate:
 			var aura := JudgmentAura.new()
 			add_child(aura)
@@ -322,6 +325,90 @@ func _on_hit(hit: HitInfo) -> void:
 func _on_parried(defender: Node3D, _attacker: Node3D, _proj: bool) -> void:
 	if defender == motor:
 		_parry_flash = 0.35
+		if _parry_fx and is_instance_valid(_parry_fx):
+			var tw := _parry_fx.create_tween()
+			tw.tween_property(_parry_fx, "scale", Vector3.ONE * 1.4, 0.06).set_ease(Tween.EASE_OUT)
+			tw.tween_property(_parry_fx, "scale", Vector3.ONE, 0.12)
+
+
+func _on_combat_state(_old: int, new: int) -> void:
+	if new == CombatStateMachine.CombatState.PARRY:
+		_spawn_parry_fx()
+
+
+## Playtest round 3: the parry reads as a shield SWING — a disc of light
+## sweeps out in front of the shield arm for the parry window. In judgment
+## it is a large golden energy shield with an expanding rim.
+func _spawn_parry_fx() -> void:
+	if _parry_fx and is_instance_valid(_parry_fx):
+		_parry_fx.queue_free()
+	var judg := combat.ultimate != null and combat.ultimate.in_judgment()
+	var col := Color(1.0, 0.85, 0.35) if judg else Color(0.7, 0.9, 1.0)
+	var r := 2.8 if judg else 1.6
+	var window := combat.profile.parry_window * (combat.ultimate.parry_window_mult() if combat.ultimate else 1.0)
+	var fx := Node3D.new()
+	fx.name = "ParryFx"
+	fx.position = Vector3(-0.2, 2.5, -1.6)
+	add_child(fx)
+	_parry_fx = fx
+	var disc_mat := _fx_mat(col, 0.45 if judg else 0.32)
+	var rim_mat := _fx_mat(col, 0.95)
+	var disc := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = r
+	cm.bottom_radius = r
+	cm.height = 0.04
+	disc.mesh = cm
+	disc.rotation.x = PI * 0.5
+	disc.material_override = disc_mat
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	fx.add_child(disc)
+	var rim := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = r - (0.2 if judg else 0.12)
+	tm.outer_radius = r
+	tm.rings = 40
+	rim.mesh = tm
+	rim.rotation.x = PI * 0.5
+	rim.material_override = rim_mat
+	rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	fx.add_child(rim)
+	# swing in from the shield side
+	fx.scale = Vector3.ONE * 0.25
+	fx.rotation.y = 1.0
+	var tw := fx.create_tween().set_parallel(true)
+	tw.tween_property(fx, "scale", Vector3.ONE, 0.07).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(fx, "rotation:y", 0.0, 0.07).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(disc_mat, "albedo_color:a", 0.0, 0.14).set_delay(window)
+	tw.tween_property(rim_mat, "albedo_color:a", 0.0, 0.14).set_delay(window)
+	tw.chain().tween_callback(fx.queue_free)
+	if judg:
+		var halo_mat := _fx_mat(col, 0.8)
+		var halo := MeshInstance3D.new()
+		var hm := TorusMesh.new()
+		hm.inner_radius = r - 0.1
+		hm.outer_radius = r + 0.1
+		hm.rings = 40
+		halo.mesh = hm
+		halo.rotation.x = PI * 0.5
+		halo.material_override = halo_mat
+		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fx.add_child(halo)
+		var th := halo.create_tween().set_parallel(true)
+		th.tween_property(halo, "scale", Vector3(1.7, 1.0, 1.7), window + 0.2).set_ease(Tween.EASE_OUT)
+		th.tween_property(halo_mat, "albedo_color:a", 0.0, window + 0.2)
+
+
+func _fx_mat(c: Color, a: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(c, a)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.emission_enabled = true
+	m.emission = c
+	m.emission_energy_multiplier = 4.0
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
 
 
 ## Shield stays lit while the riposte window is open.
@@ -521,7 +608,10 @@ func _target_pose() -> Dictionary:
 			return _p({"cr": 0.2, "tp": 0.1, "lx": 1.45, "ly": 0.55, "lz": 0.0, "rx": 0.25, "sh": 0.6})
 		CombatStateMachine.CombatState.PARRY:
 			if combat.is_parrying():
-				return _p({"ty": -0.25, "lx": 1.65, "ly": 0.4, "lz": 0.0, "sh": 2.5})
+				# shield swing: cocked at the side → thrust out across the body
+				var cocked := _p({"ty": 0.35, "tp": -0.05, "lx": 0.25, "ly": -0.75, "lz": -0.7, "sh": 1.0})
+				var out := _p({"ty": -0.45, "tp": 0.18, "cr": 0.1, "lx": 1.8, "ly": 0.55, "lz": 0.2, "rx": 0.2, "sh": 3.0})
+				return _mix(cocked, out, _ease_out((combat.time - combat.parry_started_at) / 0.07))
 			return _p({"cr": 0.1, "lx": 0.1, "lz": -0.45, "rx": 0.2, "sh": 0.0})  # whiff: shield dropped
 		CombatStateMachine.CombatState.STAGGER:
 			return _p({"tp": -0.35, "cr": 0.2, "rx": 0.1, "rp": 0.6, "lx": 0.1, "lz": -0.5})
@@ -529,6 +619,8 @@ func _target_pose() -> Dictionary:
 			return _p({"tp": -0.6, "cr": 0.1, "rx": -0.6, "rp": 0.3, "lx": -0.6, "lz": -0.7, "ty": 0.3})
 		CombatStateMachine.CombatState.ULT_WINDUP:
 			return _p({"tp": -0.3, "cr": 0.2, "rx": 2.6, "rp": -0.6, "lx": 2.6, "lz": -0.5, "sh": 1.5})
+		CombatStateMachine.CombatState.AIM:  # marking an orbital strike: cannon raised to the sky
+			return _p({"tp": -0.2, "cr": 0.2, "rx": 2.5, "rp": 0.0, "lx": 1.1, "ly": -0.4})
 		CombatStateMachine.CombatState.CHARGE:  # railgun shouldered and aimed
 			return _p({"rx": 1.57, "rp": 0.0, "cr": 0.25, "tp": 0.05, "ro": 0.3, "lx": 1.3, "ly": -0.5})
 	return IDLE
@@ -572,9 +664,10 @@ func _process(delta: float) -> void:
 	# --- pose: attack-driven poses are crisp, others ease quickly
 	var want := _target_pose()
 	var attacking := combat != null and combat.state == CombatStateMachine.CombatState.ATTACK
+	var crisp := attacking or (combat != null and combat.state == CombatStateMachine.CombatState.PARRY and combat.is_parrying())
 	if _pose.is_empty():
 		_pose = want.duplicate()
-	var k := 1.0 if attacking else 1.0 - exp(-14.0 * delta)
+	var k := 1.0 if crisp else 1.0 - exp(-14.0 * delta)
 	_pose = _mix(_pose, want, k)
 	if _recoil_fire > 0.0:
 		_recoil_fire = maxf(_recoil_fire - delta * 5.0, 0.0)

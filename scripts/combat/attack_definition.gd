@@ -82,6 +82,9 @@ extends Resource
 @export var grapple_spec: GrappleSpec
 @export var orbital_spec: OrbitalSpec
 @export var deploy_spec: DeploySpec
+## Hold skill aimed by hand first (AIM state, the brain marks a ground
+## point; release fires). AZURE orbital, playtest round 3.
+@export var aim_placement: bool = false
 
 @export_group("Self action")
 ## Invulnerable for this long from the start of the active phase (backstep).

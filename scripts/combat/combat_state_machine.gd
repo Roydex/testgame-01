@@ -12,8 +12,8 @@ extends Node
 
 signal combat_state_changed(old_state: int, new_state: int)
 
-enum CombatState { READY, ACTION, STAGGER, ATTACK, GUARD, PARRY, OFFBALANCE, ULT_WINDUP, DEAD, CHARGE }
-const STATE_NAMES := ["READY", "ACTION", "STAGGER", "ATTACK", "GUARD", "PARRY", "OFFBALANCE", "ULT_WINDUP", "DEAD", "CHARGE"]
+enum CombatState { READY, ACTION, STAGGER, ATTACK, GUARD, PARRY, OFFBALANCE, ULT_WINDUP, DEAD, CHARGE, AIM }
+const STATE_NAMES := ["READY", "ACTION", "STAGGER", "ATTACK", "GUARD", "PARRY", "OFFBALANCE", "ULT_WINDUP", "DEAD", "CHARGE", "AIM"]
 
 const MOD_ACTION := &"combat_action"
 const MOD_STAGGER := &"combat_stagger"
@@ -24,6 +24,7 @@ const MOD_OFFBALANCE := &"combat_offbalance"
 const MOD_ULT_WINDUP := &"combat_ult_windup"
 const MOD_DEAD := &"combat_dead"
 const MOD_CHARGE := &"combat_charge"
+const MOD_AIM := &"combat_aim"
 const INPUT_BUFFER := 0.25
 
 @export var motor_path: NodePath = ^".."
@@ -83,6 +84,15 @@ var _carry_time := 0.0
 ## Highest speed toward the target during this attack's windup / active
 ## phase: a slide that stops on top of the target still counts.
 var _momentum_speed := 0.0
+
+# --- manual placement (AZURE orbital, playtest round 3): while in AIM the
+# brain writes the marked ground point; consumed by the delivery.
+var placement_point := Vector3.ZERO
+var placement_set := false
+## Attack being aimed (AIM state).
+var aim_def: AttackDefinition
+## Combat time the current parry started (presentation: shield swing).
+var parry_started_at := -100.0
 
 # --- 自由瞄准 (Experiments.free_aim), written by the player brain
 var free_aim_active := false
@@ -293,7 +303,7 @@ func _physics_process(delta: float) -> void:
 				kit.on_guard_released()  # HELLFANG 爆燃反震
 			elif _buf_parry > 0.0:
 				_defend()
-			elif _buf_skill_hold > 0.0 and profile.skill_hold and _start_attack(profile.skill_hold):
+			elif _buf_skill_hold > 0.0 and profile.skill_hold and _start_skill_hold():
 				_buf_skill_hold = 0.0
 			elif _buf_skill > 0.0 and _try_skill():
 				pass
@@ -314,6 +324,8 @@ func _physics_process(delta: float) -> void:
 				ultimate.enter_judgment()
 		CombatState.CHARGE:
 			_tick_charge(delta, cmd)
+		CombatState.AIM:
+			_tick_aim(cmd)
 
 
 ## Tap / hold decision for buttons that have a hold variant.
@@ -349,7 +361,7 @@ func _ready_inputs(cmd: MechCommand) -> void:
 		return
 	if _buf_skill_hold > 0.0:
 		_buf_skill_hold = 0.0
-		if _start_attack(profile.skill_hold):
+		if _start_skill_hold():
 			return
 	if _buf_attack_hold > 0.0:
 		_buf_attack_hold = 0.0
@@ -451,8 +463,54 @@ func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0,
 	return true
 
 
+## Hold skill: a placement-aimed one (orbital) enters AIM first; the rest start at once.
+func _start_skill_hold() -> bool:
+	var def := profile.skill_hold
+	if def == null:
+		return false
+	if not def.aim_placement:
+		return _start_attack(def)
+	if get_cooldown(def.id) > 0.0 or kit.blocks_actions() or not kit.can_start(def) \
+			or motor.en < def.en_cost * motor.get_en_cost_mult():
+		return false
+	_finish_attack()
+	_clear_state_mods()
+	aim_def = def
+	placement_set = false
+	var m := MovementModifier.create(MOD_AIM)
+	m.speed_mult = 0.4
+	m.block_dash = true
+	m.turn_mult = 0.6
+	motor.add_modifier(m)
+	_enter(CombatState.AIM)
+	return true
+
+
+## AIM: the brain moves the marker; releasing the skill button fires at it,
+## guard / parry cancels (nothing is spent).
+func _tick_aim(cmd: MechCommand) -> void:
+	if _buf_parry > 0.0 or cmd.guard_held:
+		placement_set = false
+		_to_ready()
+		if _buf_parry > 0.0:
+			_defend()
+		return
+	if cmd.skill_held:
+		return
+	var def := aim_def
+	_to_ready()
+	if not _start_attack(def):
+		placement_set = false
+
+
+func is_aiming_placement() -> bool:
+	return state == CombatState.AIM
+
+
 ## Tells the kit the current attack is over (finished, chained or interrupted).
 func _finish_attack() -> void:
+	if attack and attack.aim_placement:
+		placement_set = false  # a marked point is used once (or dropped with the attack)
 	if attack and state == CombatState.ATTACK:
 		var def := attack
 		var landed := _landed
@@ -510,7 +568,7 @@ func _tick_attack(delta: float, cmd: MechCommand) -> void:
 		if phase == 2 and cmd.guard_held and not profile.charge_attack:
 			_enter_guard()
 			return
-		if phase == 2 and _buf_skill_hold > 0.0 and profile.skill_hold and _start_attack(profile.skill_hold):
+		if phase == 2 and _buf_skill_hold > 0.0 and profile.skill_hold and _start_skill_hold():
 			_buf_skill_hold = 0.0
 			return
 		if phase == 2 and _buf_skill > 0.0 and _try_skill():
@@ -833,6 +891,7 @@ func _start_parry() -> void:
 	_buf_parry = 0.0
 	_clear_state_mods()
 	_parry_window_left = profile.parry_window * (ultimate.parry_window_mult() if ultimate else 1.0)
+	parry_started_at = time
 	_parry_success = false
 	_parry_count = 0
 	_parry_recovering = false
@@ -1029,7 +1088,10 @@ func interrupt() -> void:
 		charge_level = 0.0
 		CombatEvents.charge_changed.emit(motor, -1.0)
 	if state == CombatState.ATTACK or state == CombatState.GUARD or state == CombatState.PARRY \
-			or state == CombatState.ULT_WINDUP or state == CombatState.ACTION or state == CombatState.CHARGE:
+			or state == CombatState.ULT_WINDUP or state == CombatState.ACTION or state == CombatState.CHARGE \
+			or state == CombatState.AIM:
+		if state == CombatState.AIM:
+			placement_set = false
 		_to_ready()
 
 
@@ -1085,7 +1147,7 @@ func _on_died() -> void:
 
 
 func _clear_state_mods() -> void:
-	for id in [MOD_ATTACK, MOD_GUARD, MOD_PARRY, MOD_ULT_WINDUP, MOD_ACTION, MOD_CHARGE]:
+	for id in [MOD_ATTACK, MOD_GUARD, MOD_PARRY, MOD_ULT_WINDUP, MOD_ACTION, MOD_CHARGE, MOD_AIM]:
 		motor.remove_modifier(id)
 	_attack_mod = null
 	attack = null

@@ -105,6 +105,25 @@ func _swap_partner(id: StringName) -> void:
 	set_practice(practice_mode)
 
 
+## Skill lab (playtest round 3): F9 switches the always-shooting ranged
+## partner together with the melee one, so "静止" really means quiet.
+func _sync_ranged_partner() -> void:
+	if dummies.size() < 2:
+		return
+	var mb := dummies[0].get_node(^"SparringBrain") as SparringBrain
+	var rb := dummies[1].get_node(^"SparringBrain") as SparringBrain
+	var map := {
+		SparringBrain.Mode.TRAINING: SparringBrain.Mode.TRAINING_RANGED,
+		SparringBrain.Mode.MELEE: SparringBrain.Mode.RANGED,
+		SparringBrain.Mode.PASSIVE: SparringBrain.Mode.PASSIVE,
+		SparringBrain.Mode.GUARD: SparringBrain.Mode.GUARD,
+		SparringBrain.Mode.PARRY_TRAINER: SparringBrain.Mode.PARRY_TRAINER,
+	}
+	rb.mode = map.get(mb.mode, SparringBrain.Mode.PASSIVE)
+	combat_hud.set_mode_banner(_banner())
+	combat_hud.callout("陪练机：近战 %s · 远程 %s" % [mb.get_mode_name(), rb.get_mode_name()])
+
+
 func _banner() -> String:
 	var ex: PackedStringArray = []
 	for id: StringName in [&"momentum", &"duel_cam", &"free_aim"]:
@@ -129,6 +148,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		Experiments.set_all(not all_on)
 		combat_hud.callout("全部实验：%s" % ("关" if all_on else "开"), Color(0.7, 0.95, 1.0), 1.2)
 		combat_hud.set_mode_banner(_banner())
+		return
+	if event.is_action_pressed(&"debug_dummy_mode"):
+		super(event)  # cycles the melee partner
+		_sync_ranged_partner()
 		return
 	if event.is_action_pressed(&"lab_partner_next"):
 		var ids := MechFactory.MECH_IDS

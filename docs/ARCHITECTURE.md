@@ -182,3 +182,5 @@
 - **D-48 防御键的机体差异走 MechKit 钩子。** `on_guard_started()` / `on_guard_released()` 由 CombatStateMachine 在进入 / 松开格挡时调用：赤狱的 HeatKit 用来累积吸收量并放出爆燃反震（经 `start_kit_attack`，仍是普通 AttackDefinition，`self_blast_radius` 走 AreaBlast），苍藓的 DeployKit 用来立盾墙。战斗状态机不知道具体机体。
 - **D-49 远程目标统一取 `ranged_target()` / `ranged_point()`。** 自由瞄准时是准星吸附目标或准星落点，否则是锁定目标；弹丸方向、导弹追踪、轨道呼叫、束缚区放置、磁轨瞄准激光都读这两个函数，近战突进仍读 `aim_target`。
 - **D-50 审判的压制用状态效果实现。** 圣域每帧给范围内敌人刷新 0.3 s 的 `judgment_suppressed`；状态效果新增 `block_en_regen` 与 `windup_mult`，前摇减速由 CombatStateMachine 在前摇段按倍率推进 `attack_time`，仍不写速度。
+- **D-51 手动落点用 AIM 状态加“大脑写入落点”。** `AttackDefinition.aim_placement` 的长按技能先进入 CombatStateMachine 的 AIM 状态（只是限速、不能冲刺）；玩家大脑把视线落点写入 `placement_point` / `placement_set`，松开技能键才真正开始攻击，由 `OrbitalStrike` 在有效段读取并消耗。战斗层不知道镜头和鼠标；没有写入落点的大脑（陪练、AI）照旧自动呼叫。镜头的俯视模式（`CameraRig.set_placement_mode`）和落点虚影（`PlacementReticle`）都只属于玩家侧表现。
+- **D-52 招架表现读状态、不改判定。** MechVisual 通过 `combat_state_changed` 在进入 PARRY 时生成盾光，挥盾姿势按 `parry_started_at` 计时；招架判定窗口和规则不变。

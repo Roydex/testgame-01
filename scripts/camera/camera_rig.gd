@@ -70,6 +70,15 @@ var distance: float = 10.0
 @export var free_aim_manual_yaw_deg: float = 35.0
 @export var free_aim_manual_pitch_deg: float = 20.0
 
+@export_group("Placement aim (orbital marking)")
+## While the player marks a ground point the camera rises and looks down;
+## the mouse turns it freely even when a target is locked.
+@export var placement_height: float = 9.0
+@export var placement_distance: float = 13.0
+@export var placement_pitch_min_deg: float = -80.0
+@export var placement_pitch_max_deg: float = -8.0
+@export var placement_sharpness: float = 6.0
+
 @export_group("FOV")
 @export var base_fov: float = 70.0
 @export var dash_fov: float = 78.0
@@ -121,6 +130,9 @@ var _duel_blend := 0.0
 var _duel_side := 1.0
 var _cine_left := 0.0
 var _cine_total := 0.4
+## Set by the player brain while the mech is in the AIM (placement) state.
+var placement_mode := false
+var _place_blend := 0.0
 
 
 func _ready() -> void:
@@ -166,6 +178,24 @@ func cinematic(duration: float = 0.4) -> void:
 	_cine_left = _cine_total
 
 
+## Enter / leave the raised placement view. On entry the view turns to the
+## locked target (if any) so the marker starts on it.
+func set_placement_mode(on: bool) -> void:
+	if on == placement_mode:
+		return
+	placement_mode = on
+	if on and targeting and targeting.has_target() and mech:
+		var to := targeting.current.global_position - mech.global_position  # its feet: the marker sits on the ground
+		var horiz := Vector2(to.x, to.z).length()
+		yaw = atan2(-to.x, -to.z)
+		# the view ray always passes through the (raised) focus point, so aim
+		# from there: the marker starts right on the locked target
+		var cam_h := focus_height + placement_height - to.y
+		pitch = clampf(-atan2(cam_h, maxf(horiz, 0.5)), deg_to_rad(placement_pitch_min_deg), deg_to_rad(placement_pitch_max_deg))
+	elif on:
+		pitch = clampf(pitch - deg_to_rad(25.0), deg_to_rad(placement_pitch_min_deg), deg_to_rad(placement_pitch_max_deg))
+
+
 ## 0..1: how far the duel (three-quarter side) framing is blended in.
 func duel_blend() -> float:
 	return _duel_blend
@@ -207,7 +237,10 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Look input in radians (x = yaw, y = pitch). In lock mode it becomes a
 ## bounded offset that eases back.
 func add_look_input(delta_rad: Vector2) -> void:
-	if is_locked():
+	if placement_mode:
+		yaw = wrapf(yaw - delta_rad.x, -PI, PI)
+		pitch = clampf(pitch - delta_rad.y, deg_to_rad(placement_pitch_min_deg), deg_to_rad(placement_pitch_max_deg))
+	elif is_locked():
 		var my := free_aim_manual_yaw_deg if Experiments.free_aim else lock_manual_yaw_deg
 		var mp := free_aim_manual_pitch_deg if Experiments.free_aim else lock_manual_pitch_deg
 		_yaw_offset = clampf(_yaw_offset - delta_rad.x, -deg_to_rad(my), deg_to_rad(my))
@@ -226,7 +259,8 @@ func _physics_process(delta: float) -> void:
 
 func _update_camera(delta: float, instant: bool) -> void:
 	# --- focus follow (separate vertical smoothing for ground/air transitions)
-	var want_focus := mech.global_position + Vector3.UP * focus_height
+	_place_blend = (1.0 if placement_mode else 0.0) if instant else move_toward(_place_blend, 1.0 if placement_mode else 0.0, delta * placement_sharpness * 0.5)
+	var want_focus := mech.global_position + Vector3.UP * (focus_height + placement_height * _ease(_place_blend))
 	var kh := 1.0 if instant else 1.0 - exp(-follow_sharpness_h * delta)
 	var kv := 1.0 if instant else 1.0 - exp(-follow_sharpness_v * delta)
 	_focus.x = lerpf(_focus.x, want_focus.x, kh)
@@ -236,7 +270,7 @@ func _update_camera(delta: float, instant: bool) -> void:
 	if _focus.distance_to(want_focus) > 3.0:
 		_focus = want_focus + (_focus - want_focus).normalized() * 3.0
 
-	var locked := is_locked()
+	var locked := is_locked() and not placement_mode
 	var extra_dist := 0.0
 	var close_t := 0.0
 	lock_blend = move_toward(lock_blend, 1.0 if locked else 0.0, (1.0 if instant else delta * 3.0))
@@ -277,6 +311,7 @@ func _update_camera(delta: float, instant: bool) -> void:
 	var p := mech.profile
 	var speed_t := clampf((spd - p.ground_max_speed) / maxf(p.air_dash_speed - p.ground_max_speed, 1.0), 0.0, 1.0)
 	var want_dist := distance + extra_dist + speed_t * speed_pullback
+	want_dist = lerpf(want_dist, placement_distance, _ease(_place_blend))
 	if _cine_left > 0.0 and not instant:
 		_cine_left = maxf(_cine_left - delta, 0.0)
 		var ck := clampf(minf(_cine_left, _cine_total - _cine_left) / 0.08, 0.0, 1.0)
@@ -387,6 +422,10 @@ func _update_camera(delta: float, instant: bool) -> void:
 	if _fov_punch > 0.01 and not instant:
 		camera.fov -= _fov_punch
 		_fov_punch = move_toward(_fov_punch, 0.0, delta * 30.0)
+
+
+static func _ease(t: float) -> float:
+	return t * t * (3.0 - 2.0 * t)
 
 
 func _yaw_offset_applied() -> float:

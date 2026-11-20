@@ -164,6 +164,8 @@ func _process(delta: float) -> void:
 	_callout_t = maxf(_callout_t - delta, 0.0)
 	_callout.visible = _callout_t > 0.0
 	_update_vignette(delta)
+	if combat.is_aiming_placement():
+		callout("轨道标记：转动鼠标选择落点 · 松开 X 发射 · 右键 / F 取消", Color(0.6, 0.95, 1.0), 0.1)
 	_crosshair.visible = Experiments.free_aim
 	if _crosshair.visible:
 		_crosshair.position = vp * 0.5

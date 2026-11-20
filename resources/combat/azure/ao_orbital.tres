@@ -47,3 +47,4 @@ turn_mult = 0.3
 en_cost = 8.0
 cooldown = 8.0
 orbital_spec = SubResource("OrbitalSpec_1")
+aim_placement = true

@@ -1594,3 +1594,143 @@ func t39_experiments(res: Dictionary) -> void:
 		"locked at 8 m: view vs target line %.0f° normally, %.0f° with the duel camera" % [absf(ang[0]), absf(ang[1])])
 	rig.queue_free()
 	await _free([m, tg])
+
+
+func t40_playtest_round3(res: Dictionary) -> void:
+	var odef := load("res://resources/combat/azure/ao_orbital.tres") as AttackDefinition
+	var spec := odef.orbital_spec
+	# --- 1a. hand-marked empty ground: the circle stays exactly there, full warning
+	var az := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
+	var v := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
+	await r._ticks(25)
+	var c := _cs(az)
+	var mark := Vector3(14, 0.0, 10)
+	var st := {"aim": false, "strike": null, "found": false, "p0": Vector3.ZERO, "moved": 0.0, "tel": 0.0, "fixed": false}
+	var ev := _rec()
+	await _frames(ev, 170, func(i: int) -> void:
+		_aim(az, v)
+		az.command.skill_pressed = i == 0
+		az.command.skill_held = i < 40
+		if c.is_aiming_placement():
+			st.aim = true
+			c.placement_point = mark
+			c.placement_set = true
+		v.command.move = Vector3(0, 0, -1) if i > 60 and i < 90 else Vector3.ZERO
+		if st.strike == null:
+			for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
+				st.strike = n
+				st.found = true
+				st.p0 = (n as Node3D).global_position
+				st.tel = (n as OrbitalStrike).telegraph
+				st.fixed = (n as OrbitalStrike).fixed_point
+		elif is_instance_valid(st.strike):
+			st.moved = maxf(st.moved, (st.strike as Node3D).global_position.distance_to(st.p0)))
+	_unrec()
+	r._check(res, st.aim and st.found and st.fixed and Vector2(st.p0.x - mark.x, st.p0.z - mark.z).length() < 0.6 and st.moved < 0.05,
+		"X held → AIM; released → strike on the marked ground (%.1f m off), fixed (moved %.2f m)" % [Vector2(st.p0.x - mark.x, st.p0.z - mark.z).length(), st.moved])
+	r._check(res, is_equal_approx(st.tel, spec.follow_time + spec.lock_time) and _hits(ev, v, &"ao_orbital").is_empty(),
+		"fixed mark keeps the full %.1f s warning; the target 14 m away is not hit" % st.tel)
+	await _free([az, v])
+	# --- 1b. marked on an enemy: it follows that enemy
+	var az2 := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
+	var v2 := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
+	await r._ticks(25)
+	var c2 := _cs(az2)
+	c2.placement_point = v2.global_position + Vector3(3, 0, 0)
+	c2.placement_set = true
+	var strike := OrbitalStrike.call_strike(c2, odef)
+	r._check(res, strike.target == v2 and not strike.fixed_point and not c2.placement_set,
+		"mark 3 m from an enemy → follows it (target %s), mark consumed" % (strike.target.name if strike.target else "none"))
+	strike.queue_free()
+	# --- 1c. guard cancels the aim: nothing spent
+	var en0 := az2.en
+	var ev2 := _rec()
+	await _frames(ev2, 50, func(i: int) -> void:
+		_aim(az2, v2)
+		az2.command.skill_pressed = i == 0
+		az2.command.skill_held = i < 45
+		az2.command.guard_held = i >= 30 and i < 33)
+	_unrec()
+	r._check(res, _started(ev2, az2, &"ao_orbital") == 0 and c2.get_cooldown(&"ao_orbital") <= 0.0 and az2.en >= en0 - 0.01 and not c2.is_aiming_placement(),
+		"right button during AIM cancels: no strike, no cooldown, EN %.0f → %.0f" % [en0, az2.en])
+	await _free([az2, v2])
+
+	# --- 2. skill lab: camera rises, ghost follows the view ray; F9 syncs the ranged partner
+	var sc := (load("res://scenes/test/skill_lab.tscn") as PackedScene).instantiate()
+	sc.process_mode = Node.PROCESS_MODE_PAUSABLE
+	r.add_child(sc)
+	await r._ticks(10)
+	sc.call(&"swap_player", &"azure")
+	await r._ticks(3)
+	var brain := sc.get("brain") as PlayerBrain
+	brain.enabled = false
+	var player := sc.get("motor") as MechMotor
+	var rig := sc.get("rig") as CameraRig
+	var pc := _cs(player)
+	var dummies: Array = sc.get("dummies")
+	(sc.get("targeting") as TargetingSystem)._set_target(dummies[0], "test")
+	var h0 := rig.camera.global_position.y - player.global_position.y
+	var st2 := {"h": 0.0}
+	var ev3 := _rec()
+	await _frames(ev3, 50, func(i: int) -> void:
+		player.command.skill_pressed = i == 0
+		player.command.skill_held = true
+		brain.update_placement_aim(pc)
+		st2.h = rig.camera.global_position.y - player.global_position.y)
+	_unrec()
+	var ret: PlacementReticle = brain.get(&"_reticle")
+	var reach := Vector2(pc.placement_point.x - player.global_position.x, pc.placement_point.z - player.global_position.z).length()
+	var d_lock := Vector2(pc.placement_point.x - (dummies[0] as Node3D).global_position.x, pc.placement_point.z - (dummies[0] as Node3D).global_position.z).length()
+	var tl := (dummies[0] as Node3D).global_position - player.global_position
+	r._check(res, d_lock < spec.radius, "the marker starts on the locked target %.0f m away (%.1f m off, circle r %.0f)" % [Vector2(tl.x, tl.z).length(), d_lock, spec.radius])
+	r._check(res, pc.is_aiming_placement() and rig.placement_mode and pc.placement_set and ret != null and ret.visible and reach <= spec.max_call_range + 0.1,
+		"AIM: raised view on, ghost shown %.1f m ahead (≤ %.0f m)" % [reach, spec.max_call_range])
+	r._check(res, st2.h > h0 + 5.0, "camera height above the mech %.1f → %.1f m" % [h0, st2.h])
+	await _frames(ev3, 6, func(_i: int) -> void:
+		player.command.skill_held = false
+		brain.update_placement_aim(pc))
+	r._check(res, pc.state == CombatStateMachine.CombatState.ATTACK and pc.attack and pc.attack.id == &"ao_orbital" and not rig.placement_mode and not ret.visible,
+		"release → orbital fires, view and ghost back to normal (%s)" % pc.get_state_name())
+	var mb := (dummies[0] as Node).get_node(^"SparringBrain") as SparringBrain
+	var rb := (dummies[1] as Node).get_node(^"SparringBrain") as SparringBrain
+	var pairs := []
+	var ok := true
+	for k in 5:
+		var e := InputEventAction.new()
+		e.action = &"debug_dummy_mode"
+		e.pressed = true
+		sc.call(&"_unhandled_input", e)
+		pairs.append("%s/%s" % [mb.get_mode_name(), rb.get_mode_name()])
+		var want: int = {SparringBrain.Mode.TRAINING: SparringBrain.Mode.TRAINING_RANGED, SparringBrain.Mode.MELEE: SparringBrain.Mode.RANGED}.get(mb.mode, mb.mode)
+		ok = ok and rb.mode == want
+	r._check(res, ok, "F9 cycles both partners: %s" % ", ".join(pairs))
+	sc.queue_free()
+	await r._ticks(3)
+	r._check(res, not Experiments.momentum and not Experiments.duel_cam and not Experiments.free_aim and is_equal_approx(Engine.time_scale, 1.0),
+		"leaving the skill lab switches the experiments off again")
+
+	# --- 3. parry: visible shield swing; judgment adds a large golden energy shield
+	var g := MechFactory.create_by_id(&"seraph", 0, true)
+	g.position = Vector3(0, 0.2, 30)
+	r.arena.add_child(g)
+	await r._ticks(20)
+	var gc := _cs(g)
+	var vis: MechVisual = null
+	for ch in g.get_children():
+		if ch is MechVisual:
+			vis = ch
+	var arm0: float = (vis.get(&"_arm_l") as Node3D).rotation.x
+	gc._start_parry()
+	await r._ticks(6)
+	var fx := vis.get_node_or_null(^"ParryFx")
+	var arm1: float = (vis.get(&"_arm_l") as Node3D).rotation.x
+	var r0: float = ((fx.get_child(0) as MeshInstance3D).mesh as CylinderMesh).top_radius if fx else 0.0
+	r._check(res, fx != null and arm1 > arm0 + 1.0, "parry: shield arm swings out (%.2f → %.2f rad), shield disc r %.1f m" % [arm0, arm1, r0])
+	await r._ticks(40)
+	gc.ultimate.enter_judgment()
+	gc._start_parry()
+	await r._ticks(3)
+	var fx2 := vis.get_node_or_null(^"ParryFx")
+	var r1: float = ((fx2.get_child(0) as MeshInstance3D).mesh as CylinderMesh).top_radius if fx2 else 0.0
+	r._check(res, fx2 != null and r1 > r0 * 1.5 and fx2.get_child_count() >= 3, "judgment parry: golden energy shield r %.1f m with an expanding halo" % r1)
+	await _free([g])

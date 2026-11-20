@@ -6,7 +6,8 @@ extends Node3D
 ## `lock_time`, then a vertical BEAM hits every damageable inside whose line
 ## to the sky is clear. Leaving the locked circle dodges it; roofs block it.
 ## BEAM: guardable, not parryable. Mark stacks shrink the circle and lengthen
-## the follow phase (the locked dodge window never changes). Playtest round 2
+## the follow phase (the locked dodge window never changes). A player can
+## mark the point by hand (AIM state, see _call_marked). Playtest round 2
 ## made it a heavy strike: more damage, guard break, a burning circle after.
 
 const FOLLOW_COLOR := Color(1.0, 0.6, 0.1, 0.35)
@@ -19,6 +20,9 @@ var radius: float = 5.0
 ## Followed target (null: fixed point from the start).
 var target: Node3D
 var follow_duration := 0.0
+## Hand-marked empty ground: the circle keeps the full warning (orange
+## then red) but never moves.
+var fixed_point := false
 var telegraph := 0.0
 var _t := 0.0
 var _fired := false
@@ -40,6 +44,8 @@ static func call_strike(combat: CombatStateMachine, def: AttackDefinition) -> Or
 	var marks := 0
 	var at := m.global_position + m.get_forward() * spec.unlocked_distance
 	var followed: Node3D = null
+	if combat.placement_set:
+		return _call_marked(combat, def, spec)
 	var t := combat.ranged_target()
 	if t == null and Experiments.free_aim and combat.free_aim_active \
 			and m.global_position.distance_to(combat.free_aim_point) <= spec.max_call_range:
@@ -57,6 +63,43 @@ static func call_strike(combat: CombatStateMachine, def: AttackDefinition) -> Or
 	s.follow_duration = (spec.follow_time + spec.follow_per_mark * marks) if s.target else 0.0
 	s.setup(m, def, spec, clampf(spec.radius + spec.radius_per_mark * marks, spec.min_radius, maxf(spec.radius, spec.min_radius)))
 	return s
+
+
+## Playtest round 3: the player marked the point by hand (AIM state). A
+## hostile mech inside the marked circle is followed exactly like a locked
+## target; empty ground stays fixed with the same total warning.
+static func _call_marked(combat: CombatStateMachine, def: AttackDefinition, spec: OrbitalSpec) -> OrbitalStrike:
+	var m := combat.motor
+	var at := clamp_to_range(m.global_position, combat.placement_point, spec.max_call_range)
+	combat.placement_set = false
+	var followed: Node3D = null
+	var best := spec.radius
+	for t in TeamRules.get_valid_targets(m, &"mechs"):
+		var d := Vector2(t.global_position.x - at.x, t.global_position.z - at.z).length()
+		if d <= best:
+			best = d
+			followed = t
+	var marks := 0
+	var tc := DamageSystem.get_combat(followed)
+	if tc:
+		marks = tc.status.stacks(&"mark")
+	var s := OrbitalStrike.new()
+	m.get_parent().add_child(s)
+	s.global_position = ground_point(m.get_world_3d(), (followed.global_position if followed else at) + Vector3.UP * 2.0)
+	s.target = followed
+	s.fixed_point = followed == null
+	s.follow_duration = spec.follow_time + spec.follow_per_mark * marks
+	s.setup(m, def, spec, clampf(spec.radius + spec.radius_per_mark * marks, spec.min_radius, maxf(spec.radius, spec.min_radius)))
+	return s
+
+
+## Horizontal clamp of a marked point to the call range around `from`.
+static func clamp_to_range(from: Vector3, p: Vector3, max_range: float) -> Vector3:
+	var d := Vector2(p.x - from.x, p.z - from.z)
+	if d.length() <= max_range:
+		return p
+	d = d.normalized() * max_range
+	return Vector3(from.x + d.x, p.y, from.z + d.y)
 
 
 func is_locked() -> bool:
@@ -114,6 +157,8 @@ func _physics_process(delta: float) -> void:
 
 ## Following phase: slide toward the target's ground point at follow_speed.
 func _follow(delta: float) -> void:
+	if fixed_point:
+		return  # hand-marked ground: stays put through the orange phase
 	if target == null or not is_instance_valid(target) or not TeamRules.is_alive(target):
 		follow_duration = minf(follow_duration, _t)  # lock where it is
 		telegraph = follow_duration + spec.lock_time
