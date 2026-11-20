@@ -1,24 +1,27 @@
-[gd_resource type="Resource" script_class="AttackDefinition" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/combat/specs/orbital_spec.gd" id="2"]
 [ext_resource type="Resource" path="res://resources/combat/azure/ao_orbital_burn.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_orbital_shock.tres" id="4"]
 
 [sub_resource type="Resource" id="OrbitalSpec_1"]
 script = ExtResource("2")
-follow_time = 0.5
+follow_time = 0.3
 follow_per_mark = 0.1
 follow_speed = 12.0
-lock_time = 0.6
-radius = 5.0
+lock_time = 0.45
+radius = 7.0
 radius_per_mark = -0.8
-min_radius = 2.6
+min_radius = 4.5
 beam_duration = 0.35
 sky_height = 45.0
 max_call_range = 60.0
 unlocked_distance = 24.0
 burn_attack = ExtResource("3")
-burn_duration = 3.0
+burn_duration = 2.0
+shock_attack = ExtResource("4")
+shock_radius = 11.0
 burn_interval = 0.5
 
 [resource]
@@ -27,17 +30,17 @@ id = &"ao_orbital"
 display_name = "轨道激光"
 attack_type = 2
 delivery = 3
-windup = 0.45
+windup = 0.2
 active = 0.05
 recovery = 0.5
 cancel_time = 0.7
 telegraphed = true
-damage = 60.0
+damage = 50.0
 guard_break = true
 parryable = false
-knockback = 6.0
-knockback_up = 3.0
-stagger_time = 0.5
+knockback = 0.0
+knockback_up = 17.0
+stagger_time = 0.8
 hitstop = 0.12
 shake = 0.5
 windup_speed_mult = 0.1
@@ -45,6 +48,6 @@ active_speed_mult = 0.1
 recovery_speed_mult = 0.4
 turn_mult = 0.3
 en_cost = 8.0
-cooldown = 8.0
+cooldown = 5.0
 orbital_spec = SubResource("OrbitalSpec_1")
 aim_placement = true

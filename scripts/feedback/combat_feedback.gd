@@ -46,6 +46,7 @@ func _ready() -> void:
 	CombatEvents.telegraph.connect(_on_telegraph)
 	CombatEvents.ultimate_phase.connect(_on_ult)
 	CombatEvents.mech_died.connect(_on_died)
+	CombatEvents.area_telegraph.connect(_on_area)
 
 
 func _exit_tree() -> void:
@@ -152,6 +153,29 @@ func _on_ult(mech: Node3D, phase: String) -> void:
 func _on_died(mech: Node3D) -> void:
 	play(&"death", mech.global_position + Vector3.UP * 2.0)
 	_spark(mech.global_position + Vector3.UP * 2.0, Color(1.0, 0.4, 0.1), 2.5)
+
+
+## Instant area effects (blasts, the orbital shockwave, overheat steam):
+## a flat ring that expands to the real radius and fades.
+func _on_area(_owner: Node3D, pos: Vector3, radius: float, duration: float, kind: StringName) -> void:
+	if duration > 0.0:
+		return  # telegraphs draw themselves (orbital circle, zones)
+	var col := Color(0.85, 0.9, 1.0) if kind == &"steam" else Color(1.0, 0.55, 0.2)
+	var tor := TorusMesh.new()
+	tor.inner_radius = 0.9
+	tor.outer_radius = 1.0
+	tor.rings = 48
+	var ring := _fx_mesh(tor, col, pos + Vector3.DOWN * 0.6)
+	ring.scale = Vector3(radius * 0.15, 1.0, radius * 0.15)
+	var m := ring.material_override as StandardMaterial3D
+	var tw := ring.create_tween().set_parallel(true)
+	tw.tween_property(ring, "scale", Vector3(radius, 1.5, radius), 0.28).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.35)
+	tw.chain().tween_callback(ring.queue_free)
+	if kind == &"steam":
+		play(&"guard", pos, 0.6)
+	elif radius >= 6.0:
+		play(&"heavy_hit", pos, 0.7)
 
 
 func _shake(amount: float, punch: bool) -> void:

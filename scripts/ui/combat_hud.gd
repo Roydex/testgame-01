@@ -340,6 +340,10 @@ func _on_kit_event(mech: Node3D, id: StringName) -> void:
 			callout("钩爪落空", Color(1.0, 0.7, 0.5), 0.6)
 		&"grapple_pull", &"grapple_drag":
 			callout("钩中 · 硬直", Color(1.0, 0.55, 0.25), 0.6)
+		&"grapple_wall":
+			callout("钩墙", Color(1.0, 0.7, 0.4), 0.5)
+		&"bite":
+			pass
 		&"furnace_burst":
 			callout("爆燃反震！", Color(1.0, 0.5, 0.15), 0.8)
 		&"wall_up":

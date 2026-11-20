@@ -30,3 +30,9 @@ extends Resource
 @export var burn_attack: AttackDefinition
 @export var burn_duration: float = 3.0
 @export var burn_interval: float = 0.5
+
+@export_group("Shockwave (playtest round 5: fast heavy strike)")
+## Ring blast around the beam: mechs outside the circle but within
+## `shock_radius` take this EXPLOSION (guardable, pushed outward).
+@export var shock_attack: AttackDefinition
+@export var shock_radius: float = 11.0

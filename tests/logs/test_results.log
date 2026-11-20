@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-20T01:40:27  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-20T02:53:38  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -414,7 +414,7 @@ PASS  T21
   ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 23.4 m and attacked via MechCommand
+  ok   partner moved 20.8 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -525,8 +525,8 @@ PASS  T28
   ok   verdant va_zone: second press inside the 14 s cooldown refused (started 1×)
   ok   azure ao_missiles: start f3 → telegraph → active f24 → finished f51
   ok   azure ao_missiles: second press inside the 7 s cooldown refused (started 1×)
-  ok   azure ao_orbital: start f30 → telegraph → active f58 → finished f90
-  ok   azure ao_orbital: second press inside the 8 s cooldown refused (started 1×)
+  ok   azure ao_orbital: start f30 → telegraph → active f43 → finished f75
+  ok   azure ao_orbital: second press inside the 5 s cooldown refused (started 1×)
   ok   seraph seraph_dash_slash: start f0 → telegraph → active f13 → finished f56
   ok   seraph seraph_dash_slash: second press inside the 2 s cooldown refused (started 1×)
 PASS  T29
@@ -538,11 +538,11 @@ PASS  T29
   ok   BEAM (heavy orbital) vs parry / guard → HIT / GUARD_BREAK (expected HIT / GUARD_BREAK)
   ok   EXPLOSION vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
   ok   real grapple vs guarding SERAPH: HIT (grabs ignore guard)
-  ok   every HP change goes through DamageSystem.resolve(): Mech lost 239.1 / resolved 239.1, @CharacterBody3D@5331 lost 19.5 / resolved 19.5; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
+  ok   every HP change goes through DamageSystem.resolve(): Mech lost 144.1 / resolved 144.1, @CharacterBody3D@5465 lost 103.6 / resolved 103.7; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
 PASS  T30
 
 --- T31  P04 status effects: armor break, restraint, marks
-  ok   finisher landed (1) → armor break applied (true, 4.8 s left)
+  ok   finisher landed (1) → armor break applied (true, 4.9 s left)
   ok   armored-broken victim takes ×1.2: axe 15 → 18.0
   ok   armor break expired after 5 s
   ok   inside the zone: speed 8.8 m/s ≤ 55% of 16 (slowed, not rooted)
@@ -565,12 +565,12 @@ PASS  T31
 PASS  T32
 
 --- T33  P06 resources: heat, deployables, charge and marks
-  ok   axe chain builds heat: peak 39
-  ok   idle cooling after 1.0 s: 45 → 22
+  ok   axe chain builds heat: peak 25
+  ok   idle cooling after 1.0 s: 25 → 3
   ok   scorching (heat ≥ 70): axe deals 19.5 (= 15 × 1.3)
   ok   overheat at 100: no attack starts, dash blocked (EN 100 → 100)
-  ok   overheated: takes ×1.3 (11.7)
-  ok   overheat over after 1.6 s, heat reset to 40 (40)
+  ok   overheated: takes ×1.1 (10.4)
+  ok   overheat over after 1.0 s, heat reset to 40 (40)
   ok   X held: active vent, heat 80 → 18
   ok   whiffed overdrive ram → overheat (1)
   ok   deploy ×3 (each after the 6 s cooldown): turrets [1, 2, 2] — the third is refused
@@ -587,7 +587,7 @@ PASS  T33
   ok   rail: aiming-laser telegraph at f0, shot at f60 (≥ 0.38 s warning)
   ok   4 missiles vs a target dashing sideways at 40 m: 0 direct hits (limited homing, not guaranteed)
   ok   a defender's pulse shots down incoming missiles: 2 destroyed
-  ok   orbital: 1.1 s ground circle; stand → hit 1; walk out → hit 0
+  ok   orbital: 0.75 s ground circle; stand → hit 1; side dash once it locks → hit 0
   ok   backstep: hit at 0.1 s → EVADED, at 0.43 s → HIT (i-frames 0.25 s)
   ok   backstep + repulse: separation 3.0 → 16.4 m, no damage to the pushed mech
   ok   second backstep inside the 6 s cooldown refused
@@ -619,10 +619,10 @@ PASS  T36
   ok   attack after the window closed: normal seraph_l1 (not a riposte)
   ok   EN defaults: ground dash 16, regen 32/s, delay 0.5 s, idle ×2.0
   ok   standing still regenerates 64 EN/s vs 32 EN/s while walking
-  ok   circle followed the strafing target 4.9 m, then stayed put after locking (moved 0.00 m)
-  ok   a target that keeps moving after the lock escapes (0 hits)
-  ok   unmarked telegraph 1.10 s = follow 0.5 + lock 0.6
-  ok   3 marks: follow 0.80 s (lock window unchanged 0.6 s)
+  ok   circle followed the strafing target 2.3 m, then stayed put after locking (moved 0.00 m)
+  ok   a target that dashes out once it locks escapes (0 hits)
+  ok   unmarked telegraph 0.75 s = follow 0.3 + lock 0.5
+  ok   3 marks: follow 0.60 s (lock window unchanged 0.5 s)
   ok   walk-cycle advance over 0.2 s: walking 1.23 rad, dashing 0.00 rad (no faster)
 PASS  T37
 
@@ -630,13 +630,13 @@ PASS  T37
   ok   attacker made CC-immune (1.5 s)
   ok   window opens without off-balance (attacker READY), length 0.80 s
   ok   riposte 0.33 s after the parry: seraph_riposte 30.0 dmg
-  ok   acquire: idle units → nearest (@CharacterBody3D@6793); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6799 (threat 15 m)
+  ok   acquire: idle units → nearest (@CharacterBody3D@6985); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6991 (threat 15 m)
   ok   judgment 10 s, damage ×1.25
   ok   field: enemy at 6 m suppressed (EN 50 → 50, no regen), enemy at 30 m not
   ok   lance strike releases a shockwave: 1 hit, 8.75 dmg
   ok   suppressed windup: 21 frames (base 16)
   ok   super armour: 15-dmg axe → READY; 26-dmg finisher → STAGGER
-  ok   orbital 60 dmg, then 5 burn ticks
+  ok   orbital 50 dmg, target launched 6.4 m up, then 2 burn ticks
   ok   guard absorbed 30 → release: blast 40 dmg (want 40) at 4 m, none at 16 m
   ok   guard absorbed only 5 (< 6): no blast
   ok   guard raises one wall 3.5 m ahead
@@ -656,10 +656,10 @@ PASS  T39
 
 --- T40  Playtest round 3: orbital hand marking, F9 ranged sync
   ok   X held → AIM, still marking after X is released; left click → strike on the marked ground (0.0 m off), fixed (moved 0.00 m)
-  ok   fixed mark keeps the full 1.1 s warning; the target 14 m away is not hit
-  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7116), mark consumed
+  ok   fixed mark keeps the full 0.8 s warning; the target 14 m away is not hit
+  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7308), mark consumed
   ok   right button during AIM cancels: no strike, no cooldown, EN 100 → 100
-  ok   the marker starts on the locked target 18 m away (3.9 m off, circle r 5)
+  ok   the marker starts on the locked target 18 m away (3.9 m off, circle r 7)
   ok   AIM: raised view on, ghost shown 21.8 m ahead (≤ 60 m)
   ok   camera height above the mech 5.3 → 17.0 m
   ok   left click → orbital fires, view and ghost back to normal (ATTACK)
@@ -679,6 +679,21 @@ PASS  T40
   ok   0.15 s: shield arm coils (ly -0.95) and sweeps out (ly 1.64), shield edge travels 13.6 m, ribbon 8 samples
   ok   judgment parry: golden ribbon (life 0.30 s) and the energy-shield halo at the end of the sweep (yes)
 PASS  T41
+
+--- T42  Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat
+  ok   orbital data: confirm → impact 0.95 s, cooldown 5 s, radius 7 m, shockwave to 11 m
+  ok   left click → impact in 0.98 s (was 1.55 s)
+  ok   target in the circle launched 6.4 m up
+  ok   mech 9 m away: shockwave 1 hit (20 dmg), pushed 3.1 m outward
+  ok   axe steps in 4.2 m and hits a target 5.7 m away (1 hit), target bitten true
+  ok   bitten target 7.5 m away: the swing lunges 6.1 m (plain lunge 2.2 m) and connects
+  ok   dash 45° off a bitten target swerves onto it (0.0° off)
+  ok   hook data: speed 85 m/s, radius 0.9 m
+  ok   hook hits WallThick: latched, pulled 15.1 m toward it, no damage, cooldown 1.0 s
+  ok   chain drawn (33 links) and the arm claw is out while the hook flies
+  ok   cooldown after a miss 1.3 s (≤ 1.8), after a grab 2.1 s (full 3 s)
+  ok   overheat 1.0 s, damage taken ×1.15, can dash (true); steam pushed the enemy 2.3 m, no damage
+PASS  T42
 
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
@@ -722,4 +737,5 @@ T38  PASS  Playtest round 2: riposte vs DR, threat lock, judgment, heavy orbital
 T39  PASS  Playtest round 2 experiments: momentum, free aim, duel camera (switchable)
 T40  PASS  Playtest round 3: orbital hand marking, F9 ranged sync
 T41  PASS  Playtest round 4: close-combat overview camera, toggle orbital marking, outward parry sweep
-41/41 passed
+T42  PASS  Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat
+42/42 passed

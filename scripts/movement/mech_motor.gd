@@ -62,6 +62,7 @@ var _m_forced := false
 var _forced_mod: MovementModifier
 var _m_en_cost := 1.0
 var _m_block_regen := false
+var _m_dash_home: MovementModifier
 var _hitstop := 0.0
 
 var _jump_buffer := 0.0
@@ -425,6 +426,12 @@ func _start_dash(in_air: bool) -> void:
 		dir = get_forward()
 	dir.y = 0.0
 	_dash_dir = dir.normalized()
+	if _m_dash_home and is_instance_valid(_m_dash_home.dash_home_target):
+		var to := _m_dash_home.dash_home_target.global_position - global_position
+		to.y = 0.0
+		if to.length() > 2.5 and to.length() <= _m_dash_home.dash_home_range \
+				and rad_to_deg(_dash_dir.angle_to(to.normalized())) <= _m_dash_home.dash_home_angle_deg:
+			_dash_dir = to.normalized()  # bitten target: the dash swerves onto it
 	if in_air:
 		_spend(profile.air_dash_cost * _m_en_cost)
 		hover_engaged = true
@@ -621,7 +628,10 @@ func _recompute_modifiers() -> void:
 	_m_forced = false
 	_m_en_cost = 1.0
 	_m_block_regen = false
+	_m_dash_home = null
 	for m: MovementModifier in _modifiers.values():
+		if m.dash_home_target and is_instance_valid(m.dash_home_target):
+			_m_dash_home = m
 		_m_speed *= m.speed_mult
 		_m_accel *= m.accel_mult
 		_m_turn *= m.turn_mult

@@ -202,6 +202,12 @@ func get_cooldown(id: StringName) -> float:
 	return _cooldowns.get(id, 0.0)
 
 
+## Shortens (never lengthens) a running cooldown (grapple miss / wall latch).
+func cap_cooldown(id: StringName, at_most: float) -> void:
+	if _cooldowns.has(id):
+		_cooldowns[id] = minf(_cooldowns[id], at_most)
+
+
 func is_invulnerable() -> bool:
 	return invuln_left > 0.0
 
@@ -697,6 +703,7 @@ func _update_attack_mod(phase: int, delta: float) -> void:
 	if lunging and d.stop_on_wall and lunge_t > 0.05 and motor.is_on_wall():
 		_lunge_stopped = true
 		lunging = false
+	var lmult := kit.lunge_speed_mult(d) if d.lunge_speed > 0.0 else 1.0
 	if lunging and d.lunge_speed > 0.0 and _target_valid():
 		var to := _target_point() - (motor.global_position + Vector3.UP * 2.0)
 		if Vector2(to.x, to.z).length() < 2.2:
@@ -720,14 +727,15 @@ func _update_attack_mod(phase: int, delta: float) -> void:
 		if _target_valid():
 			var to := _target_point() - (motor.global_position + Vector3.UP * 2.0)
 			var flat := Vector3(to.x, 0.0, to.z)
-			if d.lunge_steer_deg > 0.0 and flat.length() > 0.5 and delta > 0.0:
+			var steer_deg := d.lunge_steer_deg + kit.lunge_steer_bonus(d)
+			if steer_deg > 0.0 and flat.length() > 0.5 and delta > 0.0:
 				var ang := _lunge_dir.signed_angle_to(flat.normalized(), Vector3.UP)
-				var mx := deg_to_rad(d.lunge_steer_deg) * delta
+				var mx := deg_to_rad(steer_deg) * delta
 				_lunge_dir = _lunge_dir.rotated(Vector3.UP, clampf(ang, -mx, mx)).normalized()
 			if d.vertical_track_speed > 0.0 and absf(to.y) <= d.vertical_track_range:
 				var remaining := maxf(d.lunge_duration - lunge_t, 0.05)
 				vy = clampf(to.y / remaining, -d.vertical_track_speed, d.vertical_track_speed)
-		var lspeed := maxf(d.lunge_speed, carry) if carry > 0.0 else d.lunge_speed  # backstep lunges are negative
+		var lspeed := maxf(d.lunge_speed * lmult, carry) if carry > 0.0 else d.lunge_speed * lmult  # backstep lunges are negative
 		m.forced_velocity = (Vector3.ZERO if _lunge_reached else _lunge_dir * lspeed) + Vector3.UP * vy
 	motor.refresh_modifiers()
 

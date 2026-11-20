@@ -1,7 +1,8 @@
 class_name Grapple
 extends Node3D
-## HELLFANG 磁索钩爪. A hook that flies straight (travel time, no homing,
-## sidestep to dodge) and stops on cover. A GRAB hit (unparryable,
+## HELLFANG 磁索钩爪. A claw on a chain, thrown from the power claw: it
+## flies straight (travel time, no homing, sidestep to dodge), latches onto
+## walls (pulls the owner there: mobility) and reels back on a miss. A GRAB hit (unparryable,
 ## unguardable) either pulls the owner in (grounded target) or drags an
 ## airborne target down. The target is interrupted and stays staggered until
 ## the owner arrives (stagger = expected pull time + tail). Both use MovementModifier motion correction; this
@@ -16,15 +17,18 @@ var attack: AttackDefinition
 var spec: GrappleSpec
 var dir := Vector3.FORWARD
 var travelled := 0.0
-var _state := 0  # 0 flying, 1 pulling owner, 2 dragging target, 3 done
+var _state := 0  # 0 flying, 1 pulling owner, 2 dragging target, 3 done, 4 wall pull, 5 reeling back
 var _victim: MechMotor
 var _t := 0.0
 var _mod: MovementModifier
 ## Who carries _mod (always removed in _finish, even if the owner dies).
 var _mod_on: MechMotor
-var _line: MeshInstance3D
-var _head: MeshInstance3D
+var _chain: MultiMeshInstance3D
+var _head: Node3D
+var _prongs: Array[Node3D] = []
 var _shape: SphereShape3D
+var _anchor := Vector3.ZERO
+const LINK := 0.45  # chain link spacing (m)
 
 
 func launch(p_combat: CombatStateMachine, def: AttackDefinition, origin: Vector3, aim_dir: Vector3) -> void:
@@ -37,25 +41,98 @@ func launch(p_combat: CombatStateMachine, def: AttackDefinition, origin: Vector3
 	name = "Grapple"
 	_shape = SphereShape3D.new()
 	_shape.radius = spec.radius
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.35, 0.15)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.3, 0.1)
-	mat.emission_energy_multiplier = 3.0
-	_head = MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.6, 0.6, 0.9)
-	_head.mesh = bm
-	_head.material_override = mat
-	add_child(_head)
-	_line = MeshInstance3D.new()
-	var cm := BoxMesh.new()
-	cm.size = Vector3(0.08, 0.08, 1.0)
-	_line.mesh = cm
-	_line.material_override = mat
-	_line.top_level = true
-	add_child(_line)
+	_build_visual()
+	_set_claw_launched(true)
 	CombatEvents.entity_spawned.emit(self, &"grapple")
+
+
+## Presentation: a three-pronged claw head and a chain of links back to the
+## owner's power claw (the arm's claw is hidden while it is out).
+func _build_visual() -> void:
+	var steel := StandardMaterial3D.new()
+	steel.albedo_color = Color(0.32, 0.3, 0.3)
+	steel.metallic = 0.7
+	steel.roughness = 0.35
+	var hot := StandardMaterial3D.new()
+	hot.albedo_color = Color(1.0, 0.4, 0.15)
+	hot.emission_enabled = true
+	hot.emission = Color(1.0, 0.35, 0.1)
+	hot.emission_energy_multiplier = 3.0
+	_head = Node3D.new()
+	add_child(_head)
+	var hub := MeshInstance3D.new()
+	var hm := BoxMesh.new()
+	hm.size = Vector3(0.55, 0.55, 0.5)
+	hub.mesh = hm
+	hub.material_override = steel
+	_head.add_child(hub)
+	var core := MeshInstance3D.new()
+	var cm := BoxMesh.new()
+	cm.size = Vector3(0.3, 0.3, 0.3)
+	core.mesh = cm
+	core.material_override = hot
+	core.position = Vector3(0, 0, -0.2)
+	_head.add_child(core)
+	for i in 3:
+		var pivot := Node3D.new()
+		pivot.rotation.z = TAU * i / 3.0
+		_head.add_child(pivot)
+		var prong := Node3D.new()
+		prong.position = Vector3(0, 0.25, -0.2)
+		pivot.add_child(prong)
+		var pm := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.14, 0.14, 0.9)
+		pm.mesh = bm
+		pm.material_override = steel
+		pm.position = Vector3(0, 0, -0.4)
+		prong.add_child(pm)
+		var tipm := MeshInstance3D.new()
+		var tb := BoxMesh.new()
+		tb.size = Vector3(0.12, 0.12, 0.25)
+		tipm.mesh = tb
+		tipm.material_override = hot
+		tipm.position = Vector3(0, -0.12, -0.85)
+		tipm.rotation.x = -0.6
+		prong.add_child(tipm)
+		prong.rotation.x = 0.55  # open while flying
+		_prongs.append(prong)
+	var link := BoxMesh.new()
+	link.size = Vector3(0.16, 0.32, LINK * 0.9)
+	var link_mat := steel.duplicate() as StandardMaterial3D
+	link_mat.emission_enabled = true
+	link_mat.emission = Color(1.0, 0.35, 0.1)
+	link_mat.emission_energy_multiplier = 0.8  # magnetised chain: a faint furnace glow
+	link.material = link_mat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = link
+	mm.instance_count = int(ceil(spec.max_range * 1.4 / LINK)) + 2
+	mm.visible_instance_count = 0
+	_chain = MultiMeshInstance3D.new()
+	_chain.multimesh = mm
+	_chain.top_level = true
+	_chain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_chain)
+
+
+func _close_claw() -> void:
+	for p in _prongs:
+		p.rotation.x = -0.15
+
+
+## The owner's visual hides its arm claw while the claw is out (duck-typed).
+func _set_claw_launched(on: bool) -> void:
+	var vis := owner_mech.get_node_or_null(^"Visual") if owner_mech and is_instance_valid(owner_mech) else null
+	if vis and vis.has_method(&"set_claw_launched"):
+		vis.call(&"set_claw_launched", on)
+
+
+func _chain_start() -> Vector3:
+	var vis := owner_mech.get_node_or_null(^"Visual")
+	if vis and vis.has_method(&"grapple_anchor"):
+		return vis.call(&"grapple_anchor")
+	return owner_mech.global_position + Vector3.UP * 2.6
 
 
 func _physics_process(delta: float) -> void:
@@ -74,6 +151,10 @@ func _physics_process(delta: float) -> void:
 			_pull_owner(delta)
 		2:
 			_drag_target(delta)
+		4:
+			_pull_to_wall(delta)
+		5:
+			_reel_back(delta)
 	_update_line()
 
 
@@ -109,7 +190,12 @@ func _fly(delta: float) -> void:
 				break
 		if hb == null:
 			global_position = at
-			_miss()  # cover / ground
+			var rest := space.get_rest_info(cq)
+			var n: Vector3 = rest.get("normal", Vector3.UP)
+			if spec.wall_latch and absf(n.y) < spec.wall_max_normal_y:
+				_latch_wall(at, n)
+			else:
+				_miss()  # floor / ceiling / nothing to bite
 			return
 		if not (hb.mech is MechMotor) or not TeamRules.can_damage(owner_mech, hb.mech):
 			ex.append(hb.get_rid())  # allies and non-mechs are passed through
@@ -138,6 +224,7 @@ func _grab(victim: MechMotor) -> void:
 		_miss()  # evaded (i-frames) / not allowed
 		return
 	_victim = victim
+	_close_claw()
 	combat.report_delivery(attack, true)
 	var vc := DamageSystem.get_combat(victim)
 	var airborne := victim.is_air_state() and victim.get_height_above_ground(50.0) > spec.airborne_height
@@ -204,10 +291,50 @@ func _end_pull(_m: MechMotor) -> void:
 	_finish()
 
 
+## 钩墙位移: the claw bites a wall; the owner is pulled to it (no damage).
+func _latch_wall(at: Vector3, normal: Vector3) -> void:
+	_close_claw()
+	_anchor = at
+	_t = 0.0
+	combat.report_delivery(attack, true)
+	combat.cap_cooldown(attack.id, spec.miss_cooldown)
+	_state = 4
+	_mod = MovementModifier.create(MOD_PULL)
+	_mod.forced = true
+	owner_mech.add_modifier(_mod)
+	_mod_on = owner_mech
+	look_at(at - normal, Vector3.UP if absf(normal.y) < 0.95 else Vector3.RIGHT)
+	CombatEvents.kit_event.emit(owner_mech, &"grapple_wall")
+
+
+func _pull_to_wall(delta: float) -> void:
+	_t += delta
+	var to := _anchor - (owner_mech.global_position + Vector3.UP * 2.0)
+	var flat := Vector3(to.x, 0.0, to.z)
+	if flat.length() <= spec.wall_stop_distance or _t >= spec.wall_max_time or (owner_mech.is_on_wall() and _t > 0.1):
+		_finish()
+		return
+	var v := to.normalized() * spec.wall_pull_speed
+	v.y = clampf(v.y, -spec.wall_pull_speed * 0.5, spec.wall_pull_speed * 0.6)
+	_mod.forced_velocity = v
+	owner_mech.refresh_modifiers()
+
+
 func _miss() -> void:
 	combat.report_delivery(attack, false, spec.miss_recovery)
+	combat.cap_cooldown(attack.id, spec.miss_cooldown)
 	CombatEvents.kit_event.emit(owner_mech, &"grapple_miss")
-	_finish()
+	_state = 5  # reel the chain back in (visual only; the miss is already resolved)
+
+
+func _reel_back(delta: float) -> void:
+	var a := _chain_start()
+	var to := a - global_position
+	var step := spec.retract_speed * delta
+	if to.length() <= step + 0.3:
+		_finish()
+		return
+	global_position += to.normalized() * step
 
 
 func _finish() -> void:
@@ -220,19 +347,30 @@ func _finish() -> void:
 		_mod.duration = 0.05
 		_mod_on.refresh_modifiers()
 	_mod_on = null
+	_set_claw_launched(false)
 	CombatEvents.entity_removed.emit(self, &"grapple", false)
 	queue_free()
 
 
 func _update_line() -> void:
-	if _line == null or owner_mech == null or not is_instance_valid(owner_mech):
+	if _chain == null or owner_mech == null or not is_instance_valid(owner_mech):
 		return
-	var a := owner_mech.global_position + Vector3.UP * 2.6
+	var a := _chain_start()
 	var b := global_position
-	var len := a.distance_to(b)
+	var d := b - a
+	var len := d.length()
+	var mm := _chain.multimesh
 	if len < 0.05:
-		_line.visible = false
+		mm.visible_instance_count = 0
 		return
-	_line.visible = true
-	_line.global_transform = Transform3D(Basis.looking_at(b - a, Vector3.UP if absf((b - a).normalized().y) < 0.99 else Vector3.RIGHT), (a + b) * 0.5)
-	_line.scale = Vector3(1, 1, len)
+	var up := Vector3.UP if absf(d.normalized().y) < 0.99 else Vector3.RIGHT
+	var basis := Basis.looking_at(d, up)
+	if _state == 0 or _state == 5:
+		_head.global_basis = Basis.looking_at(-d if _state == 5 else d, up)  # claw faces where it flies
+	var n := mini(int(len / LINK), mm.instance_count)
+	_chain.global_transform = Transform3D.IDENTITY
+	for i in n:
+		var p := a + d * ((i + 0.5) * LINK / len)
+		var lb := basis.rotated(d.normalized(), PI * 0.5) if i % 2 == 1 else basis  # alternate links
+		mm.set_instance_transform(i, Transform3D(lb, p))
+	mm.visible_instance_count = n

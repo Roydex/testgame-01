@@ -937,7 +937,8 @@ func t34_counter_windows(res: Dictionary) -> void:
 			downed += 1
 	r._check(res, downed >= 1, "a defender's pulse shots down incoming missiles: %d destroyed" % downed)
 	await _free([a5, b5])
-	# orbital: walking out of the circle during the telegraph dodges it
+	# orbital: a side dash once the circle locks (red) dodges it (round 5:
+	# faster, wider strike — walking out is no longer enough)
 	var outs3 := []
 	for dodge in [false, true]:
 		var o := _mech(&"azure", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 5))
@@ -951,15 +952,19 @@ func t34_counter_windows(res: Dictionary) -> void:
 			o.command.skill_pressed = i == 0
 			o.command.skill_held = i < 30
 			o.command.attack_pressed = i == 30 and _cs(o).is_aiming_placement()  # round 4: left click confirms the orbital mark
-			v3.command.move = Vector3(1, 0, 0) if dodge and ev6.area.size() > 0 else Vector3.ZERO)
+			var locked := false
+			for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
+				locked = (n as OrbitalStrike).is_locked()
+			v3.command.move = Vector3(1, 0, 0) if dodge and locked else Vector3.ZERO
+			v3.command.dash_pressed = dodge and locked)
 		_unrec()
 		var tel := 0.0
 		for e in ev6.area:
 			if e[5] == &"orbital": tel = e[4]
 		outs3.append([_hits(ev6, v3, &"ao_orbital").size(), tel])
 		await _free([o, v3])
-	r._check(res, outs3[0][0] == 1 and outs3[1][0] == 0 and outs3[0][1] >= 1.0,
-		"orbital: %.1f s ground circle; stand → hit %d; walk out → hit %d" % [outs3[0][1], outs3[0][0], outs3[1][0]])
+	r._check(res, outs3[0][0] == 1 and outs3[1][0] == 0 and outs3[0][1] >= 0.7,
+		"orbital: %.2f s ground circle; stand → hit %d; side dash once it locks → hit %d" % [outs3[0][1], outs3[0][0], outs3[1][0]])
 	# backstep: i-frames are capped, the pulse pushes without damage, long cooldown
 	var az2 := _mech(&"azure", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 27))
 	var e2 := MechFactory.create_by_id(&"seraph", 1, false)
@@ -1093,6 +1098,7 @@ func t36_team_rules(res: Dictionary) -> void:
 		o.command.skill_held = i < 30
 		o.command.attack_pressed = i == 30 and _cs(o).is_aiming_placement())  # round 4: left click confirms the orbital mark
 	_unrec()
+	await r._ticks(90)  # round 5: the orbital launches the foe; let it land
 	var blast := load("res://resources/combat/azure/ao_missile_blast.tres") as AttackDefinition
 	var bl := AreaBlast.explode(o, blast, Vector3(0, 2.0, 5), 3.0)
 	var bl_ally := 0
@@ -1248,6 +1254,7 @@ func t37_playtest_fixes(res: Dictionary) -> void:
 		o.command.skill_held = i < 30
 		o.command.attack_pressed = i == 30 and _cs(o).is_aiming_placement()  # round 4: left click confirms the orbital mark
 		v.command.move = Vector3(1, 0, 0) if s4.strike != null else Vector3.ZERO  # strafe from the moment it appears
+		v.command.dash_pressed = s4.strike != null and is_instance_valid(s4.strike) and (s4.strike as OrbitalStrike).is_locked()  # round 5: dash once it locks
 		if s4.strike == null:
 			for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
 				s4.strike = n
@@ -1260,9 +1267,9 @@ func t37_playtest_fixes(res: Dictionary) -> void:
 				s4.locked_moved = maxf(s4.locked_moved, sn.global_position.distance_to(s4.p_lock)))
 	_unrec()
 	var followed := Vector2(s4.p_lock.x - s4.p_call.x, s4.p_lock.z - s4.p_call.z).length()
-	r._check(res, followed > 3.0 and s4.locked_moved < 0.05,
+	r._check(res, followed > 1.5 and s4.locked_moved < 0.05,
 		"circle followed the strafing target %.1f m, then stayed put after locking (moved %.2f m)" % [followed, s4.locked_moved])
-	r._check(res, _hits(ev4, v, &"ao_orbital").is_empty(), "a target that keeps moving after the lock escapes (%d hits)" % _hits(ev4, v, &"ao_orbital").size())
+	r._check(res, _hits(ev4, v, &"ao_orbital").is_empty(), "a target that dashes out once it locks escapes (%d hits)" % _hits(ev4, v, &"ao_orbital").size())
 	var tel := 0.0
 	for e in ev4.area:
 		if e[5] == &"orbital": tel = e[4]
@@ -1380,10 +1387,12 @@ func t38_playtest_round2(res: Dictionary) -> void:
 	r._check(res, _cs(e).status.has(&"judgment_suppressed") and not _cs(fe).status.has(&"judgment_suppressed") and e.en <= en0 + 0.01,
 		"field: enemy at 6 m suppressed (EN %.0f → %.0f, no regen), enemy at 30 m not" % [en0, e.en])
 	var ev3 := _rec()
-	await _frames(ev3, 50, func(i: int) -> void:
+	await _frames(ev3, 80, func(i: int) -> void:
 		_aim(s, e)
 		_aim(e, s)
-		s.command.attack_pressed = i == 35  # after the axe (a lance hit would interrupt it)
+		s.command.attack_pressed = i == 62  # after the axe (a lance hit would interrupt it)
+		if i == 60:
+			e.reset_to(Vector3(0, 0.2, 24))  # round 5: the axe steps in (and bites); back to 6 m once it is over
 		e.command.attack_pressed = i == 2)
 	_unrec()
 	var waves := _hits(ev3, e, &"seraph_judgment_wave")
@@ -1416,21 +1425,24 @@ func t38_playtest_round2(res: Dictionary) -> void:
 		"super armour: 15-dmg axe → %s; 26-dmg finisher → %s" % [states[0], states[1]])
 	await _free([s, e, fe])
 
-	# --- 4. heavy orbital: 60 damage, then the circle burns
+	# --- 4. heavy orbital: full damage, launch, then the circle burns (round 5: 50 + launch, 2 s burn)
 	var o := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
 	var v := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
 	await r._ticks(25)
 	var ev4 := _rec()
+	var odef4 := load("res://resources/combat/azure/ao_orbital.tres") as AttackDefinition
+	var hmax := {"y": 0.0}
 	await _frames(ev4, 330, func(i: int) -> void:
 		_aim(o, v)
 		o.command.skill_pressed = i == 0
 		o.command.skill_held = i < 30
-		o.command.attack_pressed = i == 30 and _cs(o).is_aiming_placement())  # round 4: left click confirms the orbital mark
+		o.command.attack_pressed = i == 30 and _cs(o).is_aiming_placement()  # round 4: left click confirms the orbital mark
+		hmax.y = maxf(hmax.y, v.global_position.y))
 	_unrec()
 	var oh := _hits(ev4, v, &"ao_orbital")
 	var burns := _hits(ev4, v, &"ao_orbital_burn")
-	r._check(res, oh.size() == 1 and is_equal_approx((oh[0][1] as HitInfo).final_damage, 60.0) and burns.size() >= 4,
-		"orbital %.0f dmg, then %d burn ticks" % [(oh[0][1] as HitInfo).final_damage if oh.size() > 0 else 0.0, burns.size()])
+	r._check(res, oh.size() == 1 and is_equal_approx((oh[0][1] as HitInfo).final_damage, odef4.damage) and burns.size() >= 1 and hmax.y > 4.0,
+		"orbital %.0f dmg, target launched %.1f m up, then %d burn ticks" % [(oh[0][1] as HitInfo).final_damage if oh.size() > 0 else 0.0, hmax.y, burns.size()])
 	await _free([o, v])
 
 	# --- 5. HELLFANG 熔炉格挡: absorbed damage vents as a blast on release
@@ -1889,3 +1901,164 @@ func t41_playtest_round4(res: Dictionary) -> void:
 	r._check(res, fx != null and trail.color.r > 0.9 and trail.color.b < 0.5 and trail.life > 0.25,
 		"judgment parry: golden ribbon (life %.2f s) and the energy-shield halo at the end of the sweep (%s)" % [trail.life, "yes" if fx else "no"])
 	await _free([g])
+
+
+func t42_playtest_round5(res: Dictionary) -> void:
+	# --- 1. AZURE orbital: fast, wide, launches, outer shockwave
+	var odef := load("res://resources/combat/azure/ao_orbital.tres") as AttackDefinition
+	var spec := odef.orbital_spec
+	r._check(res, is_equal_approx(odef.windup + spec.follow_time + spec.lock_time, 0.95) and is_equal_approx(odef.cooldown, 5.0) \
+			and is_equal_approx(spec.radius, 7.0) and spec.shock_attack != null,
+		"orbital data: confirm → impact %.2f s, cooldown %.0f s, radius %.0f m, shockwave to %.0f m" % [odef.windup + spec.follow_time + spec.lock_time, odef.cooldown, spec.radius, spec.shock_radius])
+	var o := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
+	var v := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
+	var side := _mech(&"seraph", 1, Vector3(9, 0.2, 10))
+	await r._ticks(25)
+	var st := {"confirm": -1, "impact": -1, "vy": 0.0, "side0": side.global_position}
+	var ev := _rec()
+	await _frames(ev, 150, func(i: int) -> void:
+		_aim(o, v)
+		o.command.skill_pressed = i == 0
+		o.command.skill_held = i < 25
+		var c := _cs(o)
+		if c.is_aiming_placement() and st.confirm < 0 and i >= 25:
+			c.placement_point = v.global_position
+			c.placement_set = true
+			o.command.attack_pressed = true
+			st.confirm = i
+		if st.impact < 0 and _kit_events(ev, &"orbital_strike") > 0:
+			st.impact = i
+		st.vy = maxf(st.vy, v.global_position.y))
+	_unrec()
+	var dt: float = (st.impact - st.confirm) / 60.0
+	var sh := _hits(ev, side, &"ao_orbital_shock")
+	var s0: Vector3 = st.side0
+	var pushed := Vector2(side.global_position.x - s0.x, side.global_position.z - s0.z).length()
+	r._check(res, st.confirm >= 0 and st.impact > st.confirm and dt < 1.05, "left click → impact in %.2f s (was 1.55 s)" % dt)
+	r._check(res, _hits(ev, v, &"ao_orbital").size() == 1 and st.vy > 4.0, "target in the circle launched %.1f m up" % st.vy)
+	r._check(res, sh.size() == 1 and _hits(ev, side, &"ao_orbital").is_empty() and pushed > 1.0,
+		"mech 9 m away: shockwave %d hit (%.0f dmg), pushed %.1f m outward" % [sh.size(), (sh[0][1] as HitInfo).final_damage if sh.size() > 0 else 0.0, pushed])
+	await _free([o, v, side])
+
+	# --- 2. HELLFANG step-in swings and the bite
+	var hf := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 24))
+	var tg := _mech(&"seraph", 1, Vector3(0, 0.2, 24.3))  # 5.7 m: beyond the old 4.4 m reach
+	await r._ticks(20)
+	_cs(tg).health.setup(100000.0)
+	var z0 := hf.global_position.z
+	var s2 := {"step1": 0.0, "z_hit": 0.0}
+	var ev2 := _rec()
+	await _frames(ev2, 40, func(i: int) -> void:
+		_aim(hf, tg)
+		hf.command.attack_pressed = i == 0)
+	_unrec()
+	var first := _hits(ev2, tg)
+	s2.step1 = z0 - hf.global_position.z
+	var step1: float = s2.step1
+	r._check(res, first.size() >= 1 and _cs(tg).status.has(&"bitten") and step1 > 1.0,
+		"axe steps in %.1f m and hits a target 5.7 m away (%d hit), target bitten %s" % [step1, first.size(), _cs(tg).status.has(&"bitten")])
+	# bitten: the next swing lunges much farther
+	tg.reset_to(Vector3(0, 0.2, hf.global_position.z - 7.5))
+	await r._ticks(2)
+	var hk := _kit(hf) as HeatKit
+	var z1 := hf.global_position.z
+	var ev3 := _rec()
+	await _frames(ev3, 40, func(i: int) -> void:
+		_aim(hf, tg)
+		hf.command.attack_pressed = i == 0)
+	_unrec()
+	var step2 := z1 - hf.global_position.z
+	var axe := load("res://resources/combat/hellfang/hf_axe1.tres") as AttackDefinition
+	var plain := axe.lunge_speed * axe.lunge_duration
+	r._check(res, step2 > plain * 2.0 and _hits(ev3, tg).size() >= 1,
+		"bitten target 7.5 m away: the swing lunges %.1f m (plain lunge %.1f m) and connects" % [step2, plain])
+	# bitten: a dash swerves onto the target
+	tg.reset_to(Vector3(8, 0.2, hf.global_position.z - 8))
+	await r._ticks(30)
+	_cs(tg).status.apply(hk.cfg().bite_status, hf)
+	hk._bite(tg)
+	var p0 := hf.global_position
+	await _frames(ev3, 6, func(i: int) -> void:
+		hf.command.move = Vector3(0, 0, -1)  # input 45° off the target
+		hf.command.dash_pressed = i == 0)
+	var mv := hf.global_position - p0
+	var to_t := tg.global_position - p0
+	var off := rad_to_deg(Vector2(mv.x, mv.z).angle_to(Vector2(to_t.x, to_t.z)))
+	r._check(res, absf(off) < 8.0, "dash 45° off a bitten target swerves onto it (%.1f° off)" % absf(off))
+	await _free([hf, tg])
+
+	# --- 3. HELLFANG grapple: a claw on a chain; misses cool down faster; walls are latched
+	var hook := load("res://resources/combat/hellfang/hf_hook.tres") as AttackDefinition
+	r._check(res, is_equal_approx(hook.grapple_spec.speed, 85.0) and is_equal_approx(hook.grapple_spec.radius, 0.9),
+		"hook data: speed %.0f m/s, radius %.1f m" % [hook.grapple_spec.speed, hook.grapple_spec.radius])
+	var g := MechFactory.create_by_id(&"hellfang", 0, true)
+	g.position = Vector3(0, 0.2, -22)
+	g.rotation.y = 0.0  # facing -z: WallThick is 18 m ahead
+	r.arena.add_child(g)
+	await r._ticks(20)
+	var gc := _cs(g)
+	gc.aim_target = null
+	var s3 := {"links": 0, "prongs_hidden": false}
+	var vis: MechVisual = null
+	for ch in g.get_children():
+		if ch is MechVisual:
+			vis = ch
+	var gz0 := g.global_position.z
+	var ev4 := _rec()
+	await _frames(ev4, 70, func(i: int) -> void:
+		g.command.face_dir = Vector3(0, 0, -1)
+		g.command.skill_pressed = i == 0
+		for c in r.arena.get_children():
+			if c is Grapple:
+				var ch := (c as Grapple).get(&"_chain") as MultiMeshInstance3D
+				s3.links = maxi(s3.links, ch.multimesh.visible_instance_count)
+				var pr: Array = vis.get(&"_claw_prongs")
+				s3.prongs_hidden = s3.prongs_hidden or (pr.size() > 0 and not (pr[0] as Node3D).visible))
+	_unrec()
+	var moved := gz0 - g.global_position.z
+	r._check(res, _kit_events(ev4, &"grapple_wall") == 1 and moved > 8.0 and ev4.hits.is_empty() and gc.get_cooldown(&"hf_hook") <= hook.grapple_spec.miss_cooldown + 0.01,
+		"hook hits WallThick: latched, pulled %.1f m toward it, no damage, cooldown %.1f s" % [moved, gc.get_cooldown(&"hf_hook")])
+	r._check(res, s3.links >= 10 and s3.prongs_hidden, "chain drawn (%d links) and the arm claw is out while the hook flies" % s3.links)
+	await _free([g])
+	var a := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 10))
+	var b := _mech(&"seraph", 1, Vector3(0, 0.2, 14))
+	var c4 := _mech(&"seraph", 1, Vector3(30, 0.2, 30))
+	await r._ticks(20)
+	var cds := []
+	for hit_it in [false, true]:
+		_cs(a)._cooldowns.clear()
+		await _frames(ev4, 60, func(i: int) -> void:
+			_aim(a, b)
+			if not hit_it:
+				a.command.face_dir = Vector3(1, 0, 0)  # throw into the open: miss
+				_cs(a).aim_target = null
+			a.command.skill_pressed = i == 0)
+		cds.append(_cs(a).get_cooldown(&"hf_hook"))
+		a.reset_to(Vector3(0, 0.2, 30))
+		b.reset_to(Vector3(0, 0.2, 14))
+		await r._ticks(70)
+	r._check(res, cds[0] <= hook.grapple_spec.miss_cooldown and cds[0] > 0.0 and cds[1] > hook.grapple_spec.miss_cooldown,
+		"cooldown after a miss %.1f s (≤ %.1f), after a grab %.1f s (full %.0f s)" % [cds[0], hook.grapple_spec.miss_cooldown, cds[1], hook.cooldown])
+	await _free([a, b, c4])
+
+	# --- 4. overheat: shorter, dash allowed, steam pushes enemies away
+	var cfg := (load("res://resources/combat/hellfang_combat.tres") as CombatProfile).kit as HeatConfig
+	var h := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 26))
+	var e := _mech(&"seraph", 1, Vector3(0, 0.2, 27))
+	await r._ticks(20)
+	var e0 := e.global_position
+	var hp0 := _cs(e).health.hp
+	(_kit(h) as HeatKit).add_heat(200.0)
+	var s5 := {"dashed": false}
+	var ev5 := _rec()
+	await _frames(ev5, 20, func(i: int) -> void:
+		h.command.move = Vector3(1, 0, 0)
+		h.command.dash_pressed = i == 5
+		if h.state == MechMotor.MotionState.GROUND_DASH:
+			s5.dashed = true)
+	_unrec()
+	var pushed2 := e.global_position.distance_to(e0)
+	r._check(res, is_equal_approx(cfg.overheat_duration, 1.0) and is_equal_approx(cfg.overheat_damage_taken, 1.15) and s5.dashed \
+			and pushed2 > 2.0 and is_equal_approx(_cs(e).health.hp, hp0),
+		"overheat %.1f s, damage taken ×%.2f, can dash (%s); steam pushed the enemy %.1f m, no damage" % [cfg.overheat_duration, cfg.overheat_damage_taken, s5.dashed, pushed2])
+	await _free([h, e])

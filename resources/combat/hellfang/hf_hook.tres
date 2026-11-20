@@ -5,9 +5,9 @@
 
 [sub_resource type="Resource" id="GrappleSpec_1"]
 script = ExtResource("2")
-speed = 62.0
+speed = 85.0
 max_range = 25.0
-radius = 0.5
+radius = 0.9
 airborne_height = 2.5
 pull_self_speed = 30.0
 pull_stop_distance = 3.2
@@ -16,6 +16,7 @@ drag_down_speed = 14.0
 drag_down_time = 0.45
 grab_stagger = 0.45
 miss_recovery = 0.55
+miss_cooldown = 1.8
 
 [resource]
 script = ExtResource("1")

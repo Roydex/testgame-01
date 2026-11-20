@@ -186,3 +186,5 @@
 - **D-52 招架表现读状态、不改判定。** MechVisual 通过 `combat_state_changed` 在进入 PARRY 时生成盾光，挥盾姿势按 `parry_started_at` 计时；招架判定窗口和规则不变。
 - **D-53 近战俯瞰镜头是叠加层。** CameraRig 先照常算出肩后锁定镜头，再按 `_ov_blend` 叠加俯瞰机位（焦点、臂长、俯仰、懒跟随偏航都在 `_update_overview()`），最后叠加特写机位；俯瞰期间 `yaw` 取俯瞰偏航，所以 WASD 始终对应屏幕方向。取景集合复用 `TargetingSystem.threat_of()`，镜头不依赖具体机体。实验关闭时完全走旧路径（T10 不变）。
 - **D-54 标记被硬控暂停而不是取消。** `interrupt()` 遇到 AIM 时只记下 `_aim_suspended`，硬直 / 失衡结束回到 READY 后自动重新进入 AIM（落点、剩余时间保留）；`aim_pending()` 给表现层用，保证暂停期间俯视和虚影不消失。确认改为攻击键，脚本大脑进入 AIM 后立刻确认，所以 AI 行为不变。
+- **D-55 冲刺追踪也走 MovementModifier。** 赤狱「咬住」给自己加一个带 `dash_home_target` 的修正；运动层在开始冲刺时，若输入方向与目标相差不超过 `dash_home_angle_deg`，就把冲刺方向改为朝向目标。战斗层仍不写速度。挥斧前冲的加成通过 MechKit 的 `lunge_speed_mult()` / `lunge_steer_bonus()` 钩子提供，状态机不知道具体机体。
+- **D-56 钩爪表现由 Grapple 自己绘制，只向机体视觉要锚点。** Grapple 通过鸭子类型调用 `Visual.grapple_anchor()` / `set_claw_launched()`（没有这两个方法时退回胸口位置），不依赖 MechVisual 的类型；钩墙、打空收回只影响表现和冷却（`CombatStateMachine.cap_cooldown()` 只缩短不延长）。

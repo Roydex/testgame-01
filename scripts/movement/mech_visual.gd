@@ -53,6 +53,10 @@ var _walk_phase := 0.0
 var _recoil := Vector2.ZERO
 var _recoil_v := Vector2.ZERO
 var _parry_flash := 0.0
+## HELLFANG power claw: its prongs hide while the grapple claw is out, and
+## the chain starts at `_claw_point`.
+var _claw_prongs: Array[MeshInstance3D] = []
+var _claw_point: Node3D
 ## Judgment parry halo (energy-shield ring at the end of the swing).
 var _parry_fx: Node3D
 ## Shield-edge trail for the parry swing (outer / inner edge of the shield,
@@ -202,7 +206,8 @@ func _build_hellfang(color: Color, dark: StandardMaterial3D) -> void:
 	# power claw on the left forearm (the grapple launcher)
 	_box(_arm_l, Vector3(1.0, 1.0, 1.1), Vector3(0, -1.4, -0.1), _armor_mat)
 	for z in [-0.55, -0.15, 0.25]:
-		_box(_arm_l, Vector3(0.18, 0.7, 0.18), Vector3(0, -2.1, z - 0.2), dark)
+		_claw_prongs.append(_box(_arm_l, Vector3(0.18, 0.7, 0.18), Vector3(0, -2.1, z - 0.2), dark))
+	_claw_point = _pivot(_arm_l, Vector3(0, -2.0, -0.2))
 
 
 ## VERDANT ARK: wide shell, mycelium tubes, back hatch that opens when
@@ -259,6 +264,8 @@ func _on_status(mech: Node3D, _id: StringName, _stacks: int) -> void:
 		parts.append("破甲")
 	if combat.status.has(&"restrained"):
 		parts.append("束缚")
+	if combat.status.has(&"bitten"):
+		parts.append("咬住")
 	_status_label.text = "  ".join(parts)
 	_status_label.modulate = Color(0.55, 0.85, 1.0) if marks > 0 else Color(1.0, 0.6, 0.3)
 
@@ -340,6 +347,18 @@ func _on_parried(defender: Node3D, _attacker: Node3D, _proj: bool) -> void:
 	if defender == motor:
 		_parry_flash = 0.35
 		_shield_trail.start(0.08)  # success: the edge flares once more
+
+
+## Where the grapple chain leaves the arm (Grapple reads it, presentation only).
+func grapple_anchor() -> Vector3:
+	if _claw_point:
+		return _claw_point.global_position
+	return motor.global_position + Vector3.UP * 2.6
+
+
+func set_claw_launched(on: bool) -> void:
+	for p in _claw_prongs:
+		p.visible = not on
 
 
 func _on_combat_state(_old: int, new: int) -> void:

@@ -185,6 +185,7 @@ func _strike() -> void:
 	q.collide_with_areas = true
 	q.collide_with_bodies = false
 	var seen := {}
+	var struck: Array = []
 	if owner_mech and is_instance_valid(owner_mech):
 		for r in world.direct_space_state.intersect_shape(q, 16):
 			var hb := r.collider as Hurtbox
@@ -206,6 +207,7 @@ func _strike() -> void:
 			hit.hit_position = p
 			hit.direction = Vector3.DOWN
 			DamageSystem.resolve(hit)
+			struck.append(hb.mech)
 	_ring.visible = false
 	_beam = MeshInstance3D.new()
 	var cm := CylinderMesh.new()
@@ -224,6 +226,46 @@ func _strike() -> void:
 	_beam.position = Vector3.UP * spec.sky_height * 0.5
 	add_child(_beam)
 	CombatEvents.kit_event.emit(owner_mech, &"orbital_strike")
+	if spec.shock_attack and spec.shock_radius > radius and owner_mech and is_instance_valid(owner_mech):
+		_shockwave(struck)
+
+
+## Outer shockwave: mechs near the circle that the beam did not hit are
+## blasted outward. Same shelter rule as the beam (a roof over them blocks
+## it) plus ground cover between the impact and them.
+func _shockwave(skip: Array) -> void:
+	var world := get_world_3d()
+	var center := global_position + Vector3.UP * 1.0
+	var shape := SphereShape3D.new()
+	shape.radius = spec.shock_radius
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = shape
+	q.transform = Transform3D(Basis(), center)
+	q.collision_mask = CombatTypes.HURTBOX_LAYER
+	q.collide_with_areas = true
+	q.collide_with_bodies = false
+	var seen := {}
+	for r in world.direct_space_state.intersect_shape(q, 16):
+		var hb := r.collider as Hurtbox
+		if hb == null or hb.mech == null or seen.has(hb.mech.get_instance_id()) or hb.mech in skip:
+			continue
+		seen[hb.mech.get_instance_id()] = true
+		if not TeamRules.can_damage(owner_mech, hb.mech):
+			continue
+		var p: Vector3 = hb.mech.call(&"get_lock_point") if hb.mech.has_method(&"get_lock_point") else hb.mech.global_position
+		var sky := Vector3(p.x, global_position.y + spec.sky_height, p.z)
+		if not CombatTypes.has_line_of_sight(world, p, sky) or not CombatTypes.has_line_of_sight(world, center, p):
+			continue
+		var hit := HitInfo.new()
+		hit.attacker = owner_mech
+		hit.victim = hb.mech
+		hit.attack = spec.shock_attack
+		hit.source_entity = self
+		hit.source_position = center
+		hit.hit_position = p
+		hit.direction = (p - center).normalized()
+		DamageSystem.resolve(hit)
+	CombatEvents.area_telegraph.emit(owner_mech, center, spec.shock_radius, 0.0, &"blast")
 	if spec.burn_attack and spec.burn_duration > 0.0 and owner_mech and is_instance_valid(owner_mech):
 		var b := BurnZone.new()
 		get_parent().add_child(b)

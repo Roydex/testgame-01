@@ -103,6 +103,8 @@ func _tick() -> void:
 		if not TeamRules.can_damage(owner_mech, hb.mech):
 			continue
 		var p: Vector3 = hb.mech.call(&"get_lock_point") if hb.mech.has_method(&"get_lock_point") else hb.mech.global_position
+		if not CombatTypes.has_line_of_sight(world, p, Vector3(p.x, global_position.y + 45.0, p.z)):
+			continue  # under a roof: same shelter rule as the strike
 		var hit := HitInfo.new()
 		hit.attacker = owner_mech
 		hit.victim = hb.mech

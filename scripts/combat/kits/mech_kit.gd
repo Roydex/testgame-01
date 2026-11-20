@@ -65,6 +65,16 @@ func on_guarded(_hit: HitInfo) -> void:
 	pass
 
 
+## Lunge tuning for an attack (HELLFANG bite): speed multiplier and extra
+## steering (deg/s) toward the current aim target.
+func lunge_speed_mult(_def: AttackDefinition) -> float:
+	return 1.0
+
+
+func lunge_steer_bonus(_def: AttackDefinition) -> float:
+	return 0.0
+
+
 ## Guard (right button) just started / was released by the player.
 func on_guard_started() -> void:
 	pass

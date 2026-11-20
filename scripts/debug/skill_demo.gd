@@ -82,10 +82,19 @@ func _sequence() -> void:
 	# --- 02 HELLFANG: grapple, overdrive ram telegraph, overheat
 	await _setup_round(&"hellfang", SparringBrain.Mode.PASSIVE)
 	var hk := scene.combat.kit as HeatKit
+	# side view (lock released, camera turned 90°) so the chain crosses the frame
+	scene.targeting._set_target(null, "demo")
+	scene.rig.yaw += PI * 0.5
+	scene.rig.pitch = deg_to_rad(-12.0)
+	await _hold(0.5)
 	_cmd().skill_pressed = true
-	await _hold(0.32)
+	await _hold(0.27)
 	await _shot("hellfang_grapple")
-	await _hold(1.2)
+	scene.targeting._set_target(_partner(), "demo")
+	await _hold(1.0)
+	await _hold(0.45, func(t: float): _cmd().attack_pressed = t < 0.02)
+	await _shot("hellfang_bite")  # round 5: step-in swing, target bitten
+	await _hold(0.6)
 	scene.motor.reset_to(Vector3(0, 0.2, 26))
 	await _hold(0.4)
 	hk.add_heat(70.0)
@@ -146,7 +155,9 @@ func _sequence() -> void:
 		_cmd().attack_pressed = t < 0.02  # round 4: left click confirms the mark
 		scene.brain.update_placement_aim(scene.combat))
 	await _shot("azure_orbital_circle")
-	await _hold(1.25)
+	await _hold(0.75)
+	await _shot("azure_orbital_launch")  # round 5: target launched, shockwave ring
+	await _hold(0.5)
 	await _shot("azure_orbital_burn")  # playtest round 2: the circle keeps burning
 	# --- playtest round 2: judgment + duel camera, shield wall, furnace burst
 	await _setup_round(&"seraph", SparringBrain.Mode.PASSIVE)

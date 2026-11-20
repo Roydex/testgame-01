@@ -26,6 +26,11 @@ var forced_velocity: Vector3 = Vector3.ZERO
 ## Multiplies EN costs of dashes (ultimate buffs).
 var en_cost_mult: float = 1.0
 var block_en_regen: bool = false
+## Dash homing (HELLFANG bite): a dash started within `dash_home_angle_deg`
+## of this target and within `dash_home_range` goes straight at it.
+var dash_home_target: Node3D
+var dash_home_angle_deg: float = 100.0
+var dash_home_range: float = 18.0
 
 
 static func create(p_id: StringName, p_duration: float = -1.0) -> MovementModifier:
