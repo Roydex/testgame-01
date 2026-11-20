@@ -82,6 +82,9 @@ func _run_all() -> void:
 			continue
 		_log("\n--- %s  %s" % [t[0], t[1]])
 		var res: Dictionary = {"id": t[0], "name": t[1], "pass": true, "notes": PackedStringArray()}
+		# fixed seed per test: the sparring partners' random strafing no longer
+		# depends on which tests ran before (K27: T25 only failed in full runs)
+		seed(20261119 ^ String(t[0]).hash())
 		await _new_arena()
 		await (t[2] as Callable).call(res)
 		await _free_arena()
@@ -2029,6 +2032,12 @@ func t25_practice_mode(res: Dictionary) -> void:
 	var u := pc.ultimate
 	mb.mode = SparringBrain.Mode.PASSIVE
 	(dummies[1].get_node(^"SparringBrain") as SparringBrain).mode = SparringBrain.Mode.PASSIVE
+	# a swing / shot still under way must not interrupt the windup (K27)
+	for d in dummies:
+		(d as MechMotor).reset_to((d as MechMotor).global_position + Vector3(60, 0, 0))
+	for pj in get_tree().get_nodes_in_group(&"projectiles"):
+		pj.queue_free()
+	await _ticks(30)
 	var judgments := 0
 	for k in 2:
 		await _ticks(5)
