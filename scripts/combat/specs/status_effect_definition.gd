@@ -15,6 +15,9 @@ extends Resource
 @export var speed_mult: float = 1.0
 @export var en_cost_mult: float = 1.0
 @export var block_dash: bool = false
+@export var block_en_regen: bool = false
+## Multiplies how long attack windups and charges take (> 1 = slower).
+@export var windup_mult: float = 1.0
 
 @export_group("Damage")
 ## Multiplies damage this mech takes on clean hits (armor break > 1).

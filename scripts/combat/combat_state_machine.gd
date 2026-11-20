@@ -59,7 +59,7 @@ var _attack_mod: MovementModifier
 var _force_unblockable := false
 var _attack_damage_mult := 1.0
 var _pending_counter: Node3D
-## Riposte window after a melee parry that knocked the attacker off-balance.
+## Riposte window after a melee parry (fixed length, see CombatProfile).
 var riposte_target: Node3D
 var riposte_left := 0.0
 ## Something landed (HIT / GUARDED / GUARD_BREAK) during the current attack.
@@ -72,6 +72,23 @@ var _shot_charge := 0.0
 var charge_level: float = 0.0
 ## Invulnerable (backstep i-frames) for this long.
 var invuln_left: float = 0.0
+
+# --- 速度即伤害 (Experiments.momentum)
+## Dash-cancelled landed hits in the current chain (0 = no chain).
+var momentum_chain: int = 0
+var _chain_left := 0.0
+## Speed carried into an attack started at dash speed (decays over the windup).
+var _carry_speed := 0.0
+var _carry_time := 0.0
+## Highest speed toward the target during this attack's windup / active
+## phase: a slide that stops on top of the target still counts.
+var _momentum_speed := 0.0
+
+# --- 自由瞄准 (Experiments.free_aim), written by the player brain
+var free_aim_active := false
+var free_aim_point := Vector3.ZERO
+## Hostile under the crosshair (aim assist), or null.
+var free_aim_target: Node3D
 
 # --- input buffers
 var _buf_attack := 0.0
@@ -251,6 +268,10 @@ func _physics_process(delta: float) -> void:
 		_cooldowns[k] = maxf(_cooldowns[k] - delta, 0.0)
 	state_timer -= delta
 	_tick_riposte(delta)
+	if _chain_left > 0.0:
+		_chain_left -= delta
+		if _chain_left <= 0.0 and state != CombatState.ATTACK:
+			momentum_chain = 0  # the chain window ran out
 
 	if _pending_counter and is_instance_valid(_pending_counter) and TeamRules.is_alive(_pending_counter) \
 			and ultimate and ultimate.definition.judgment_counter:
@@ -269,6 +290,7 @@ func _physics_process(delta: float) -> void:
 				_buf_ult = 0.0
 			elif not cmd.guard_held:
 				_to_ready()
+				kit.on_guard_released()  # HELLFANG 爆燃反震
 			elif _buf_parry > 0.0:
 				_defend()
 			elif _buf_skill_hold > 0.0 and profile.skill_hold and _start_attack(profile.skill_hold):
@@ -401,7 +423,21 @@ func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0,
 	_extra_recovery = 0.0
 	_shot_charge = charge
 	_force_unblockable = unblockable
-	_attack_damage_mult = dmg_mult * kit.outgoing_mult(def)
+	_attack_damage_mult = dmg_mult * kit.outgoing_mult(def) * (ultimate.outgoing_mult() if ultimate else 1.0)
+	_carry_speed = 0.0
+	_carry_time = 0.0
+	_momentum_speed = 0.0
+	if Experiments.momentum:
+		if momentum_chain > 0 and (_chain_left > 0.0 or state == CombatState.ATTACK):
+			_attack_damage_mult *= momentum_chain_mult()
+			_chain_left = 0.0
+		elif state != CombatState.ATTACK:
+			momentum_chain = 0
+		var spd := motor.get_horizontal_velocity().length()
+		_momentum_speed = maxf(motor.velocity.dot(_dir_to_target()), 0.0)
+		if def.get_delivery() == CombatTypes.Delivery.HITBOX \
+				and spd >= motor.profile.ground_dash_speed * Experiments.DASH_ATTACK_SPEED_FRAC:
+			_carry_speed = spd * Experiments.DASH_ATTACK_CARRY
 	_buf_attack = 0.0
 	_lunge_dir = _dir_to_target()
 	_attack_mod = MovementModifier.create(MOD_ATTACK)
@@ -427,7 +463,8 @@ func _finish_attack() -> void:
 
 func _tick_attack(delta: float, cmd: MechCommand) -> void:
 	var d := attack
-	attack_time += delta
+	# suppression (judgment field) stretches windups only
+	attack_time += delta / maxf(status.windup_mult(), 0.1) if attack_time < d.windup else delta
 	var t_active_end := d.windup + maxf(d.active, d.lunge_duration)
 	var phase := 0 if attack_time < d.windup else (1 if attack_time < t_active_end else 2)
 	if phase >= 1 and not _active_announced:
@@ -446,11 +483,20 @@ func _tick_attack(delta: float, cmd: MechCommand) -> void:
 			if state != CombatState.ATTACK:
 				return  # got parried during the sweep
 	_update_attack_mod(phase, delta)
+	if Experiments.momentum and phase <= 1:
+		_momentum_speed = maxf(_momentum_speed, motor.velocity.dot(_dir_to_target()))
 	# whiffed heavy swing: longer recovery
 	if phase == 2 and not _landed and d.get_delivery() == CombatTypes.Delivery.HITBOX and d.whiff_recovery_extra > 0.0 \
 			and _extra_recovery < d.whiff_recovery_extra:
 		_extra_recovery = d.whiff_recovery_extra
 
+	# 速度即伤害: a landed hit can be dash-cancelled at once and chained
+	if Experiments.momentum and _landed and phase >= 1 and cmd.dash_pressed:
+		momentum_chain = mini(momentum_chain + 1, Experiments.CHAIN_MAX)
+		_chain_left = Experiments.CHAIN_WINDOW
+		CombatEvents.kit_event.emit(motor, &"dash_cancel")
+		_to_ready()  # the motor sees the dash press this tick, unblocked
+		return
 	# combo chain at the end of the active phase
 	if attack_time >= t_active_end and _buf_attack > 0.0 and d.next_attack:
 		_start_attack(d.next_attack)
@@ -473,6 +519,7 @@ func _tick_attack(delta: float, cmd: MechCommand) -> void:
 			_to_ready()
 			return
 	if attack_time >= d.total_time() + _extra_recovery:
+		momentum_chain = 0 if _chain_left <= 0.0 else momentum_chain
 		_to_ready()
 
 
@@ -495,6 +542,22 @@ func _on_active_start(d: AttackDefinition) -> void:
 		invuln_left = d.invuln_time
 	if d.repulse_radius > 0.0:
 		_repulse(d)
+	if d.self_blast_radius > 0.0:
+		AreaBlast.explode(motor, d, motor.global_position + Vector3.UP * 2.0, d.self_blast_radius, _attack_damage_mult)
+	if ultimate and ultimate.in_judgment() and ultimate.definition.wave_attack \
+			and d.get_delivery() == CombatTypes.Delivery.HITBOX:
+		_fire_wave(ultimate.definition.wave_attack)
+
+
+## Judgment: every lance strike also sends a short forward shockwave.
+func _fire_wave(w: AttackDefinition) -> void:
+	var origin := motor.global_position + Vector3.UP * 2.2 + motor.get_forward() * 1.2
+	var dir := _aim_dir(origin)
+	var p := Projectile.new()
+	motor.get_parent().add_child(p)
+	p.global_position = origin
+	p.launch(motor, w, dir * w.projectile_speed, _attack_damage_mult)
+	CombatEvents.kit_event.emit(motor, &"judgment_wave")
 
 
 ## Non-damaging push on nearby hostile mechs (backstep pulse). Cover blocks it.
@@ -532,6 +595,19 @@ func _update_attack_mod(phase: int, delta: float) -> void:
 		var to := _target_point() - (motor.global_position + Vector3.UP * 2.0)
 		if Vector2(to.x, to.z).length() < 2.2:
 			_lunge_reached = true  # on top of the target: no overshoot / no suction
+	# 速度即伤害: an attack started at dash speed keeps sliding into the swing
+	var carry := 0.0
+	if _carry_speed > 0.0 and not _lunge_reached and phase <= 1:
+		_carry_time += delta
+		var span := d.windup + maxf(d.active, 0.15)
+		carry = _carry_speed * clampf(1.0 - 0.6 * _carry_time / maxf(span, 0.05), 0.0, 1.0) if _carry_time < span else 0.0
+		if carry > 0.0 and _target_valid():
+			var to2 := _target_point() - (motor.global_position + Vector3.UP * 2.0)
+			if Vector2(to2.x, to2.z).length() < 2.6:
+				_lunge_reached = true
+				carry = 0.0
+	if carry > 0.0 and not lunging:
+		lunging = true  # drive the carried slide through the lunge path below
 	m.forced = lunging
 	if lunging:
 		var vy := 0.0
@@ -545,7 +621,8 @@ func _update_attack_mod(phase: int, delta: float) -> void:
 			if d.vertical_track_speed > 0.0 and absf(to.y) <= d.vertical_track_range:
 				var remaining := maxf(d.lunge_duration - lunge_t, 0.05)
 				vy = clampf(to.y / remaining, -d.vertical_track_speed, d.vertical_track_speed)
-		m.forced_velocity = (Vector3.ZERO if _lunge_reached else _lunge_dir * d.lunge_speed) + Vector3.UP * vy
+		var lspeed := maxf(d.lunge_speed, carry) if carry > 0.0 else d.lunge_speed  # backstep lunges are negative
+		m.forced_velocity = (Vector3.ZERO if _lunge_reached else _lunge_dir * lspeed) + Vector3.UP * vy
 	motor.refresh_modifiers()
 
 
@@ -578,6 +655,12 @@ func _sweep_hitbox() -> void:
 		hit.direction = (hb.mech.global_position - motor.global_position).normalized()
 		hit.damage_mult = _attack_damage_mult
 		hit.force_unblockable = _force_unblockable
+		if Experiments.momentum:
+			var vv: Vector3 = hb.mech.velocity if hb.mech is CharacterBody3D else Vector3.ZERO
+			var closing := maxf((motor.velocity - vv).dot(hit.direction), _momentum_speed - vv.dot(hit.direction))
+			hit.momentum_mult = Experiments.momentum_mult(closing)
+			hit.damage_mult *= hit.momentum_mult
+			hit.knockback_mult = hit.momentum_mult * hit.momentum_mult
 		var res := DamageSystem.resolve(hit)
 		if res == CombatTypes.HitResult.PARRIED or res == CombatTypes.HitResult.DEFLECTED:
 			return
@@ -618,9 +701,10 @@ func _fire_projectile() -> void:
 		p.global_position = origin
 		p.launch(motor, d, pdir * speed, dmg)
 		p.guard_break = guard_break
-		if spec and spec.homing_deg > 0.0 and _target_valid():
+		var ht := ranged_target()
+		if spec and spec.homing_deg > 0.0 and ht:
 			p.homing_deg = spec.homing_deg
-			p.homing_target = aim_target
+			p.homing_target = ht
 
 
 ## Charge the current shot was fired with (0 = not a charge attack).
@@ -635,6 +719,11 @@ func _muzzle() -> Vector3:
 ## Aim at the lock target if any (projectiles may fire upward: anti-air),
 ## otherwise straight ahead.
 func _aim_dir(origin: Vector3) -> Vector3:
+	if Experiments.free_aim and free_aim_active:
+		var tp := ranged_point()
+		if (tp - origin).length() > 0.5:
+			return (tp - origin).normalized()
+		return motor.get_forward()
 	if _target_valid():
 		var to := _target_point() - origin
 		if to.length() > 0.5:
@@ -649,6 +738,29 @@ func _dir_to_target() -> Vector3:
 		if to.length() > 0.5:
 			return to.normalized()
 	return motor.get_forward()
+
+
+## Target for ranged deliveries (homing, orbital, zone placement): the
+## crosshair's aim-assist target under free aim, the lock target otherwise.
+func ranged_target() -> Node3D:
+	if Experiments.free_aim and free_aim_active:
+		return free_aim_target if free_aim_target and is_instance_valid(free_aim_target) and TeamRules.is_alive(free_aim_target) else null
+	return aim_target if _target_valid() else null
+
+
+## Point ranged weapons fire at (free aim: assist target or crosshair point).
+func ranged_point() -> Vector3:
+	var t := ranged_target()
+	if t:
+		return t.call(&"get_lock_point") if t.has_method(&"get_lock_point") else t.global_position + Vector3.UP * 2.0
+	if Experiments.free_aim and free_aim_active:
+		return free_aim_point
+	return motor.global_position + Vector3.UP * 2.6 + motor.get_forward() * 50.0
+
+
+## Damage multiplier of the current dash-cancel chain.
+func momentum_chain_mult() -> float:
+	return 1.0 + Experiments.CHAIN_STEP * mini(momentum_chain, Experiments.CHAIN_MAX)
 
 
 func _target_valid() -> bool:
@@ -680,7 +792,7 @@ func _enter_charge() -> void:
 
 
 func _tick_charge(delta: float, cmd: MechCommand) -> void:
-	charge_level = minf(charge_level + delta / maxf(profile.charge_time, 0.05), 1.0)
+	charge_level = minf(charge_level + delta / maxf(profile.charge_time * status.windup_mult(), 0.05), 1.0)
 	CombatEvents.charge_changed.emit(motor, charge_level)
 	if _buf_parry > 0.0:
 		charge_level = 0.0
@@ -709,6 +821,12 @@ func _enter_guard() -> void:
 	m.block_dash = true
 	motor.add_modifier(m)
 	_enter(CombatState.GUARD)
+	kit.on_guard_started()  # VERDANT 盾墙 / HELLFANG absorb counter reset
+
+
+## A kit-triggered attack (HELLFANG furnace burst on guard release).
+func start_kit_attack(def: AttackDefinition, dmg_mult: float = 1.0) -> bool:
+	return _start_attack(def, false, dmg_mult)
 
 
 func _start_parry() -> void:
@@ -767,19 +885,16 @@ func on_parried_melee(hit: HitInfo) -> int:
 	elif first and ultimate and ultimate.in_judgment():
 		_pending_counter = attacker  # 裁决反击 on our next tick
 	if first and profile.parry_riposte and _pending_counter == null and not (ultimate and ultimate.in_judgment()) \
-			and ac and ac.state == CombatState.OFFBALANCE and ac.offbalance_by == motor:
+			and ac and TeamRules.is_alive(attacker):
 		riposte_target = attacker
-		riposte_left = maxf(ac.state_timer, 0.0)
+		riposte_left = profile.riposte_window
 		CombatEvents.riposte_window.emit(motor, attacker, riposte_left)
 	return CombatTypes.HitResult.PARRIED if first else CombatTypes.HitResult.DEFLECTED
 
 
 func _riposte_valid() -> bool:
-	if riposte_left <= 0.0 or riposte_target == null or not is_instance_valid(riposte_target) \
-			or not TeamRules.is_alive(riposte_target):
-		return false
-	var tc := DamageSystem.get_combat(riposte_target)
-	return tc != null and tc.state == CombatState.OFFBALANCE and tc.offbalance_by == motor
+	return riposte_left > 0.0 and riposte_target != null and is_instance_valid(riposte_target) \
+			and TeamRules.is_alive(riposte_target)
 
 
 func _tick_riposte(delta: float) -> void:
@@ -804,7 +919,9 @@ func _try_riposte() -> bool:
 	_close_riposte()
 	_buf_attack = 0.0
 	aim_target = t
-	return _start_attack(profile.parry_riposte, true)
+	# fixed counter bonus: the riposte is worth the same whether or not the
+	# attacker's off-balance survived diminishing returns
+	return _start_attack(profile.parry_riposte, true, profile.counter_damage_mult)
 
 
 ## Called by DamageSystem when a projectile hits our parry window: the
@@ -831,6 +948,10 @@ func on_guard_broken(hit: HitInfo) -> void:
 
 
 func on_clean_hit(hit: HitInfo, push: Vector3) -> void:
+	if ultimate and ultimate.armor_absorbs(hit):
+		motor.apply_impulse(push * ultimate.definition.armor_knockback_mult)
+		CombatEvents.kit_event.emit(motor, &"super_armor")
+		return
 	if hit.attack.stagger_time > 0.0:
 		apply_stagger(hit.attack.stagger_time, push)
 	else:
@@ -872,6 +993,7 @@ func apply_stagger(duration: float, knockback: Vector3 = Vector3.ZERO) -> void:
 	if d <= 0.0:
 		return
 	interrupt()
+	momentum_chain = 0
 	_add_cc_mod(MOD_STAGGER, d)
 	_enter(CombatState.STAGGER, d)
 

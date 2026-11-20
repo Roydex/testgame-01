@@ -129,7 +129,36 @@ func _sequence() -> void:
 		_cmd().skill_held = true)
 	await _hold(0.4)
 	await _shot("azure_orbital_circle")
-	await _hold(1.2)
+	await _hold(1.25)
+	await _shot("azure_orbital_burn")  # playtest round 2: the circle keeps burning
+	# --- playtest round 2: judgment + duel camera, shield wall, furnace burst
+	await _setup_round(&"seraph", SparringBrain.Mode.PASSIVE)
+	_partner().reset_to(Vector3(0, 0.2, 22))  # 8 m: inside the duel framing range
+	scene.combat.ultimate.enter_judgment()
+	await _hold(1.2, func(t: float):
+		_cmd().attack_pressed = fmod(t, 0.35) < 0.02
+		_cmd().move = Vector3(1, 0, 0) if t < 0.6 else Vector3.ZERO)
+	await _shot("seraph_judgment_duel")
+	await _setup_round(&"verdant", SparringBrain.Mode.PASSIVE)
+	await _hold(0.5, func(_t: float): _cmd().guard_held = true)
+	await _hold(0.3, func(_t: float): _cmd().guard_held = false)
+	await _shot("verdant_wall")
+	await _setup_round(&"hellfang", SparringBrain.Mode.PASSIVE)
+	_partner().reset_to(Vector3(0, 0.2, 26))
+	var axe: AttackDefinition = load("res://resources/combat/hellfang/hf_axe1.tres")
+	await _hold(0.7, func(t: float):
+		_cmd().guard_held = true
+		if absf(t - 0.2) < 0.01 or absf(t - 0.45) < 0.01:
+			var h := HitInfo.new()
+			h.attacker = _partner()
+			h.victim = scene.motor
+			h.attack = axe
+			h.source_position = _partner().global_position
+			h.direction = (scene.motor.global_position - _partner().global_position).normalized()
+			DamageSystem.resolve(h))
+	await _hold(0.2, func(_t: float): _cmd().guard_held = false)
+	await _shot("hellfang_furnace_burst")
+	await _hold(0.8)
 	# --- P12: frame rate with the lab busy (turrets + missiles + strike + partners fighting)
 	await _setup_round(&"verdant", SparringBrain.Mode.MELEE)
 	scene._swap_partner(&"azure")

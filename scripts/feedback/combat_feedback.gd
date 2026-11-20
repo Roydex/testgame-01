@@ -18,6 +18,13 @@ var rig: CameraRig
 var focus_mech: Node3D
 var _players: Array[AudioStreamPlayer3D] = []
 var _next_player := 0
+## 动态对决镜头: real-time end of the current slow motion (ms, 0 = none).
+var _slowmo_until := 0
+## Attacks that count as a cinematic finisher when they land.
+const CINE_ATTACKS: Array[StringName] = [&"seraph_riposte", &"seraph_judgment_counter", &"seraph_final_spear",
+	&"hf_finisher", &"hf_furnace_burst", &"hf_ram"]
+const SLOWMO_SCALE := 0.3
+const SLOWMO_MS := 220
 
 
 func _ready() -> void:
@@ -36,6 +43,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	Engine.time_scale = 1.0
 	for p in _players:
 		p.stop()
 		p.stream = null
@@ -55,10 +63,31 @@ func _involved(hit: HitInfo) -> bool:
 	return focus_mech != null and (hit.victim == focus_mech or hit.attacker == focus_mech)
 
 
+func _process(_delta: float) -> void:
+	if _slowmo_until > 0 and Time.get_ticks_msec() >= _slowmo_until:
+		_slowmo_until = 0
+		Engine.time_scale = 1.0
+
+
+## Cinematic moment (duel-cam experiment only): brief slow motion + close-up.
+func _cinematic() -> void:
+	if not Experiments.duel_cam:
+		return
+	Engine.time_scale = SLOWMO_SCALE
+	_slowmo_until = Time.get_ticks_msec() + SLOWMO_MS
+	if rig:
+		rig.cinematic(SLOWMO_MS * 0.001 * SLOWMO_SCALE + 0.25)
+
+
 func _on_hit(hit: HitInfo) -> void:
 	var pos := hit.hit_position
 	var me := _involved(hit)
 	var dir := hit.direction
+	if me and (hit.result == CombatTypes.HitResult.PARRIED or hit.result == CombatTypes.HitResult.GUARD_BREAK \
+			or (hit.result == CombatTypes.HitResult.HIT and (hit.attack.id in CINE_ATTACKS or hit.momentum_mult >= 1.3))):
+		_cinematic()
+	if hit.momentum_mult > 1.1 and DamageSystem.is_landed(hit.result):
+		_number(pos + Vector3.UP * 0.8, "高速 ×%.1f" % hit.momentum_mult, Color(0.5, 0.9, 1.0), 1.1)
 	match hit.result:
 		CombatTypes.HitResult.HIT:
 			var heavy := hit.attack.damage >= 15.0

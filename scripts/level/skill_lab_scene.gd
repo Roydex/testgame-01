@@ -4,6 +4,8 @@ extends "res://scripts/level/graybox_test_scene.gd"
 ## shots / grapple / turret fire / blasts, roofs vs the orbital strike.
 ##   1–4  play 01 白祷 / 02 赤狱 / 03 苍藓 / 04 苍穹 (swap in place)
 ##   G    cycle the sparring partner's mech
+##   7 / 8 / 9  toggle the round-2 experiments (速度即伤害 / 动态对决镜头 /
+##              自由瞄准), 0 all on / off. They start ON in the lab.
 ## Everything else (practice mode, F-keys, pause menu) works as in the
 ## grey-box scene. Command-line: `-- --skill-demo` runs the scripted showcase.
 
@@ -17,6 +19,7 @@ static var partner_id: StringName = &"seraph"
 
 
 func _ready() -> void:
+	Experiments.set_all(true)
 	GrayboxBuilder.build(self)
 	_build_lab_cover()
 	_spawn_player(1)
@@ -31,6 +34,11 @@ func _ready() -> void:
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	combat_hud.callout("技能测试场景：%s" % MechFactory.MECHS[player_id].name, Color(1, 0.9, 0.6), 2.0)
+
+
+func _exit_tree() -> void:
+	Experiments.set_all(false)  # never leak into other scenes / tests
+	Engine.time_scale = 1.0
 
 
 func _create_player_motor(_index: int) -> MechMotor:
@@ -98,7 +106,11 @@ func _swap_partner(id: StringName) -> void:
 
 
 func _banner() -> String:
-	return "%s   陪练：%s   [1–4 切换机体  G 切换陪练机体]" % [super(), MechFactory.MECHS[partner_id].name]
+	var ex: PackedStringArray = []
+	for id: StringName in [&"momentum", &"duel_cam", &"free_aim"]:
+		ex.append("%s%s" % [Experiments.NAMES[id], "开" if Experiments.is_on(id) else "关"])
+	return "%s   陪练：%s   [1–4 切换机体  G 切换陪练机体]\n实验：%s   [7 / 8 / 9 切换  0 全开/全关]" % [
+		super(), MechFactory.MECHS[partner_id].name, "  ".join(ex)]
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -106,6 +118,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed(StringName("lab_mech_%d" % (i + 1))):
 			swap_player(MechFactory.MECH_IDS[i])
 			return
+	for pair in [[&"lab_exp_momentum", &"momentum"], [&"lab_exp_duel_cam", &"duel_cam"], [&"lab_exp_free_aim", &"free_aim"]]:
+		if event.is_action_pressed(pair[0]):
+			var on := Experiments.toggle(pair[1])
+			combat_hud.callout("%s：%s" % [Experiments.NAMES[pair[1]], "开" if on else "关"], Color(0.7, 0.95, 1.0), 1.2)
+			combat_hud.set_mode_banner(_banner())
+			return
+	if event.is_action_pressed(&"lab_exp_all"):
+		var all_on := Experiments.momentum and Experiments.duel_cam and Experiments.free_aim
+		Experiments.set_all(not all_on)
+		combat_hud.callout("全部实验：%s" % ("关" if all_on else "开"), Color(0.7, 0.95, 1.0), 1.2)
+		combat_hud.set_mode_banner(_banner())
+		return
 	if event.is_action_pressed(&"lab_partner_next"):
 		var ids := MechFactory.MECH_IDS
 		_swap_partner(ids[(ids.find(partner_id) + 1) % ids.size()])

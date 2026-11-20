@@ -1,10 +1,14 @@
-[gd_resource type="Resource" script_class="UltimateDefinition" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="UltimateDefinition" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/ultimate_definition.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/combat/seraph_judgment_counter.tres" id="2"]
 [ext_resource type="Resource" path="res://resources/combat/seraph_final_spear.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/seraph_judgment_wave.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/combat/status/judgment_suppressed.tres" id="5"]
 
 [resource]
 script = ExtResource("1")
 judgment_counter = ExtResource("2")
 final_spear = ExtResource("3")
+wave_attack = ExtResource("4")
+field_status = ExtResource("5")

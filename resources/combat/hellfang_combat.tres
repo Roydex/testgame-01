@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CombatProfile" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_axe1.tres" id="2"]
@@ -6,9 +6,11 @@
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_vent.tres" id="4"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_ram.tres" id="5"]
 [ext_resource type="Script" path="res://scripts/combat/kits/heat_config.gd" id="6"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_furnace_burst.tres" id="7"]
 
 [sub_resource type="Resource" id="HeatConfig_1"]
 script = ExtResource("6")
+furnace_burst = ExtResource("7")
 
 
 [resource]

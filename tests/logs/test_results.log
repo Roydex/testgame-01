@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-19T18:28:24  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-19T22:43:31  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -297,14 +297,14 @@ PASS  T09
 PASS  T10
 
 --- T11  Targeting: switch / destroyed / out of range / occluded
-  ok   acquire picked T1_low-hover
-  ok   cycle next/prev: T1_low-hover → T6_tower → T1_low-hover
-  ok   destroyed target → auto switch (T5_ground:auto_switch)
+  ok   acquire picked T5_ground
+  ok   cycle next/prev: T5_ground → T3_bobbing → T5_ground
+  ok   destroyed target → auto switch (T4_orbit:auto_switch)
   ok   destroyed target no longer a valid target
   ok   out of range → unlocked (out_of_range)
   ok   occluded (behind tower) → unlocked at 3.02s, limit 3.0s (occluded)
   ok   same-team dummy excluded via TeamRules.is_hostile
-  info events: T1_low-hover:acquire, T6_tower:cycle, T1_low-hover:cycle, none:destroyed, T5_ground:auto_switch, none:out_of_range, T6_tower:test, none:occluded
+  info events: T5_ground:acquire, T3_bobbing:cycle, T5_ground:cycle, none:destroyed, T4_orbit:auto_switch, none:out_of_range, T6_tower:test, none:occluded
 PASS  T11
 
 --- T12  M03 support: movement-only pursuit of hovering target
@@ -414,7 +414,7 @@ PASS  T21
   ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 19.0 m and attacked via MechCommand
+  ok   partner moved 23.9 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -425,13 +425,13 @@ PASS  T22
   ok   JUDGMENT speed 20.0 m/s (= 16 × 1.25)
   ok   JUDGMENT dash cost 8.0 EN (= 16 × 0.5)
   ok   JUDGMENT parry window 0.32s (= 0.15 × 2)
-  info skill presses in JUDGMENT: [&"seraph_final_spear", &"seraph_final_spear"] (charges left 0, 1.4s of judgment left)
+  info skill presses in JUDGMENT: [&"seraph_final_spear", &"seraph_final_spear"] (charges left 0, 2.4s of judgment left)
   ok   two 终审之矛 charges in JUDGMENT
   ok   OVERLOAD reached and EN did not regenerate during it
   ok   OVERLOAD damage taken ×1.3
   ok   after overload: SPENT (uses_per_match 1)
   ok   after the ultimate the skill is the normal dash slash again
-  info ultimate timeline: ["READY@0.17", "WINDUP@0.20", "JUDGMENT@0.57", "OVERLOAD@6.57", "SPENT@9.58"]
+  info ultimate timeline: ["READY@0.17", "WINDUP@0.20", "JUDGMENT@0.57", "OVERLOAD@10.55", "SPENT@13.57"]
   ok   once per match: V does nothing afterwards
   ok   frontal hit during the windup is parried → JUDGMENT at once (PARRIED)
   ok   JUDGMENT melee parry auto-triggers 裁决反击 and it lands
@@ -441,7 +441,7 @@ PASS  T22
   ok   spear stopped by the wall (attacker z -38.6, wall -40), no hit through cover
   ok   spear vs standing target → hit
   ok   spear vs sidestep at the telegraph → dodged
-  ok   sparring partner unlocked and used the ultimate via MechCommand (["READY", "WINDUP", "JUDGMENT", "OVERLOAD"])
+  ok   sparring partner unlocked and used the ultimate via MechCommand (["READY", "WINDUP", "JUDGMENT"])
 PASS  T23
 
 --- T24  C12 melee rules: arc, local hitstop, multi-parry, ownership
@@ -535,9 +535,10 @@ PASS  T29
   ok   MELEE vs parry / guard → PARRIED / GUARDED (expected PARRIED / GUARDED)
   ok   GRAB vs parry / guard → HIT / HIT (expected HIT / HIT)
   ok   BEAM vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
+  ok   BEAM (heavy orbital) vs parry / guard → HIT / GUARD_BREAK (expected HIT / GUARD_BREAK)
   ok   EXPLOSION vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
   ok   real grapple vs guarding SERAPH: HIT (grabs ignore guard)
-  ok   every HP change goes through DamageSystem.resolve(): Mech lost 239.1 / resolved 239.1, @CharacterBody3D@5026 lost 19.5 / resolved 19.5; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
+  ok   every HP change goes through DamageSystem.resolve(): Mech lost 239.1 / resolved 239.1, @CharacterBody3D@5270 lost 19.5 / resolved 19.5; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
 PASS  T30
 
 --- T31  P04 status effects: armor break, restraint, marks
@@ -625,6 +626,34 @@ PASS  T36
   ok   walk-cycle advance over 0.2 s: walking 1.23 rad, dashing 0.00 rad (no faster)
 PASS  T37
 
+--- T38  Playtest round 2: riposte vs DR, threat lock, judgment, heavy orbital, furnace, wall
+  ok   attacker made CC-immune (1.5 s)
+  ok   window opens without off-balance (attacker READY), length 0.80 s
+  ok   riposte 0.33 s after the parry: seraph_riposte 30.0 dmg
+  ok   acquire: idle units → nearest (@CharacterBody3D@6729); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6735 (threat 15 m)
+  ok   judgment 10 s, damage ×1.25
+  ok   field: enemy at 6 m suppressed (EN 50 → 50, no regen), enemy at 30 m not
+  ok   lance strike releases a shockwave: 1 hit, 8.75 dmg
+  ok   suppressed windup: 21 frames (base 16)
+  ok   super armour: 15-dmg axe → READY; 26-dmg finisher → STAGGER
+  ok   orbital 60 dmg, then 5 burn ticks
+  ok   guard absorbed 30 → release: blast 40 dmg (want 40) at 4 m, none at 16 m
+  ok   guard absorbed only 5 (< 6): no blast
+  ok   guard raises one wall 3.5 m ahead
+  ok   hostile pulses hit the wall (HP 130 / 150), none reach the ark
+  ok   broken wall → 5.8 s cooldown, guard raises nothing meanwhile
+PASS  T38
+
+--- T39  Playtest round 2 experiments: momentum, free aim, duel camera (switchable)
+  ok   experiments default OFF outside the skill lab
+  ok   closing speed bonus: 5 m/s ×1.00, 20 m/s ×1.30, cap ×1.60
+  ok   landed hit dash-cancelled 4 frames later (chain 0)
+  ok   chained attack hits harder: 9.0 → 9.9 (chain ×1.1)
+  ok   swing from a walk 10.8 dmg (×1.20); from a dash 14.4 dmg (×1.60)
+  ok   shot toward the crosshair point (off 2.4°), toward the assist target (off 0.5°)
+  ok   locked at 8 m: view vs target line 5° normally, 49° with the duel camera
+PASS  T39
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -663,4 +692,6 @@ T34  PASS  P07 counter windows for every major attack
 T35  PASS  P08 anti-air for every mech (grapple drag, upward fire)
 T36  PASS  P09 deployables / missiles / zones / blasts / strikes follow TeamRules
 T37  PASS  Playtest round 1: grapple stagger, riposte, EN regen, orbital follow, dash gait
-37/37 passed
+T38  PASS  Playtest round 2: riposte vs DR, threat lock, judgment, heavy orbital, furnace, wall
+T39  PASS  Playtest round 2 experiments: momentum, free aim, duel camera (switchable)
+39/39 passed

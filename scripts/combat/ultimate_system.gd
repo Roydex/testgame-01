@@ -51,6 +51,29 @@ func damage_taken_mult() -> float:
 	return definition.overload_damage_taken_mult if phase == Phase.OVERLOAD else 1.0
 
 
+func outgoing_mult() -> float:
+	return definition.damage_mult if phase == Phase.JUDGMENT else 1.0
+
+
+## Judgment super armour: does a clean hit of `damage` stagger us?
+func armor_absorbs(hit: HitInfo) -> bool:
+	return phase == Phase.JUDGMENT and hit.final_damage < definition.armor_damage_threshold \
+		and not hit.attack.guard_break and not hit.force_guard_break
+
+
+## Suppression field: refresh the status on hostile mechs inside the radius.
+func _tick_field() -> void:
+	if definition.field_status == null or definition.field_radius <= 0.0:
+		return
+	var c := combat.motor.global_position
+	for t in TeamRules.get_valid_targets(combat.motor, &"mechs"):
+		if t.global_position.distance_to(c) > definition.field_radius:
+			continue
+		var tc := DamageSystem.get_combat(t)
+		if tc:
+			tc.status.apply(definition.field_status, combat.motor)
+
+
 func _unlock_condition() -> bool:
 	return uses_left > 0 and combat.health != null and combat.health.ratio() <= definition.hp_threshold
 
@@ -68,6 +91,7 @@ func _physics_process(delta: float) -> void:
 				_set_phase(Phase.READY if _unlock_condition() else Phase.LOCKED)
 		Phase.JUDGMENT:
 			phase_time_left -= delta
+			_tick_field()
 			if phase_time_left <= 0.0:
 				_end_judgment()
 		Phase.OVERLOAD:

@@ -37,6 +37,10 @@ const KEY_BINDINGS := {
 	&"lab_mech_3": [KEY_3],
 	&"lab_mech_4": [KEY_4],
 	&"lab_partner_next": [KEY_G],
+	&"lab_exp_momentum": [KEY_7],
+	&"lab_exp_duel_cam": [KEY_8],
+	&"lab_exp_free_aim": [KEY_9],
+	&"lab_exp_all": [KEY_0],
 }
 
 const MOUSE_BINDINGS := {

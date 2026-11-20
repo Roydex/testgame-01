@@ -22,6 +22,25 @@ var _kit_label: Label
 var _kit_bar: ProgressBar
 var _warn: Label
 var _connected := false
+## Screen-edge glow: gold while we are in judgment, amber while an enemy's
+## suppression field holds us (presentation only).
+var _vignette: ColorRect
+var _vig_mat: ShaderMaterial
+var _vig_t := 0.0
+## Free-aim crosshair (Experiments.free_aim).
+var _crosshair: Control
+var _combo: Label
+
+const VIGNETTE_SHADER := """
+shader_type canvas_item;
+uniform vec4 tint : source_color = vec4(1.0, 0.85, 0.35, 1.0);
+uniform float strength = 0.0;
+void fragment() {
+	vec2 d = abs(UV - 0.5) * 2.0;
+	float e = max(d.x, d.y);
+	COLOR = vec4(tint.rgb, smoothstep(0.7, 1.05, e) * strength * tint.a);
+}
+"""
 
 
 func setup(p_motor: MechMotor, p_targeting: TargetingSystem) -> void:
@@ -45,6 +64,22 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	_vignette = ColorRect.new()
+	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = VIGNETTE_SHADER
+	_vig_mat = ShaderMaterial.new()
+	_vig_mat.shader = sh
+	_vignette.material = _vig_mat
+	root.add_child(_vignette)
+	_crosshair = Control.new()
+	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crosshair.draw.connect(_draw_crosshair)
+	root.add_child(_crosshair)
+	_combo = _label(root, 28)
+	_combo.custom_minimum_size = Vector2(400, 0)
+	_combo.add_theme_color_override(&"font_color", Color(1.0, 0.85, 0.4))
 	var bottom := VBoxContainer.new()
 	bottom.custom_minimum_size = Vector2(440, 0)
 	root.add_child(bottom)
@@ -128,6 +163,15 @@ func _process(delta: float) -> void:
 	_banner.position = Vector2(vp.x * 0.5 - 600.0, 72.0)
 	_callout_t = maxf(_callout_t - delta, 0.0)
 	_callout.visible = _callout_t > 0.0
+	_update_vignette(delta)
+	_crosshair.visible = Experiments.free_aim
+	if _crosshair.visible:
+		_crosshair.position = vp * 0.5
+		_crosshair.queue_redraw()
+	_combo.position = Vector2(vp.x * 0.5 + 160.0, vp.y * 0.40)
+	_combo.visible = Experiments.momentum and combat.momentum_chain >= 2
+	if _combo.visible:
+		_combo.text = "连段 ×%d  伤害 +%d%%" % [combat.momentum_chain, int(round((combat.momentum_chain_mult() - 1.0) * 100.0))]
 	var h := combat.health
 	_hp.max_value = h.max_hp
 	_hp.value = h.hp
@@ -255,7 +299,33 @@ func _update_warnings() -> void:
 
 func _on_riposte_window(mech: Node3D, target: Node3D, _duration: float) -> void:
 	if mech == motor and target != null:
-		callout("反刺！ 左键", Color(1.0, 0.95, 0.6), 0.6)
+		callout("反刺！ 左键", Color(1.0, 0.95, 0.6), combat.profile.riposte_window)
+
+
+func _update_vignette(delta: float) -> void:
+	_vig_t += delta
+	var u := combat.ultimate
+	var strength := 0.0
+	if u and u.in_judgment():
+		_vig_mat.set_shader_parameter(&"tint", Color(1.0, 0.85, 0.35, 0.7))
+		strength = 0.55 + 0.15 * sin(_vig_t * 6.0)
+	elif combat.status.has(&"judgment_suppressed"):
+		_vig_mat.set_shader_parameter(&"tint", Color(1.0, 0.45, 0.15, 0.6))
+		strength = 0.4 + 0.1 * sin(_vig_t * 9.0)
+	_vig_mat.set_shader_parameter(&"strength", strength)
+	_vignette.visible = strength > 0.0
+
+
+func _draw_crosshair() -> void:
+	var on := combat.free_aim_target != null and is_instance_valid(combat.free_aim_target)
+	var c := Color(1.0, 0.35, 0.3, 0.95) if on else Color(0.9, 1.0, 0.9, 0.85)
+	var r := 9.0 if on else 12.0
+	for a in 4:
+		var d := Vector2.RIGHT.rotated(a * PI * 0.5)
+		_crosshair.draw_line(d * r, d * (r + 10.0), c, 2.0)
+	_crosshair.draw_circle(Vector2.ZERO, 2.0, c)
+	if on:
+		_crosshair.draw_arc(Vector2.ZERO, r + 4.0, 0.0, TAU, 24, c, 1.5)
 
 
 func _on_kit_event(mech: Node3D, id: StringName) -> void:
@@ -268,3 +338,11 @@ func _on_kit_event(mech: Node3D, id: StringName) -> void:
 			callout("钩爪落空", Color(1.0, 0.7, 0.5), 0.6)
 		&"grapple_pull", &"grapple_drag":
 			callout("钩中 · 硬直", Color(1.0, 0.55, 0.25), 0.6)
+		&"furnace_burst":
+			callout("爆燃反震！", Color(1.0, 0.5, 0.15), 0.8)
+		&"wall_up":
+			callout("盾墙展开", Color(0.5, 1.0, 0.6), 0.6)
+		&"wall_broken":
+			callout("盾墙被击碎", Color(1.0, 0.6, 0.4), 0.8)
+		&"super_armor":
+			pass

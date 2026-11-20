@@ -140,6 +140,10 @@ func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -
 		CombatEvents.riposte_window.connect(_on_riposte_window)
 		CombatEvents.attack_active.connect(_on_attack_active)
 		CombatEvents.status_changed.connect(_on_status)
+		if combat.ultimate:
+			var aura := JudgmentAura.new()
+			add_child(aura)
+			aura.setup(motor, combat)
 
 
 ## PALE SERAPH story read: an INCOMPLETE crown (3 of 4 arcs) above the head
@@ -266,8 +270,11 @@ func _update_style(delta: float) -> void:
 		if charging:
 			var a := _lance_tip.global_position
 			var b := a + motor.get_forward() * 80.0
-			if combat.aim_target and is_instance_valid(combat.aim_target):
-				b = combat.aim_target.call(&"get_lock_point") if combat.aim_target.has_method(&"get_lock_point") else combat.aim_target.global_position
+			var rt := combat.ranged_target()
+			if rt:
+				b = rt.call(&"get_lock_point") if rt.has_method(&"get_lock_point") else rt.global_position
+			elif Experiments.free_aim and combat.free_aim_active:
+				b = combat.free_aim_point
 			var q := PhysicsRayQueryParameters3D.create(a, b, CombatTypes.WORLD_LAYER)
 			var hit := motor.get_world_3d().direct_space_state.intersect_ray(q)
 			if not hit.is_empty():

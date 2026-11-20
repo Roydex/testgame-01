@@ -6,7 +6,8 @@ extends Node3D
 ## `lock_time`, then a vertical BEAM hits every damageable inside whose line
 ## to the sky is clear. Leaving the locked circle dodges it; roofs block it.
 ## BEAM: guardable, not parryable. Mark stacks shrink the circle and lengthen
-## the follow phase (the locked dodge window never changes).
+## the follow phase (the locked dodge window never changes). Playtest round 2
+## made it a heavy strike: more damage, guard break, a burning circle after.
 
 const FOLLOW_COLOR := Color(1.0, 0.6, 0.1, 0.35)
 const LOCK_COLOR := Color(1.0, 0.12, 0.08, 0.35)
@@ -39,7 +40,10 @@ static func call_strike(combat: CombatStateMachine, def: AttackDefinition) -> Or
 	var marks := 0
 	var at := m.global_position + m.get_forward() * spec.unlocked_distance
 	var followed: Node3D = null
-	var t := combat.aim_target
+	var t := combat.ranged_target()
+	if t == null and Experiments.free_aim and combat.free_aim_active \
+			and m.global_position.distance_to(combat.free_aim_point) <= spec.max_call_range:
+		at = combat.free_aim_point  # crosshair ground point, no follow
 	if t and is_instance_valid(t) and TeamRules.is_alive(t) and m.global_position.distance_to(t.global_position) <= spec.max_call_range:
 		at = t.global_position
 		followed = t
@@ -175,3 +179,8 @@ func _strike() -> void:
 	_beam.position = Vector3.UP * spec.sky_height * 0.5
 	add_child(_beam)
 	CombatEvents.kit_event.emit(owner_mech, &"orbital_strike")
+	if spec.burn_attack and spec.burn_duration > 0.0 and owner_mech and is_instance_valid(owner_mech):
+		var b := BurnZone.new()
+		get_parent().add_child(b)
+		b.global_position = global_position
+		b.setup(owner_mech, spec.burn_attack, radius, spec.burn_duration, spec.burn_interval)

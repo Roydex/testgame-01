@@ -49,11 +49,14 @@ extends Resource
 @export var offbalance_knockback: float = 7.0
 ## Damage multiplier for the parrier's hits on an off-balance victim.
 @export var counter_damage_mult: float = 1.5
-## Dedicated counter (PALE SERAPH 反刺): pressing attack while the parried
-## melee attacker is still off-balance starts this attack aimed at them
-## (lunges in, unguardable). The counter multiplier above still applies.
+## Dedicated counter (PALE SERAPH 反刺): pressing attack within
+## `riposte_window` after a melee parry starts this attack aimed at the
+## parried attacker (lunges in, unguardable, always × counter_damage_mult).
+## The window is fixed: hard-control diminishing returns on the attacker
+## shorten its off-balance but never the riposte window (playtest R2-1).
 ## null = no riposte (HELLFANG / VERDANT parries do not cause off-balance).
 @export var parry_riposte: AttackDefinition
+@export var riposte_window: float = 0.8
 ## false: a parried melee attacker is only pushed back (interrupted), not
 ## knocked off-balance, and there is no counter bonus (HELLFANG / VERDANT).
 @export var parry_causes_offbalance: bool = true

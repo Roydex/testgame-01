@@ -18,10 +18,13 @@ static func placement(combat: CombatStateMachine, spec: DeploySpec) -> Vector3:
 	var m := combat.motor
 	var eye := m.global_position + Vector3.UP * 2.0
 	var at := m.global_position + m.get_forward() * spec.place_distance
-	var t := combat.aim_target
+	var t := combat.ranged_target()
 	if spec.kind == DeploySpec.Kind.ZONE and t and is_instance_valid(t) and TeamRules.is_alive(t) \
 			and m.global_position.distance_to(t.global_position) <= spec.max_place_range:
 		at = t.global_position
+	elif spec.kind == DeploySpec.Kind.ZONE and t == null and Experiments.free_aim and combat.free_aim_active \
+			and m.global_position.distance_to(combat.free_aim_point) <= spec.max_place_range:
+		at = combat.free_aim_point
 	var target := at + Vector3.UP * 2.0
 	var q := PhysicsRayQueryParameters3D.create(eye, target, CombatTypes.WORLD_LAYER)
 	q.exclude = [m.get_rid()]

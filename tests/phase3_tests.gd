@@ -366,16 +366,22 @@ func t30_damage_types(res: Dictionary) -> void:
 	v.rotation.y = PI  # faces the attacker (+z)
 	r.arena.add_child(v)
 	await r._ticks(25)
+	# type rule uses a non-guard-breaking BEAM; the real orbital (playtest
+	# round 2: heavy strike) guard-breaks, checked as its own row
+	var plain_beam := (load("res://resources/combat/azure/ao_orbital.tres") as AttackDefinition).duplicate() as AttackDefinition
+	plain_beam.guard_break = false
 	var defs := {
 		"MELEE": load("res://resources/combat/hellfang/hf_axe1.tres"),
 		"GRAB": load("res://resources/combat/hellfang/hf_hook.tres"),
-		"BEAM": load("res://resources/combat/azure/ao_orbital.tres"),
+		"BEAM": plain_beam,
+		"BEAM (heavy orbital)": load("res://resources/combat/azure/ao_orbital.tres"),
 		"EXPLOSION": load("res://resources/combat/azure/ao_missile_blast.tres"),
 	}
 	var expect := {
 		"MELEE": [CombatTypes.HitResult.PARRIED, CombatTypes.HitResult.GUARDED],
 		"GRAB": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.HIT],
 		"BEAM": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.GUARDED],
+		"BEAM (heavy orbital)": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.GUARD_BREAK],
 		"EXPLOSION": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.GUARDED],
 	}
 	var vc := _cs(v)
@@ -1286,3 +1292,305 @@ func t37_playtest_fixes(res: Dictionary) -> void:
 		await r._ticks(40)
 	r._check(res, ph[1] <= ph[0] * 1.05 + 0.01, "walk-cycle advance over 0.2 s: walking %.2f rad, dashing %.2f rad (no faster)" % [ph[0], ph[1]])
 	await _free([g])
+
+
+# ------------------------------------------------------------------ playtest round 2
+
+func t38_playtest_round2(res: Dictionary) -> void:
+	# --- 1. 反刺 window opens even when the attacker is immune to hard control
+	var cp := load(SERAPH) as CombatProfile
+	var a := _mech(&"seraph", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 26.5))
+	var b := _mech(&"seraph", 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await r._ticks(20)
+	for k in 4:
+		_cs(a).cc_duration(0.1)  # three recent hard controls → the 4th makes it immune
+	r._check(res, _cs(a).cc_immune_left > 0.0, "attacker made CC-immune (%.1f s)" % _cs(a).cc_immune_left)
+	var ev := _rec()
+	var s1 := {"open": false, "press": -1, "left": 0.0, "att_state": ""}
+	await _frames(ev, 90, func(i: int) -> void:
+		_aim(a, b)
+		_aim(b, a)
+		a.command.attack_pressed = i == 10
+		b.command.parry_pressed = i == 13
+		if not s1.open and _cs(b).riposte_target == a:
+			s1.open = true
+			s1.left = _cs(b).riposte_left
+			s1.att_state = _cs(a).get_state_name()
+			s1.press = i + 20  # ≈ 0.33 s later: past the old (decayed) window
+		b.command.attack_pressed = i == s1.press)
+	_unrec()
+	var hb := _hits(ev, a)
+	var first: HitInfo = (hb[0][1] as HitInfo) if hb.size() > 0 else null
+	r._check(res, s1.open and s1.att_state != "OFFBALANCE" and is_equal_approx(s1.left, cp.riposte_window),
+		"window opens without off-balance (attacker %s), length %.2f s" % [s1.att_state, s1.left])
+	r._check(res, first != null and first.attack.id == cp.parry_riposte.id and is_equal_approx(first.final_damage, cp.parry_riposte.damage * cp.counter_damage_mult),
+		"riposte 0.33 s after the parry: %s %.1f dmg" % [first.attack.id if first else &"-", first.final_damage if first else 0.0])
+	await _free([a, b])
+
+	# --- 2. Q acquires the nearest, most threatening unit (not just the view)
+	var p := _mech(&"seraph", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 0))
+	var near := _mech(&"verdant", 1, Vector3(8, 0.2, 30))
+	var far := _mech(&"azure", 2, Vector3(0, 0.2, 10))
+	for x in [p, near, far]:
+		x.add_to_group(&"lock_targets")
+	var ts := TargetingSystem.new()
+	r.arena.add_child(ts)
+	ts.setup(p, null)
+	await r._ticks(5)
+	var pick0 := ts.acquire()
+	ts._set_target(null, "test")
+	_cs(far).aim_target = p
+	var h := HitInfo.new()
+	h.attacker = far
+	h.victim = p
+	h.attack = load("res://resources/combat/azure/ao_pulse.tres")
+	h.source_position = far.global_position
+	h.direction = Vector3(0, 0, 1)
+	DamageSystem.resolve(h)
+	await r._ticks(2)
+	var pick1 := ts.acquire()
+	r._check(res, pick0 == near and pick1 == far,
+		"acquire: idle units → nearest (%s); a unit aiming at and hitting us 20 m away → %s (threat %.0f m)" % [
+			pick0.name if pick0 else "none", pick1.name if pick1 else "none", ts.threat_of(far)])
+	ts.queue_free()
+	await _free([p, near, far])
+
+	# --- 3. judgment: 10 s, ×1.25, shockwave, light-hit super armour, suppression field
+	var s := _mech(&"seraph", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 24))
+	var e := _mech(&"hellfang", 1, Vector3(0, 0.2, 24), Vector3(0, 0.2, 30))
+	var fe := _mech(&"verdant", 1, Vector3(30, 0.2, 30))
+	await r._ticks(20)
+	var u := _cs(s).ultimate
+	u.enter_judgment()
+	r._check(res, is_equal_approx(u.phase_time_left, 10.0) and is_equal_approx(u.outgoing_mult(), 1.25), "judgment %.0f s, damage ×%.2f" % [u.phase_time_left, u.outgoing_mult()])
+	await r._ticks(5)
+	e.en = 50.0
+	var en0 := e.en
+	await r._ticks(60)
+	r._check(res, _cs(e).status.has(&"judgment_suppressed") and not _cs(fe).status.has(&"judgment_suppressed") and e.en <= en0 + 0.01,
+		"field: enemy at 6 m suppressed (EN %.0f → %.0f, no regen), enemy at 30 m not" % [en0, e.en])
+	var ev3 := _rec()
+	await _frames(ev3, 50, func(i: int) -> void:
+		_aim(s, e)
+		_aim(e, s)
+		s.command.attack_pressed = i == 35  # after the axe (a lance hit would interrupt it)
+		e.command.attack_pressed = i == 2)
+	_unrec()
+	var waves := _hits(ev3, e, &"seraph_judgment_wave")
+	var wdef := u.definition.wave_attack
+	r._check(res, waves.size() == 1 and is_equal_approx((waves[0][1] as HitInfo).final_damage, wdef.damage * 1.25),
+		"lance strike releases a shockwave: %d hit, %.2f dmg" % [waves.size(), (waves[0][1] as HitInfo).final_damage if waves.size() > 0 else 0.0])
+	var e_start := -1
+	var e_active := -1
+	for x in ev3.started:
+		if x[1] == e and e_start < 0: e_start = x[0]
+	for x in ev3.active:
+		if x[1] == e and e_active < 0: e_active = x[0]
+	var axe := (load("res://resources/combat/hellfang/hf_axe1.tres") as AttackDefinition)
+	r._check(res, e_start >= 0 and e_active - e_start >= int(axe.windup * 60.0 * 1.2),
+		"suppressed windup: %d frames (base %.0f)" % [e_active - e_start, axe.windup * 60.0])
+	await r._ticks(40)
+	var sc := _cs(s)
+	var states := []
+	for def_path in ["res://resources/combat/hellfang/hf_axe1.tres", "res://resources/combat/hellfang/hf_finisher.tres"]:
+		await r._ticks(30)
+		var hh := HitInfo.new()
+		hh.attacker = e
+		hh.victim = s
+		hh.attack = load(def_path)
+		hh.source_position = e.global_position
+		hh.direction = Vector3(0, 0, 1)
+		DamageSystem.resolve(hh)
+		states.append(sc.get_state_name())
+	r._check(res, states[0] != "STAGGER" and states[1] == "STAGGER",
+		"super armour: 15-dmg axe → %s; 26-dmg finisher → %s" % [states[0], states[1]])
+	await _free([s, e, fe])
+
+	# --- 4. heavy orbital: 60 damage, then the circle burns
+	var o := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
+	var v := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
+	await r._ticks(25)
+	var ev4 := _rec()
+	await _frames(ev4, 330, func(i: int) -> void:
+		_aim(o, v)
+		o.command.skill_pressed = i == 0
+		o.command.skill_held = i < 30)
+	_unrec()
+	var oh := _hits(ev4, v, &"ao_orbital")
+	var burns := _hits(ev4, v, &"ao_orbital_burn")
+	r._check(res, oh.size() == 1 and is_equal_approx((oh[0][1] as HitInfo).final_damage, 60.0) and burns.size() >= 4,
+		"orbital %.0f dmg, then %d burn ticks" % [(oh[0][1] as HitInfo).final_damage if oh.size() > 0 else 0.0, burns.size()])
+	await _free([o, v])
+
+	# --- 5. HELLFANG 熔炉格挡: absorbed damage vents as a blast on release
+	var cfg := (load("res://resources/combat/hellfang_combat.tres") as CombatProfile).kit as HeatConfig
+	for big in [true, false]:
+		var hf := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 26))
+		var en := _mech(&"seraph", 1, Vector3(0, 0.2, 26), Vector3(0, 0.2, 30))
+		var fr := _mech(&"seraph", 1, Vector3(0, 0.2, 14), Vector3(0, 0.2, 30))
+		await r._ticks(20)
+		var ev5 := _rec()
+		var hit_def: AttackDefinition = load("res://resources/combat/hellfang/hf_axe1.tres") if big else load("res://resources/combat/azure/ao_pulse.tres")
+		await _frames(ev5, 90, func(i: int) -> void:
+			_aim(hf, en)
+			hf.command.guard_held = i < 40
+			if i == 10 or (big and i == 20):
+				var g := HitInfo.new()
+				g.attacker = en
+				g.victim = hf
+				g.attack = hit_def
+				g.source_position = en.global_position
+				g.direction = Vector3(0, 0, 1)
+				DamageSystem.resolve(g))
+		_unrec()
+		var bursts := _hits(ev5, en, &"hf_furnace_burst")
+		if big:
+			var want := cfg.furnace_burst.damage + 2.0 * hit_def.damage * cfg.furnace_damage_per_absorbed
+			r._check(res, _kit_events(ev5, &"furnace_burst") == 1 and bursts.size() == 1 \
+					and absf((bursts[0][1] as HitInfo).final_damage - want) < 0.01 and _hits(ev5, fr, &"hf_furnace_burst").is_empty(),
+				"guard absorbed %.0f → release: blast %.0f dmg (want %.0f) at 4 m, none at 16 m" % [2.0 * hit_def.damage,
+					(bursts[0][1] as HitInfo).final_damage if bursts.size() > 0 else 0.0, want])
+		else:
+			r._check(res, _kit_events(ev5, &"furnace_burst") == 0, "guard absorbed only %.0f (< %.0f): no blast" % [hit_def.damage, cfg.furnace_min_absorbed])
+		await _free([hf, en, fr])
+
+	# --- 6. VERDANT 盾墙: blocks hostile shots, breaks, then cools down
+	var va := _mech(&"verdant", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 10))
+	var az := _mech(&"azure", 1, Vector3(0, 0.2, 10), Vector3(0, 0.2, 30))
+	await r._ticks(20)
+	var dcfg := _kit(va).config as DeployConfig
+	var ev6 := _rec()
+	await _frames(ev6, 130, func(i: int) -> void:
+		_aim(va, az)
+		_aim(az, va)
+		va.command.guard_held = i < 3
+		az.command.attack_pressed = i > 20 and i % 20 == 0)
+	_unrec()
+	var walls := r.get_tree().get_nodes_in_group(&"shield_walls")
+	var w: ShieldWall = walls[0] if walls.size() > 0 else null
+	r._check(res, w != null and _kit_events(ev6, &"wall_up") == 1 and absf(w.global_position.z - (30.0 - dcfg.wall_distance)) < 0.6,
+		"guard raises one wall %.1f m ahead" % (30.0 - w.global_position.z if w else 0.0))
+	r._check(res, w != null and w.health.hp < dcfg.wall_hp and _hits(ev6, va).is_empty(),
+		"hostile pulses hit the wall (HP %.0f / %.0f), none reach the ark" % [w.health.hp if w else 0.0, dcfg.wall_hp])
+	if w:
+		w.health.take(10000.0)
+	await r._ticks(3)
+	var ev7 := _rec()
+	await _frames(ev7, 10, func(i: int) -> void:
+		va.command.guard_held = i < 5)
+	_unrec()
+	r._check(res, r.get_tree().get_nodes_in_group(&"shield_walls").is_empty() and _kit_events(ev7, &"wall_up") == 0 \
+			and (_kit(va) as DeployKit).wall_cooldown_left > dcfg.wall_cooldown - 0.5,
+		"broken wall → %.1f s cooldown, guard raises nothing meanwhile" % (_kit(va) as DeployKit).wall_cooldown_left)
+	await _free([va, az])
+
+
+func t39_experiments(res: Dictionary) -> void:
+	r._check(res, not Experiments.momentum and not Experiments.duel_cam and not Experiments.free_aim, "experiments default OFF outside the skill lab")
+	# --- 速度即伤害
+	Experiments.momentum = true
+	r._check(res, is_equal_approx(Experiments.momentum_mult(5.0), 1.0) and is_equal_approx(Experiments.momentum_mult(20.0), 1.3) \
+			and is_equal_approx(Experiments.momentum_mult(200.0), 1.0 + Experiments.MOMENTUM_MAX_BONUS),
+		"closing speed bonus: 5 m/s ×%.2f, 20 m/s ×%.2f, cap ×%.2f" % [Experiments.momentum_mult(5.0), Experiments.momentum_mult(20.0), Experiments.momentum_mult(200.0)])
+	var a := _mech(&"seraph", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 26.5))
+	var b := _mech(&"hellfang", 1, Vector3(0, 0.2, 26.5), Vector3(0, 0.2, 30))
+	await r._ticks(20)
+	_cs(b).health.setup(100000.0)
+	var ev := _rec()
+	var st := {"first_f": -1, "cancel_f": -1, "press2": -1}
+	await _frames(ev, 90, func(i: int) -> void:
+		_aim(a, b)
+		a.command.attack_pressed = i == 2 or i == st.press2
+		if st.first_f < 0 and not _hits(ev, b).is_empty():
+			st.first_f = i
+		a.command.dash_pressed = st.first_f >= 0 and st.cancel_f < 0
+		a.command.move = Vector3(0, 0, -1) if a.command.dash_pressed else Vector3.ZERO
+		if st.cancel_f < 0 and _kit_events(ev, &"dash_cancel") > 0:
+			st.cancel_f = i
+			st.press2 = i + 6)
+	_unrec()
+	var hb := _hits(ev, b)
+	var d1: float = (hb[0][1] as HitInfo).final_damage if hb.size() > 0 else 0.0
+	var d2: float = (hb[1][1] as HitInfo).final_damage if hb.size() > 1 else 0.0
+	r._check(res, st.cancel_f >= 0 and st.cancel_f - st.first_f <= 12, "landed hit dash-cancelled %d frames later (chain %d)" % [st.cancel_f - st.first_f, _cs(a).momentum_chain])
+	r._check(res, hb.size() >= 2 and d2 >= d1 * (1.0 + Experiments.CHAIN_STEP) - 0.01, "chained attack hits harder: %.1f → %.1f (chain ×%.1f)" % [d1, d2, 1.0 + Experiments.CHAIN_STEP])
+	await _free([a, b])
+	# dash attack: start the swing at dash speed → it slides in and hits harder
+	var dmg := []
+	for dash in [false, true]:
+		var a2 := _mech(&"seraph", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 18))
+		var b2 := _mech(&"hellfang", 1, Vector3(0, 0.2, 18), Vector3(0, 0.2, 30))
+		await r._ticks(20)
+		_cs(b2).health.setup(100000.0)
+		var ev2 := _rec()
+		var st2 := {"pressed": false}
+		await _frames(ev2, 70, func(i: int) -> void:
+			_aim(a2, b2)
+			var dist := a2.global_position.distance_to(b2.global_position)
+			a2.command.move = Vector3(0, 0, -1) if not st2.pressed else Vector3.ZERO
+			a2.command.dash_pressed = dash and i == 0
+			if not st2.pressed and dist < 7.5:
+				st2.pressed = true
+				a2.command.attack_pressed = true)
+		_unrec()
+		var hh := _hits(ev2, b2)
+		dmg.append([(hh[0][1] as HitInfo).final_damage if hh.size() > 0 else 0.0, (hh[0][1] as HitInfo).momentum_mult if hh.size() > 0 else 0.0])
+		await _free([a2, b2])
+	r._check(res, dmg[0][0] > 0.0 and dmg[1][1] >= 1.3 and dmg[1][0] > dmg[0][0] * 1.25,
+		"swing from a walk %.1f dmg (×%.2f); from a dash %.1f dmg (×%.2f)" % [dmg[0][0], dmg[0][1], dmg[1][0], dmg[1][1]])
+	Experiments.momentum = false
+
+	# --- 自由瞄准: ranged fire goes to the crosshair point, or to the assist target
+	Experiments.free_aim = true
+	var az := _mech(&"azure", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 10))
+	var t := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
+	await r._ticks(20)
+	var c := _cs(az)
+	var dirs := []
+	for assist in [false, true]:
+		c.free_aim_active = true
+		c.free_aim_point = Vector3(20, 2.6, 10)
+		c.free_aim_target = t if assist else null
+		var ev2 := _rec()
+		var probe := {"dir": Vector3.ZERO}
+		await _frames(ev2, 12, func(i: int) -> void:
+			_aim(az, t)
+			az.command.attack_pressed = i == 0
+			for n in r.get_tree().get_nodes_in_group(&"projectiles"):
+				if probe.dir == Vector3.ZERO and (n as Projectile).owner_mech == az:
+					probe.dir = (n as Projectile).velocity.normalized())
+		_unrec()
+		var muzzle := az.global_position + Vector3.UP * 2.6
+		var want := ((t.global_position + Vector3.UP * 2.0) if assist else c.free_aim_point) - muzzle
+		dirs.append(rad_to_deg(probe.dir.angle_to(want.normalized())) if probe.dir != Vector3.ZERO else 180.0)
+		await _free([])
+	r._check(res, dirs[0] < 3.0 and dirs[1] < 6.0, "shot toward the crosshair point (off %.1f°), toward the assist target (off %.1f°)" % [dirs[0], dirs[1]])
+	c.free_aim_active = false
+	Experiments.free_aim = false
+	await _free([az, t])
+
+	# --- 动态对决镜头: close lock swings to a side framing
+	var m := MechFactory.create_by_id(&"seraph", 0, false)
+	m.position = Vector3(0, 0.2, 30)
+	r.arena.add_child(m)
+	var tg := _mech(&"verdant", 1, Vector3(0, 0.2, 22))
+	tg.add_to_group(&"lock_targets")
+	var tsys := TargetingSystem.new()
+	m.add_child(tsys)
+	var rig := CameraRig.new()
+	r.arena.add_child(rig)
+	tsys.setup(m, rig.camera)
+	rig.setup(m, tsys)
+	tsys._set_target(tg, "test")
+	var ang := []
+	for duel in [false, true]:
+		Experiments.duel_cam = duel
+		await r._ticks(150)
+		var fwd := -rig.camera.global_basis.z
+		var line := tg.global_position - m.global_position
+		ang.append(rad_to_deg(Vector2(fwd.x, fwd.z).angle_to(Vector2(line.x, line.z))))
+	Experiments.duel_cam = false
+	r._check(res, absf(ang[1]) > absf(ang[0]) + 20.0 and rig.duel_blend() > 0.99,
+		"locked at 8 m: view vs target line %.0f° normally, %.0f° with the duel camera" % [absf(ang[0]), absf(ang[1])])
+	rig.queue_free()
+	await _free([m, tg])

@@ -23,3 +23,10 @@ extends Resource
 @export var max_call_range: float = 60.0
 ## Fallback point ahead of the caster when nothing is locked (m).
 @export var unlocked_distance: float = 24.0
+
+@export_group("Burn (playtest round 2: heavy strike)")
+## Ground fire left in the circle after the beam (null = none). Each tick
+## is a separate EXPLOSION hit through DamageSystem (guardable, no stagger).
+@export var burn_attack: AttackDefinition
+@export var burn_duration: float = 3.0
+@export var burn_interval: float = 0.5

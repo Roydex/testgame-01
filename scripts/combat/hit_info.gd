@@ -13,6 +13,10 @@ var source_position: Vector3
 var hit_position: Vector3
 var direction: Vector3
 var damage_mult: float = 1.0
+## Clean-hit knockback multiplier (速度即伤害 experiment).
+var knockback_mult: float = 1.0
+## Closing-speed bonus applied to this hit (1 = none), for presentation.
+var momentum_mult: float = 1.0
 ## Unguardable / unparryable override (counters, off-balance punishes).
 var force_unblockable: bool = false
 ## Guard break override (fully charged railgun shot).

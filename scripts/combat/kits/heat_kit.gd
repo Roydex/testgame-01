@@ -11,6 +11,8 @@ const MOD_OVERHEAT := &"heat_overheat"
 var heat: float = 0.0
 var overheat_left: float = 0.0
 var _since_gain := 0.0
+## 熔炉格挡: damage blocked during the current guard.
+var absorbed: float = 0.0
 
 
 func cfg() -> HeatConfig:
@@ -90,12 +92,32 @@ func on_hit_dealt(hit: HitInfo) -> void:
 
 
 func on_guarded(hit: HitInfo) -> void:
-	add_heat(hit.attack.damage * hit.damage_mult * cfg().guard_heat_per_damage)
+	var dmg := hit.attack.damage * hit.damage_mult
+	add_heat(dmg * cfg().guard_heat_per_damage)
+	absorbed += dmg
+	CombatEvents.kit_event.emit(motor, &"furnace_absorb")
+
+
+func on_guard_started() -> void:
+	absorbed = 0.0
+
+
+## Releasing the guard after soaking enough damage vents it as a blast.
+func on_guard_released() -> void:
+	var c := cfg()
+	var a := minf(absorbed, c.furnace_absorb_cap)
+	absorbed = 0.0
+	if c.furnace_burst == null or a < c.furnace_min_absorbed or is_overheated():
+		return
+	var dmg := c.furnace_burst.damage + a * c.furnace_damage_per_absorbed
+	if combat.start_kit_attack(c.furnace_burst, dmg / maxf(c.furnace_burst.damage, 0.01)):
+		CombatEvents.kit_event.emit(motor, &"furnace_burst")
 
 
 func reset() -> void:
 	heat = 0.0
 	overheat_left = 0.0
+	absorbed = 0.0
 	motor.remove_modifier(MOD_OVERHEAT)
 
 
@@ -123,7 +145,11 @@ func _physics_process(delta: float) -> void:
 func hud_text() -> String:
 	if is_overheated():
 		return "热量 过热！强制排气 %.1f s（不能攻击 / 冲刺，受伤 ×%.1f）" % [overheat_left, cfg().overheat_damage_taken]
-	return "热量 %3.0f / %.0f%s" % [heat, cfg().max_heat, "  灼热（伤害 ×%.1f）" % cfg().scorch_damage_mult if is_scorching() else ""]
+	var line := "热量 %3.0f / %.0f%s" % [heat, cfg().max_heat, "  灼热（伤害 ×%.1f）" % cfg().scorch_damage_mult if is_scorching() else ""]
+	if combat.is_guarding() and absorbed > 0.0:
+		var ready := minf(absorbed, cfg().furnace_absorb_cap) >= cfg().furnace_min_absorbed
+		line += "  熔炉吸收 %.0f%s" % [absorbed, "（松开右键：爆燃反震）" if ready else ""]
+	return line
 
 
 func hud_bar() -> float:

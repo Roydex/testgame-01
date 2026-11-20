@@ -42,6 +42,8 @@ func _physics_process(_delta: float) -> void:
 	if targeting.has_target():
 		var to := targeting.get_target_point() - motor.global_position
 		cmd.face_dir = Vector3(to.x, 0.0, to.z)
+	elif Experiments.free_aim:
+		cmd.face_dir = camera_rig.get_yaw_basis() * Vector3.FORWARD  # shooter stance: face the crosshair
 	else:
 		cmd.face_dir = Vector3.ZERO
 	# combat intent (mouse buttons only count while the mouse is captured,
@@ -57,3 +59,33 @@ func _physics_process(_delta: float) -> void:
 	var combat := motor.get_node_or_null(^"CombatStateMachine") as CombatStateMachine
 	if combat:
 		combat.aim_target = targeting.current if targeting.has_target() else null
+		combat.free_aim_active = Experiments.free_aim
+		if Experiments.free_aim:
+			_update_free_aim(combat)
+			if combat.aim_target == null:
+				combat.aim_target = combat.free_aim_target  # melee lunges steer to what you aim at
+
+
+## 自由瞄准: crosshair ray from the camera (starting at the mech's depth so
+## nothing between camera and mech is aimed at) plus a small aim assist.
+func _update_free_aim(combat: CombatStateMachine) -> void:
+	var cam := camera_rig.camera
+	var origin := cam.global_position
+	var fwd := -cam.global_basis.z
+	var best: Node3D = null
+	var best_a := deg_to_rad(Experiments.AIM_ASSIST_DEG)
+	for t in TeamRules.get_valid_targets(motor):
+		var p: Vector3 = t.call(&"get_lock_point") if t.has_method(&"get_lock_point") else t.global_position + Vector3.UP * 2.0
+		var to := p - origin
+		if to.length() > Experiments.AIM_MAX_DISTANCE or to.dot(fwd) <= 0.0:
+			continue
+		var a := fwd.angle_to(to)
+		if a < best_a and CombatTypes.has_line_of_sight(motor.get_world_3d(), motor.global_position + Vector3.UP * 2.6, p):
+			best_a = a
+			best = t
+	combat.free_aim_target = best
+	var start := origin + fwd * maxf((motor.global_position - origin).dot(fwd), 0.0)
+	var q := PhysicsRayQueryParameters3D.create(start, origin + fwd * Experiments.AIM_MAX_DISTANCE, CombatTypes.WORLD_LAYER)
+	q.exclude = [motor.get_rid()]
+	var hit := motor.get_world_3d().direct_space_state.intersect_ray(q)
+	combat.free_aim_point = hit.position if not hit.is_empty() else origin + fwd * Experiments.AIM_MAX_DISTANCE

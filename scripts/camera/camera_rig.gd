@@ -55,6 +55,21 @@ var distance: float = 10.0
 @export var lock_offset_return_delay: float = 0.8
 @export var lock_offset_return_speed: float = 2.5
 
+@export_group("Experiments (playtest round 2)")
+## 动态对决镜头: under this horizontal lock distance the view swings to a
+## three-quarter side framing of both mechs (side kept while it lasts).
+@export var duel_range: float = 14.0
+@export var duel_side_deg: float = 55.0
+@export var duel_aim_weight: float = 0.5
+@export var duel_extra_dist_per_m: float = 0.35
+## Close-up on a cinematic moment (parry, riposte, finisher): arm length ×.
+@export var cine_zoom: float = 0.6
+## 自由瞄准: lock framing keeps the target near the crosshair, and the mouse
+## gets a wider offset range for leading shots.
+@export var free_aim_lock_weight: float = 0.85
+@export var free_aim_manual_yaw_deg: float = 35.0
+@export var free_aim_manual_pitch_deg: float = 20.0
+
 @export_group("FOV")
 @export var base_fov: float = 70.0
 @export var dash_fov: float = 78.0
@@ -102,6 +117,10 @@ var shake_trauma: float = 0.0
 @export var shake_decay: float = 3.0
 ## FOV punch spring (deg, decays with fov_sharpness).
 var _fov_punch := 0.0
+var _duel_blend := 0.0
+var _duel_side := 1.0
+var _cine_left := 0.0
+var _cine_total := 0.4
 
 
 func _ready() -> void:
@@ -141,6 +160,17 @@ func add_fov_punch(deg: float) -> void:
 	_fov_punch = maxf(_fov_punch, deg)
 
 
+## Short close-up (arm pulled in) for a cinematic moment.
+func cinematic(duration: float = 0.4) -> void:
+	_cine_total = maxf(duration, 0.05)
+	_cine_left = _cine_total
+
+
+## 0..1: how far the duel (three-quarter side) framing is blended in.
+func duel_blend() -> float:
+	return _duel_blend
+
+
 func get_yaw_basis() -> Basis:
 	return Basis(Vector3.UP, yaw)
 
@@ -178,8 +208,10 @@ func _unhandled_input(event: InputEvent) -> void:
 ## bounded offset that eases back.
 func add_look_input(delta_rad: Vector2) -> void:
 	if is_locked():
-		_yaw_offset = clampf(_yaw_offset - delta_rad.x, -deg_to_rad(lock_manual_yaw_deg), deg_to_rad(lock_manual_yaw_deg))
-		_pitch_offset = clampf(_pitch_offset - delta_rad.y, -deg_to_rad(lock_manual_pitch_deg), deg_to_rad(lock_manual_pitch_deg))
+		var my := free_aim_manual_yaw_deg if Experiments.free_aim else lock_manual_yaw_deg
+		var mp := free_aim_manual_pitch_deg if Experiments.free_aim else lock_manual_pitch_deg
+		_yaw_offset = clampf(_yaw_offset - delta_rad.x, -deg_to_rad(my), deg_to_rad(my))
+		_pitch_offset = clampf(_pitch_offset - delta_rad.y, -deg_to_rad(mp), deg_to_rad(mp))
 		_offset_idle = 0.0
 	else:
 		yaw = wrapf(yaw - delta_rad.x, -PI, PI)
@@ -216,6 +248,12 @@ func _update_camera(delta: float, instant: bool) -> void:
 		var desired_yaw := yaw - _yaw_offset_applied()
 		if horiz > 2.5:
 			desired_yaw = atan2(-to.x, -to.z)
+		# 动态对决镜头: swing to the side the camera is already on
+		var duel_want := 1.0 if Experiments.duel_cam and horiz < duel_range else 0.0
+		if duel_want > 0.0 and _duel_blend < 0.01:
+			_duel_side = 1.0 if wrapf(yaw - desired_yaw, -PI, PI) >= 0.0 else -1.0
+		_duel_blend = duel_want if instant else move_toward(_duel_blend, duel_want, delta * 2.0)
+		desired_yaw += _duel_side * deg_to_rad(duel_side_deg) * _duel_blend
 		var desired_pitch := clampf(atan2(to.y, maxf(horiz, 0.1)) * lock_pitch_factor,
 			deg_to_rad(lock_pitch_min_deg), deg_to_rad(lock_pitch_max_deg))
 		_offset_idle += delta
@@ -225,11 +263,13 @@ func _update_camera(delta: float, instant: bool) -> void:
 		yaw = _approach_angle(yaw, desired_yaw + _yaw_offset, delta, instant)
 		pitch = _approach_angle(pitch, desired_pitch + _pitch_offset, delta, instant)
 		pitch = clampf(pitch, deg_to_rad(pitch_min_deg), deg_to_rad(pitch_max_deg))
-		close_t = clampf((lock_close_distance - horiz) / lock_close_distance, 0.0, 1.0)
+		close_t = clampf((lock_close_distance - horiz) / lock_close_distance, 0.0, 1.0) * (1.0 - _duel_blend)
 		extra_dist = clampf(absf(to.y) * lock_height_distance_factor + maxf(horiz - 40.0, 0.0) * 0.02, 0.0, lock_max_extra_distance)
+		extra_dist += _duel_blend * horiz * duel_extra_dist_per_m
 	else:
 		_yaw_offset = 0.0
 		_pitch_offset = 0.0
+		_duel_blend = 0.0 if instant else move_toward(_duel_blend, 0.0, delta * 2.0)
 
 	# --- dynamic distance: preset (eased), height difference, speed pull-back
 	distance = get_target_distance() if instant else lerpf(distance, get_target_distance(), 1.0 - exp(-distance_change_sharpness * delta))
@@ -237,6 +277,10 @@ func _update_camera(delta: float, instant: bool) -> void:
 	var p := mech.profile
 	var speed_t := clampf((spd - p.ground_max_speed) / maxf(p.air_dash_speed - p.ground_max_speed, 1.0), 0.0, 1.0)
 	var want_dist := distance + extra_dist + speed_t * speed_pullback
+	if _cine_left > 0.0 and not instant:
+		_cine_left = maxf(_cine_left - delta, 0.0)
+		var ck := clampf(minf(_cine_left, _cine_total - _cine_left) / 0.08, 0.0, 1.0)
+		want_dist *= lerpf(1.0, cine_zoom, ck)
 
 	var basis_free := Basis.from_euler(Vector3(pitch, yaw, 0.0))
 	var orbit_pitch := pitch
@@ -299,9 +343,12 @@ func _update_camera(delta: float, instant: bool) -> void:
 			d_p = d_p.normalized()
 			d_t = d_t.normalized()
 			var sep := d_p.angle_to(d_t)
-			var w := lock_aim_weight
+			var w := free_aim_lock_weight if Experiments.free_aim else lock_aim_weight
+			var max_ang := 40.0 if Experiments.free_aim else lock_player_max_angle_deg
+			w = lerpf(w, maxf(duel_aim_weight, w - 0.2) if Experiments.free_aim else duel_aim_weight, _duel_blend)
+			max_ang = lerpf(max_ang, 45.0, _duel_blend)
 			if sep > 0.001:
-				w = minf(w, deg_to_rad(lock_player_max_angle_deg) / sep)
+				w = minf(w, deg_to_rad(max_ang) / sep)
 			var want_dir := d_p.slerp(d_t, clampf(w, 0.0, 1.0)).normalized()
 			_aim_dir = want_dir if (instant or _aim_dir == Vector3.ZERO) else _aim_dir.slerp(want_dir, 1.0 - exp(-lock_sharpness * 1.5 * delta)).normalized()
 			if absf(_aim_dir.dot(Vector3.UP)) < 0.98:

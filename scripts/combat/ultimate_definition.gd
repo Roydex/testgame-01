@@ -18,7 +18,8 @@ extends Resource
 @export var interrupt_cooldown: float = 10.0
 
 @export_group("Judgment state")
-@export var duration: float = 6.0
+## Playtest R2-2: 6 → 10 s, plus offence / super armour / suppression field.
+@export var duration: float = 10.0
 @export var parry_window_mult: float = 2.0
 @export var speed_mult: float = 1.25
 @export var dash_cost_mult: float = 0.5
@@ -31,6 +32,21 @@ extends Resource
 @export var reflect_speed_mult: float = 1.5
 ## Horizontal homing of reflected projectiles (deg/s).
 @export var reflect_homing_deg: float = 25.0
+## Outgoing damage multiplier for every attack started during judgment.
+@export var damage_mult: float = 1.25
+## Each melee (hitbox) attack also releases this forward shockwave
+## (a short-range projectile) at the start of its active phase.
+@export var wave_attack: AttackDefinition
+## Super armour: clean hits dealing less than this do not stagger (the
+## push is reduced). Grabs and guard breaks still do.
+@export var armor_damage_threshold: float = 20.0
+@export var armor_knockback_mult: float = 0.3
+
+@export_group("Suppression field (圣域)")
+## Hostile mechs within this radius get `field_status` refreshed every tick
+## (slower, no EN regen, longer windups).
+@export var field_radius: float = 12.0
+@export var field_status: StatusEffectDefinition
 
 @export_group("Overload (cost)")
 @export var overload_duration: float = 3.0

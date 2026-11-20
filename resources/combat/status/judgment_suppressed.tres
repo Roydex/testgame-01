@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StatusEffectDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/specs/status_effect_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"judgment_suppressed"
+display_name = "圣域压制"
+duration = 0.3
+max_stacks = 1
+speed_mult = 0.75
+block_en_regen = true
+windup_mult = 1.3
+color = Color(1.0, 0.85, 0.35, 1.0)

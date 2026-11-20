@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/specs/projectile_spec.gd" id="2"]
+
+[sub_resource type="Resource" id="WaveSpec_1"]
+script = ExtResource("2")
+color = Color(1.0, 0.85, 0.35, 1.0)
+
+[resource]
+script = ExtResource("1")
+id = &"seraph_judgment_wave"
+display_name = "审判冲击波"
+attack_type = 1
+delivery = 1
+damage = 7.0
+parryable = false
+knockback = 4.0
+knockback_up = 0.5
+stagger_time = 0.0
+hitstop = 0.03
+shake = 0.1
+projectile_speed = 48.0
+projectile_range = 8.0
+projectile_radius = 1.1
+projectile_spec = SubResource("WaveSpec_1")

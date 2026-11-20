@@ -15,7 +15,7 @@ func setup(p_combat: CombatStateMachine, p_config: KitConfig) -> void:
 
 
 func target_marks() -> int:
-	var tc := DamageSystem.get_combat(combat.aim_target)
+	var tc := DamageSystem.get_combat(combat.ranged_target())
 	return tc.status.stacks(cfg().mark_id) if tc else 0
 
 

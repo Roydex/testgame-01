@@ -11,6 +11,13 @@ extends KitConfig
 @export var heat_per_dash: float = 10.0
 ## Heat gained per point of damage blocked.
 @export var guard_heat_per_damage: float = 0.5
+@export_group("Furnace guard (熔炉格挡, playtest round 2)")
+## Released after a guard that absorbed at least `furnace_min_absorbed`
+## damage: a radial blast whose damage = base + absorbed × per (absorbed capped).
+@export var furnace_burst: AttackDefinition
+@export var furnace_min_absorbed: float = 6.0
+@export var furnace_damage_per_absorbed: float = 1.0
+@export var furnace_absorb_cap: float = 40.0
 @export_group("Scorching tier (high heat bonus)")
 @export var scorch_threshold: float = 70.0
 @export var scorch_damage_mult: float = 1.3

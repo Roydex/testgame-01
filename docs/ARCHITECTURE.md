@@ -173,3 +173,12 @@
 - **D-42 抓取的打断与硬直分开。** 钩爪命中时先调用 `interrupt()`（不受硬控递减影响，只取消当前动作），再按预计拉近时间施加硬直（受递减保护）。这样硬控免疫期间仍能打断蓄力，但不会无限硬直。
 - **D-43 静止回能由机动层判定。** `MechMotor.is_idle_for_regen()`：着地、无移动输入、水平速度 < `idle_regen_speed`。战斗层不参与，格挡站桩也算静止。
 - **D-44 轨道光圈跟随后锁定。** OrbitalStrike 自己追目标（只读位置，速度上限 `follow_speed`），锁定后位置不再变；HUD 根据 `is_locked()` 给出“追踪中 / 锁定”两种提示。
+
+## 设计决策（续，第 2 轮试玩）
+
+- **D-45 可开关的玩法实验放在 `Experiments`（静态开关）。** 速度即伤害、对决镜头、自由瞄准是规则而不是“练习模式”分支：玩家和陪练走同一条路径，只是默认关闭。技能测试场景进入时全部打开、退出时全部关闭，所以灰盒场景、无头测试和平衡模拟保持已验收的行为。
+- **D-46 反刺窗口与失衡解耦。** 窗口由招架者自己计时（`riposte_window`），不读对手的状态；硬控递减只决定对手被控多久，不再决定招架者能否反击。
+- **D-47 锁定按威胁打分。** `TargetingSystem.threat_of()` 只读公开状态（对方 `aim_target`、攻击 / 蓄力状态、`hit_resolved` 记下的近期伤害），不依赖具体机体。
+- **D-48 防御键的机体差异走 MechKit 钩子。** `on_guard_started()` / `on_guard_released()` 由 CombatStateMachine 在进入 / 松开格挡时调用：赤狱的 HeatKit 用来累积吸收量并放出爆燃反震（经 `start_kit_attack`，仍是普通 AttackDefinition，`self_blast_radius` 走 AreaBlast），苍藓的 DeployKit 用来立盾墙。战斗状态机不知道具体机体。
+- **D-49 远程目标统一取 `ranged_target()` / `ranged_point()`。** 自由瞄准时是准星吸附目标或准星落点，否则是锁定目标；弹丸方向、导弹追踪、轨道呼叫、束缚区放置、磁轨瞄准激光都读这两个函数，近战突进仍读 `aim_target`。
+- **D-50 审判的压制用状态效果实现。** 圣域每帧给范围内敌人刷新 0.3 s 的 `judgment_suppressed`；状态效果新增 `block_en_regen` 与 `windup_mult`，前摇减速由 CombatStateMachine 在前摇段按倍率推进 `attack_time`，仍不写速度。

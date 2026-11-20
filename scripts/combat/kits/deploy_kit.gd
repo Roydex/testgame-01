@@ -6,8 +6,41 @@ extends MechKit
 ## is tougher (fortress).
 
 
+var wall: ShieldWall
+var wall_cooldown_left := 0.0
+
+
 func cfg() -> DeployConfig:
 	return config as DeployConfig
+
+
+func wall_up() -> bool:
+	return wall != null and is_instance_valid(wall) and wall.is_alive()
+
+
+func on_guard_started() -> void:
+	if not cfg().wall_enabled or wall_up() or wall_cooldown_left > 0.0:
+		return
+	var fwd := motor.get_forward()
+	var rt := combat.ranged_target() if combat.ranged_target() else combat.aim_target
+	if rt and is_instance_valid(rt):
+		var to := rt.global_position - motor.global_position
+		to.y = 0.0
+		if to.length() > 0.5:
+			fwd = to.normalized()
+	var at := OrbitalStrike.ground_point(motor.get_world_3d(), motor.global_position + fwd * cfg().wall_distance + Vector3.UP * 2.0)
+	wall = ShieldWall.new()
+	motor.get_parent().add_child(wall)
+	wall.global_position = at
+	wall.look_at(at + fwd, Vector3.UP)
+	wall.setup(motor, cfg().wall_size, cfg().wall_hp, cfg().wall_lifetime)
+	wall.gone.connect(func(_destroyed: bool) -> void: wall_cooldown_left = cfg().wall_cooldown)
+	CombatEvents.kit_event.emit(motor, &"wall_up")
+
+
+func _physics_process(delta: float) -> void:
+	if wall_cooldown_left > 0.0 and not wall_up():
+		wall_cooldown_left = maxf(wall_cooldown_left - delta, 0.0)
 
 
 func setup(p_combat: CombatStateMachine, p_config: KitConfig) -> void:
@@ -36,6 +69,10 @@ func incoming_mult(_hit: HitInfo) -> float:
 
 
 func reset() -> void:
+	if wall_up():
+		wall.remove(false)
+	wall = null
+	wall_cooldown_left = 0.0
 	for t in turrets():
 		t.call(&"_remove", false)
 	for z in Deployables.owned_by(motor, DeploySpec.Kind.ZONE):
@@ -54,4 +91,10 @@ func hud_text() -> String:
 		line += "  束缚区冷却 %.1fs" % combat.get_cooldown(p.skill_hold.id)
 	if in_fortress():
 		line += "  堡垒（受伤 ×%.2f）" % cfg().fortress_damage_taken
+	if wall_up():
+		line += "  盾墙 %.0f HP %.0fs" % [wall.health.hp, wall.time_left()]
+	elif wall_cooldown_left > 0.0:
+		line += "  盾墙冷却 %.1fs" % wall_cooldown_left
+	elif cfg().wall_enabled:
+		line += "  盾墙就绪（右键）"
 	return line

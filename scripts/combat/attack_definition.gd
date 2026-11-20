@@ -89,6 +89,8 @@ extends Resource
 ## Non-damaging push on hostile mechs within this radius at active start.
 @export var repulse_radius: float = 0.0
 @export var repulse_force: float = 0.0
+## Radial EXPLOSION around the attacker at active start (HELLFANG 爆燃反震).
+@export var self_blast_radius: float = 0.0
 
 @export_group("Mech resource (read by the mech's kit)")
 ## HELLFANG heat: added when the attack starts / when it lands.

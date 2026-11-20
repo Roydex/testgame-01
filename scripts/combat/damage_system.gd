@@ -105,14 +105,14 @@ static func _resolve(hit: HitInfo) -> int:
 	# --- clean hit
 	var mult := vc.damage_taken_mult(hit)
 	var ac := get_combat(hit.attacker)
-	if vc.offbalance_by == hit.attacker and ac:
-		mult *= ac.profile.counter_damage_mult  # punish window after a parry
+	if vc.offbalance_by == hit.attacker and ac and hit.attack != ac.profile.parry_riposte:
+		mult *= ac.profile.counter_damage_mult  # punish window after a parry (the riposte carries its own)
 	if atk.mark_consume_bonus > 0.0:
 		mult *= 1.0 + atk.mark_consume_bonus * vc.status.consume(&"mark")
 	hit.final_damage = base * mult
 	vc.health.take(hit.final_damage)
 	if not vc.health.dead:
-		vc.on_clean_hit(hit, _push(hit, atk.knockback, atk.knockback_up))
+		vc.on_clean_hit(hit, _push(hit, atk.knockback * hit.knockback_mult, atk.knockback_up))
 		_apply_statuses(hit, vc)
 	_hitstop(hit, atk.hitstop)
 	return CombatTypes.HitResult.HIT

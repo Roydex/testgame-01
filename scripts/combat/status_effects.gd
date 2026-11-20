@@ -83,6 +83,13 @@ func guard_ratio_add() -> float:
 	return a
 
 
+func windup_mult() -> float:
+	var m := 1.0
+	for e: Dictionary in _active.values():
+		m *= (e.def as StatusEffectDefinition).windup_mult
+	return m
+
+
 func get_ids() -> Array:
 	return _active.keys()
 
@@ -109,16 +116,19 @@ func _refresh_mod() -> void:
 	var speed := 1.0
 	var en_cost := 1.0
 	var no_dash := false
+	var no_regen := false
 	for e: Dictionary in _active.values():
 		var d := e.def as StatusEffectDefinition
 		speed *= d.speed_mult
 		en_cost *= d.en_cost_mult
 		no_dash = no_dash or d.block_dash
-	if is_equal_approx(speed, 1.0) and is_equal_approx(en_cost, 1.0) and not no_dash:
+		no_regen = no_regen or d.block_en_regen
+	if is_equal_approx(speed, 1.0) and is_equal_approx(en_cost, 1.0) and not no_dash and not no_regen:
 		motor.remove_modifier(MOD_ID)
 		return
 	var m := MovementModifier.create(MOD_ID)
 	m.speed_mult = speed
 	m.en_cost_mult = en_cost
 	m.block_dash = no_dash
+	m.block_en_regen = no_regen
 	motor.add_modifier(m)

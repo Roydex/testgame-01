@@ -65,6 +65,15 @@ func on_guarded(_hit: HitInfo) -> void:
 	pass
 
 
+## Guard (right button) just started / was released by the player.
+func on_guard_started() -> void:
+	pass
+
+
+func on_guard_released() -> void:
+	pass
+
+
 func reset() -> void:
 	pass
 
