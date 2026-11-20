@@ -23,6 +23,19 @@ var _mat: StandardMaterial3D
 ## 方舟苏生 habitat bonuses (set every tick by the habitat).
 var fire_rate_mult := 1.0
 var range_bonus := 0.0
+## 共生龟甲 alert: forced target and fire-rate bonus for a while.
+var alert_target: Node3D
+var alert_left := 0.0
+var alert_mult := 1.0
+
+
+## The owner blocked a hit from `t`: turn on it and fire faster for `time` s
+## (it still needs range and line of sight).
+func alert(t: Node3D, time: float, rate_mult: float) -> void:
+	alert_target = t
+	alert_left = time
+	alert_mult = rate_mult
+	_retarget = 0.0
 
 
 func setup(p_owner: Node3D, p_spec: DeploySpec) -> void:
@@ -119,7 +132,11 @@ func _physics_process(delta: float) -> void:
 		return
 	_mat.emission_energy_multiplier = 0.6 + 0.8 * clampf(1.0 - time_left() / 4.0, 0.0, 1.0) * (0.5 + 0.5 * sin(age * 12.0))
 	_retarget -= delta
-	if _retarget <= 0.0 or not _valid(target):
+	alert_left = maxf(alert_left - delta, 0.0)
+	var alerted := alert_left > 0.0 and _valid(alert_target)
+	if alerted:
+		target = alert_target
+	elif _retarget <= 0.0 or not _valid(target):
 		_retarget = 0.2
 		target = _pick()
 	if target == null:
@@ -135,7 +152,7 @@ func _physics_process(delta: float) -> void:
 	_head.global_basis = Basis.looking_at(_aim, Vector3.UP if absf(_aim.y) < 0.99 else Vector3.RIGHT)
 	_cool -= delta
 	if _cool <= 0.0 and _aim.angle_to(want) < deg_to_rad(6.0) and spec.shot:
-		_cool = spec.fire_interval / maxf(fire_rate_mult, 0.1)
+		_cool = spec.fire_interval / maxf(fire_rate_mult * (alert_mult if alerted else 1.0), 0.1)
 		var p := Projectile.new()
 		get_parent().add_child(p)
 		p.global_position = muzzle + _aim * 1.2

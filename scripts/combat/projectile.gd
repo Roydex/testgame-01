@@ -113,6 +113,32 @@ func reflect(new_owner: Node3D, dmg_mult: float, speed_mult: float, homing: floa
 		_mesh_mat.emission = Color(0.7, 0.9, 1.0)
 
 
+## Mirror-shield GUARD refraction (PALE SERAPH 流光镜盾, round 6): the
+## blocked shot is spent, and a weaker copy owned by `new_owner` flies from
+## `at` back toward the original shooter (no homing).
+static func spawn_refraction(src: Projectile, new_owner: Node3D, dmg_mult: float, at: Vector3) -> Projectile:
+	if src == null or new_owner == null or not is_instance_valid(new_owner) or not new_owner.is_inside_tree():
+		return null
+	var shooter := src.original_shooter
+	var speed := maxf(src.velocity.length(), 20.0)
+	var dir := -src.velocity.normalized()
+	if shooter and is_instance_valid(shooter) and shooter is Node3D:
+		var aim: Vector3 = shooter.call(&"get_lock_point") if shooter.has_method(&"get_lock_point") \
+			else (shooter as Node3D).global_position + Vector3.UP * 2.2
+		if (aim - at).length() > 0.5:
+			dir = (aim - at).normalized()
+	var p := Projectile.new()
+	new_owner.get_parent().add_child(p)
+	p.global_position = at
+	p.launch(new_owner, src.attack, dir * speed, src.damage_mult * dmg_mult)
+	p.original_shooter = shooter
+	p.reflected = true
+	if p._mesh_mat:
+		p._mesh_mat.albedo_color = Color(0.8, 0.95, 1.0)
+		p._mesh_mat.emission = Color(0.7, 0.9, 1.0)
+	return p
+
+
 func _armed() -> bool:
 	return spec == null or travelled >= spec.arming_distance
 

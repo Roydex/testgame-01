@@ -171,7 +171,8 @@ func _process(delta: float) -> void:
 	_update_vignette(delta)
 	if combat.aim_pending():
 		callout("轨道标记：转动鼠标选择落点 · 左键发射 · 右键 / F 取消（剩 %.0f s）" % ceilf(combat.aim_left), Color(0.6, 0.95, 1.0), 0.1)
-	_crosshair.visible = Experiments.free_aim
+	# the mirror shield's reflected light flies to the screen centre when nothing is locked
+	_crosshair.visible = Experiments.free_aim or (combat.kit is MirrorKit and combat.is_guarding() and combat.aim_target == null)
 	if _crosshair.visible:
 		_crosshair.position = vp * 0.5
 		_crosshair.queue_redraw()
@@ -284,6 +285,8 @@ func _update_kit() -> void:
 		var fill := _kit_bar.get_theme_stylebox(&"fill") as StyleBoxFlat
 		if fill and k is HeatKit:
 			fill.bg_color = Color(1.0, 0.25, 0.1) if (k as HeatKit).is_scorching() or (k as HeatKit).is_overheated() else Color(1.0, 0.6, 0.2)
+		elif fill and k is MirrorKit:
+			fill.bg_color = Color(1.0, 0.2, 0.15) if (k as MirrorKit).overheated else Color(0.55, 0.9, 1.0).lerp(Color(1.0, 0.55, 0.15), b)
 		elif fill:
 			fill.bg_color = Color(0.5, 0.85, 1.0)
 
@@ -409,3 +412,17 @@ func _on_kit_event(mech: Node3D, id: StringName) -> void:
 			callout("盾墙被击碎", Color(1.0, 0.6, 0.4), 0.8)
 		&"super_armor":
 			pass
+		&"mirror_overheat":
+			callout("镜盾过热：不减伤", Color(1.0, 0.45, 0.25), 1.0)
+		&"mirror_ready":
+			callout("镜盾恢复", Color(0.6, 0.95, 1.0), 0.6)
+		&"mirror_ray":
+			callout("折射光", Color(0.7, 0.95, 1.0), 0.5)
+		&"claw_catch":
+			callout("截击！下一斧加快", Color(1.0, 0.55, 0.2), 0.7)
+		&"claw_swallow":
+			callout("吞弹 · 钩爪冷却缩短", Color(1.0, 0.65, 0.3), 0.5)
+		&"flame":
+			callout("熔炉喷焰！", Color(1.0, 0.5, 0.15), 0.7)
+		&"spore_burst":
+			callout("孢囊爆散", Color(0.5, 1.0, 0.45), 0.7)

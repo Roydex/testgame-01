@@ -13,6 +13,7 @@ var log_lines: PackedStringArray = []
 var arena: Node3D
 var _filter := ""
 var p3 = preload("res://tests/phase3_tests.gd").new(self)
+var p6 = preload("res://tests/round6_tests.gd").new(self)
 
 
 func _ready() -> void:
@@ -77,6 +78,7 @@ func _run_all() -> void:
 		["T43", "Round-5 regressions: point-blank grapple, combo chain cadence", p3.t43_round5_regressions],
 		["T44", "U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 / 终末坐标", p3.t44_ultimates_3b],
 		["T45", "Air control rework: hover lock, fast / dive descent, hover EN, air regen", p3.t45_air_control],
+		["T46", "Round 6a: mirror heat / claw catch / symbiotic shell / spore burst, spear charge, weak ram, flame", p6.t46_round6_defence_moves],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
@@ -1271,15 +1273,20 @@ func t17_defence(res: Dictionary) -> void:
 	_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.GUARDED and is_equal_approx(h[0][3], l1.damage * cp.guard_damage_taken),
 		"frontal guard: GUARDED, chip %.2f (= %.0f × %.2f)" % [h[0][3] if h.size() else -1.0, l1.damage, cp.guard_damage_taken])
 	_check(res, absf((en0 - b.en) - l1.damage * cp.guard_en_per_damage) < 0.5, "guard drains EN %.1f (expected %.1f)" % [en0 - b.en, l1.damage * cp.guard_en_per_damage])
-	# --- guard with no EN -> break
+	# --- round 6: the mirror no longer drains EN; overheated it keeps the pose
+	# but blocks nothing (EN-based guard break is covered for HELLFANG in T46)
 	await _ticks(60)
-	var guard_no_en := func(_i: int) -> void:
+	var mk := _cs(b).kit as MirrorKit
+	var guard_hot := func(_i: int) -> void:
 		b.command.guard_held = true
 		b.en = 0.0
-	ev = await _duel(a, b, 40, guard_no_en)
+		if _i == 0:
+			mk.heat = 100.0
+			mk.overheated = true
+	ev = await _duel(a, b, 40, guard_hot)
 	h = _hits_on(ev, b)
-	_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.GUARD_BREAK and _cs(b).state == CombatStateMachine.CombatState.STAGGER or (h.size() > 0 and h[0][2] == CombatTypes.HitResult.GUARD_BREAK),
-		"guard without EN breaks (%s)" % (CombatTypes.RESULT_NAMES[h[0][2]] if h.size() else "no hit"))
+	_check(res, h.size() > 0 and h[0][2] == CombatTypes.HitResult.HIT and is_equal_approx(h[0][3], l1.damage),
+		"overheated mirror, EN 0: guard pose but a clean hit for full %.0f (%s)" % [h[0][3] if h.size() else -1.0, CombatTypes.RESULT_NAMES[h[0][2]] if h.size() else "no hit"])
 	a.queue_free()
 	b.queue_free()
 	await _ticks(90)
@@ -1674,18 +1681,21 @@ func t23_ultimate(res: Dictionary) -> void:
 	await _frames(ev, 30, countp)
 	var cp := load(SERAPH) as CombatProfile
 	_check(res, absf(pw.f * DT - cp.parry_window * ud.parry_window_mult) <= 2.0 * DT, "JUDGMENT parry window %.2fs (= %.2f × %.0f)" % [pw.f * DT, cp.parry_window, ud.parry_window_mult])
-	# spear: 2 charges inside JUDGMENT (wait out the whiffed-parry recovery first)
+	# spear: 3 charges inside JUDGMENT (round 6; wait out the whiffed-parry recovery first)
 	await _frames(ev, 30)
 	var ids := []
-	for k in 2:
+	for k in ud.spear_charges:
 		ev.attacks.clear()
 		a.command.skill_pressed = true
 		await _frames(ev, 3)
 		if ev.attacks.size() > 0:
 			ids.append(ev.attacks[0][2])
-		await _frames(ev, 145)
+		await _frames(ev, 110)
 	_info("skill presses in JUDGMENT: %s (charges left %d, %.1fs of judgment left)" % [ids, u.spear_charges_left, u.phase_time_left])
-	_check(res, ids == [&"seraph_final_spear", &"seraph_final_spear"] and u.spear_charges_left == 0, "two 终审之矛 charges in JUDGMENT")
+	var want_ids := []
+	for k in ud.spear_charges:
+		want_ids.append(&"seraph_final_spear")
+	_check(res, ud.spear_charges == 3 and ids == want_ids and u.spear_charges_left == 0, "%d 终审之矛 charges in JUDGMENT" % ud.spear_charges)
 	# overload: EN does not regenerate, damage taken ×1.3
 	var ov := {"seen": false, "en_rise": false, "en": 0.0, "mult": 1.0}
 	var watch := func(_i: int) -> void:
@@ -1835,10 +1845,10 @@ func t23_ultimate(res: Dictionary) -> void:
 			_face(a, b)
 			if i == 0:
 				a.command.skill_pressed = true
-			if dodge and i == 40:  # during the 1.0 s charge
+			if dodge and i == 10:  # during the 0.4 s quick windup (round 6)
 				b.command.move = Vector3(1, 0, 0)
 				b.command.dash_pressed = true
-			elif dodge and i > 40:
+			elif dodge and i > 10:
 				b.command.move = Vector3(1, 0, 0)
 		await _frames(ev5, 120, sp2)
 		var landed := false

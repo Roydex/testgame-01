@@ -15,6 +15,12 @@ extends Resource
 ## Left button held past hold_threshold; only while the kit allows it
 ## (otherwise the left button fires on press as usual).
 @export var attack_hold: AttackDefinition
+## Used instead of `attack_hold` when the kit refuses it (HELLFANG weak ram
+## below 60 heat, round 6).
+@export var attack_hold_fallback: AttackDefinition
+## The left button held this long converts the first swing (still in its
+## windup) into the hold attack; a tap swings at once (round 6).
+@export var attack_hold_time: float = 0.18
 ## Right button held = charge this attack, release = fire (replaces guard).
 @export var charge_attack: AttackDefinition
 ## F performs this action instead of a parry (AZURE ORACLE backstep).
@@ -36,12 +42,14 @@ extends Resource
 @export var guard_speed_mult: float = 0.5
 ## EN drained per point of damage blocked; guard breaks when EN runs out.
 @export var guard_en_per_damage: float = 0.45
-@export var guard_break_stagger: float = 0.8
+@export var guard_break_stagger: float = 0.6
+## Dashing keeps the guard up (PALE SERAPH 流光镜盾, round 6).
+@export var guard_allows_dash: bool = false
 
 @export_group("Parry (mirror shield)")
 @export var parry_window: float = 0.15
 ## Recovery after a whiffed parry: no defence, extra damage taken.
-@export var parry_whiff_recovery: float = 0.4
+@export var parry_whiff_recovery: float = 0.3
 @export var parry_whiff_damage_mult: float = 1.2
 @export var parry_hitstop: float = 0.1
 ## Melee attacker knocked off-balance by a parry.
@@ -66,6 +74,12 @@ extends Resource
 ## Reflected projectile: damage and speed multipliers.
 @export var reflect_damage_mult: float = 0.8
 @export var reflect_speed_mult: float = 1.2
+## A parried projectile is refracted back (mirror shield). false: it is
+## swallowed and the kit reacts (HELLFANG heat / VERDANT spores, round 6).
+@export var parry_reflects: bool = true
+## > 0: a parried melee attacker is caught in a stagger this long instead of
+## being pushed (HELLFANG 熔爪截击, round 6).
+@export var parry_catch_stagger: float = 0.0
 
 @export_group("Hard-control protection")
 ## Window in which hard controls (stagger / off-balance / guard break) count.

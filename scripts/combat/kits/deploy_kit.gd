@@ -11,6 +11,8 @@ var wall_cooldown_left := 0.0
 ## 方舟苏生: the active habitat (null when none) and the dormancy cost.
 var habitat: Habitat
 var dormant := false
+## 孢囊爆散 internal cooldown left.
+var spore_cd_left := 0.0
 
 
 func cfg() -> DeployConfig:
@@ -41,7 +43,43 @@ func on_guard_started() -> void:
 	CombatEvents.kit_event.emit(motor, &"wall_up")
 
 
+## 共生龟甲: a blocked hit alerts the own turrets onto the attacker.
+func on_guarded(hit: HitInfo) -> void:
+	var a := hit.attacker as Node3D
+	if a == null or not is_instance_valid(a) or not TeamRules.can_damage(motor, a):
+		return
+	for t in turrets():
+		var tu := t as Turret
+		if tu:
+			tu.alert(a, cfg().alert_time, cfg().alert_rate_mult)
+	CombatEvents.kit_event.emit(motor, &"turret_alert")
+
+
+## 孢囊爆散: a successful parry bursts spores around the ark.
+func on_parry_success(_hit: HitInfo, _projectile: bool) -> void:
+	if spore_cd_left > 0.0:
+		return
+	spore_cd_left = cfg().spore_cooldown
+	var c := motor.global_position + Vector3.UP * 2.0
+	for t in TeamRules.get_valid_targets(motor, &"mechs"):
+		var tm := t as MechMotor
+		if tm == null:
+			continue
+		var p := tm.global_position + Vector3.UP * 2.0
+		if c.distance_to(p) > cfg().spore_radius or not CombatTypes.has_line_of_sight(motor.get_world_3d(), c, p):
+			continue
+		var push := tm.global_position - motor.global_position
+		push.y = 0.0
+		tm.apply_impulse(push.normalized() * cfg().spore_push + Vector3.UP * 1.5)
+		var tc := DamageSystem.get_combat(tm)
+		if tc and cfg().spore_status:
+			tc.status.apply(cfg().spore_status, motor)
+	CombatEvents.area_telegraph.emit(motor, motor.global_position + Vector3.UP * 1.0, cfg().spore_radius, 0.0, &"spore")
+	CombatEvents.kit_event.emit(motor, &"spore_burst")
+
+
 func _physics_process(delta: float) -> void:
+	spore_cd_left = maxf(spore_cd_left - delta, 0.0)
 	if wall_cooldown_left > 0.0 and not wall_up():
 		wall_cooldown_left = maxf(wall_cooldown_left - delta, 0.0)
 
@@ -96,6 +134,7 @@ func revive() -> void:
 
 
 func reset() -> void:
+	spore_cd_left = 0.0
 	dormant = false
 	habitat = null
 	if wall_up():

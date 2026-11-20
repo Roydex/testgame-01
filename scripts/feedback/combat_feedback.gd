@@ -136,6 +136,29 @@ func _on_hit(hit: HitInfo) -> void:
 func _on_attack(attacker: Node3D, attack: AttackDefinition) -> void:
 	if attack and attack.attack_type == CombatTypes.AttackType.MELEE:
 		play(&"swing", attacker.global_position + Vector3.UP * 2.5, randf_range(0.9, 1.1))
+	if attack and attack.hit_cone_deg > 0.0 and attacker is MechMotor:
+		_flame_cone(attacker as MechMotor, attack)
+
+
+## 熔炉喷焰: a fading cone of fire along the attacker's facing.
+func _flame_cone(m: MechMotor, attack: AttackDefinition) -> void:
+	var fwd := m.get_forward()
+	fwd.y = 0.0
+	if fwd.length() < 0.01:
+		return
+	fwd = fwd.normalized()
+	var length := attack.hitbox_size.z
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.4
+	cm.bottom_radius = length * tan(deg_to_rad(attack.hit_cone_deg * 0.5))
+	cm.height = length
+	var cone := _fx_mesh(cm, Color(1.0, 0.45, 0.1, 0.55), m.global_position + Vector3.UP * 2.2 + fwd * (length * 0.5 + 0.4))
+	cone.global_basis = Basis.looking_at(fwd, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5)
+	var mat := cone.material_override as StandardMaterial3D
+	var tw := cone.create_tween()
+	tw.tween_property(mat, "albedo_color:a", 0.0, attack.active + 0.15)
+	tw.tween_callback(cone.queue_free)
+	play(&"heavy_hit", m.global_position + Vector3.UP * 2.5, 0.6)
 
 
 func _on_telegraph(attacker: Node3D, _attack: AttackDefinition, _d: float) -> void:
@@ -160,7 +183,7 @@ func _on_died(mech: Node3D) -> void:
 func _on_area(_owner: Node3D, pos: Vector3, radius: float, duration: float, kind: StringName) -> void:
 	if duration > 0.0:
 		return  # telegraphs draw themselves (orbital circle, zones)
-	var col := Color(0.85, 0.9, 1.0) if kind == &"steam" else Color(1.0, 0.55, 0.2)
+	var col := Color(0.85, 0.9, 1.0) if kind == &"steam" else (Color(0.45, 1.0, 0.35) if kind == &"spore" else Color(1.0, 0.55, 0.2))
 	var tor := TorusMesh.new()
 	tor.inner_radius = 0.9
 	tor.outer_radius = 1.0

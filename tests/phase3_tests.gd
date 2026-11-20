@@ -162,7 +162,7 @@ func all_attacks(p: CombatProfile) -> Array[AttackDefinition]:
 func t28_kits_operable(res: Dictionary) -> void:
 	var expect := {
 		&"seraph": {"lmb": &"seraph_l1", "x": &"seraph_dash_slash", "f": "PARRY", "rmb": "GUARD"},
-		&"hellfang": {"lmb": &"hf_axe1", "x": &"hf_hook", "xh": &"hf_vent", "lmbh": &"hf_ram", "f": "PARRY", "rmb": "GUARD"},
+		&"hellfang": {"lmb": &"hf_axe1", "x": &"hf_hook", "xh": &"hf_flame", "lmbh": &"hf_ram", "f": "PARRY", "rmb": "GUARD"},
 		&"verdant": {"lmb": &"va_scatter", "x": &"va_turret", "xh": &"va_zone", "f": "PARRY", "rmb": "GUARD"},
 		&"azure": {"lmb": &"ao_pulse", "x": &"ao_missiles", "xh": &"ao_orbital", "f": &"ao_backstep", "rmb": &"ao_rail"},
 	}
@@ -386,7 +386,9 @@ func t30_damage_types(res: Dictionary) -> void:
 		"MELEE": [CombatTypes.HitResult.PARRIED, CombatTypes.HitResult.GUARDED],
 		"GRAB": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.HIT],
 		"BEAM": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.GUARDED],
-		"BEAM (heavy orbital)": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.GUARD_BREAK],
+		# round 6: the working mirror reflects light instead of breaking (T46); the
+		# guard-break row for other guards is checked on HELLFANG below
+		"BEAM (heavy orbital)": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.GUARDED],
 		"EXPLOSION": [CombatTypes.HitResult.HIT, CombatTypes.HitResult.GUARDED],
 	}
 	var vc := _cs(v)
@@ -415,6 +417,22 @@ func t30_damage_types(res: Dictionary) -> void:
 		r._check(res, outs == expect[k], "%s vs parry / guard → %s / %s (expected %s / %s)" % [k,
 			CombatTypes.RESULT_NAMES[outs[0]], CombatTypes.RESULT_NAMES[outs[1]],
 			CombatTypes.RESULT_NAMES[expect[k][0]], CombatTypes.RESULT_NAMES[expect[k][1]]])
+	# the heavy orbital still guard-breaks a non-mirror guard (HELLFANG)
+	var hg := _mech(&"hellfang", 1, Vector3(6, 0.2, 26), Vector3(6, 0.2, 30))
+	await r._ticks(20)
+	_cs(hg)._enter_guard()
+	hg.command.guard_held = true
+	await r._ticks(1)
+	var hh := HitInfo.new()
+	hh.attacker = att
+	hh.victim = hg
+	hh.attack = defs["BEAM (heavy orbital)"]
+	hh.source_position = hg.global_position + Vector3(0, 8, 0)
+	hh.direction = Vector3.DOWN
+	var hres := DamageSystem.resolve(hh)
+	hg.command.guard_held = false
+	r._check(res, hres == CombatTypes.HitResult.GUARD_BREAK, "heavy orbital vs HELLFANG guard → %s (expected GUARD_BREAK)" % CombatTypes.RESULT_NAMES[hres])
+	await _free([hg])
 	# real grapple against a guarding seraph: still grabbed
 	vc.restore_full()
 	_cs(att).restore_full()
@@ -714,15 +732,14 @@ func t33_resources(res: Dictionary) -> void:
 	await r._ticks(int(cfg.overheat_duration * 60) + 10)
 	r._check(res, not hk.is_overheated() and is_equal_approx(hk.heat, cfg.overheat_reset) or (not hk.is_overheated() and hk.heat <= cfg.overheat_reset + 0.01),
 		"overheat over after %.1f s, heat reset to %.0f (%.0f)" % [cfg.overheat_duration, cfg.overheat_reset, hk.heat])
-	# active vent
+	# X held: 熔炉喷焰 cashes the heat in (round 6, replaces the active vent)
 	await r._ticks(70)
 	hk.heat = 80.0
 	var ev6 := _rec()
 	await _frames(ev6, 90, _press_skill(h, 30))
 	_unrec()
-	var vent := load("res://resources/combat/hellfang/hf_vent.tres") as AttackDefinition
-	r._check(res, _started(ev6, h, &"hf_vent") == 1 and hk.heat < 80.0 - vent.heat_vent_rate * 0.8 and _kit_events(ev6, &"vent") == 1,
-		"X held: active vent, heat 80 → %.0f" % hk.heat)
+	r._check(res, _started(ev6, h, &"hf_flame") == 1 and hk.heat < 5.0 and _kit_events(ev6, &"flame") == 1,
+		"X held: 熔炉喷焰, heat 80 → %.0f" % hk.heat)
 	# ram whiff → long overheat
 	await r._ticks(40)
 	_cs(h).restore_full()

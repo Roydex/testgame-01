@@ -35,6 +35,13 @@ extends KitConfig
 @export var steam_push: float = 12.0
 ## Heat left after an overheat.
 @export var overheat_reset: float = 40.0
+@export_group("Furnace claw catch (熔爪截击, round 6)")
+## F parry: a swallowed shot adds heat and cuts the grapple cooldown; a
+## caught melee swing bites the attacker and quickens our next windup.
+@export var parry_shot_heat: float = 6.0
+@export var parry_shot_hook_cut: float = 1.0
+@export var parry_catch_windup_mult: float = 0.5
+@export var parry_catch_window: float = 0.8
 
 
 func create_kit() -> MechKit:

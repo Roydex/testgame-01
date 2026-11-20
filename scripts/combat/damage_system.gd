@@ -74,19 +74,21 @@ static func _resolve(hit: HitInfo) -> int:
 
 	# --- parry (mirror shield): melee + projectiles, frontal arc only
 	if not hit.force_unblockable and atk.parryable and CombatTypes.is_parryable_type(atk.attack_type) \
-			and front and vc.is_parrying():
+			and front and vc.is_parrying() and vc.kit.defends_against(hit, true):
 		if is_proj:
 			vc.on_parried_projectile(hit)
-			return CombatTypes.HitResult.REFLECTED
+			# only a mirror refracts; HELLFANG / VERDANT swallow the shot (round 6)
+			return CombatTypes.HitResult.REFLECTED if prof.parry_reflects else CombatTypes.HitResult.PARRIED
 		return vc.on_parried_melee(hit)
 
 	# --- guard: frontal arc, not grabs
 	var base := atk.damage * hit.damage_mult
 	if not hit.force_unblockable and atk.guardable and CombatTypes.is_guardable_type(atk.attack_type) \
-			and front and vc.is_guarding():
+			and front and vc.is_guarding() and vc.kit.defends_against(hit, false):
 		var chip := base * vc.guard_ratio()
 		vc.kit.on_guarded(hit)
-		if atk.guard_break or hit.force_guard_break or not vc.motor.consume_en(base * prof.guard_en_per_damage):
+		var breaks := (atk.guard_break or hit.force_guard_break) and not vc.kit.resists_guard_break(hit)
+		if breaks or not vc.motor.consume_en(base * prof.guard_en_per_damage):
 			hit.final_damage = chip
 			vc.health.take(chip)
 			vc.on_guard_broken(hit)
@@ -100,6 +102,7 @@ static func _resolve(hit: HitInfo) -> int:
 		_hitstop(hit, atk.hitstop * 0.6)
 		if atk.status_on_guard:
 			_apply_statuses(hit, vc)
+		vc.kit.on_guard_held(hit)  # PALE SERAPH mirror refraction
 		return CombatTypes.HitResult.GUARDED
 
 	# --- clean hit

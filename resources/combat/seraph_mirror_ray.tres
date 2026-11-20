@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"seraph_mirror_ray"
+display_name = "镜盾折射光"
+attack_type = 2
+delivery = 5
+damage = 1.0
+parryable = false
+knockback = 3.0
+knockback_up = 0.5
+stagger_time = 0.2
+hitstop = 0.04
+shake = 0.15

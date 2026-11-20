@@ -122,6 +122,21 @@ var _parry_count := 0
 var _parry_recovering := false
 
 var _cooldowns: Dictionary = {}
+## HELLFANG 熔爪截击: the next attack started within the window has its
+## windup scaled by this (round 6).
+var _quick_left := 0.0
+var _quick_mult := 1.0
+## Windup speed of the current attack (1 / quick multiplier).
+var _windup_speed := 1.0
+## Lunge duration of the current attack (a held charge stretches it).
+var _cur_lunge := 0.0
+## Hold-to-charge windup (终审之矛): still charging, and the extra time held.
+var _hold_charging := false
+var _hold_extra := 0.0
+## Camera view point (PlayerBrain sets it every frame; scripts leave it
+## unset): where the mirror shield's reflected light goes without a lock.
+var view_point := Vector3.ZERO
+var view_point_valid := false
 var _cc_times: Array[float] = []
 var cc_immune_left: float = 0.0
 
@@ -230,7 +245,27 @@ func get_attack_phase() -> int:
 		return -1
 	if attack_time < attack.windup:
 		return 0
-	return 1 if attack_time < attack.windup + maxf(attack.active, attack.lunge_duration) else 2
+	return 1 if attack_time < attack.windup + maxf(attack.active, _cur_lunge) else 2
+
+
+## HELLFANG 熔爪截击: the next attack started within `window` s has its
+## windup scaled by `mult`.
+func grant_quick_windup(mult: float, window: float) -> void:
+	_quick_mult = mult
+	_quick_left = window
+
+
+## Where the mirror shield's reflected light goes: the crosshair (free
+## aim), else the lock target, else the camera's view point (player), else
+## straight ahead.
+func reflect_point() -> Vector3:
+	if Experiments.free_aim and free_aim_active:
+		return ranged_point()
+	if _target_valid():
+		return _target_point()
+	if view_point_valid:
+		return view_point
+	return motor.global_position + Vector3.UP * 2.6 + motor.get_forward() * 60.0
 
 
 ## Incoming damage multiplier from this mech's own state (whiffed parry,
@@ -270,11 +305,9 @@ func _physics_process(delta: float) -> void:
 		return
 	var cmd := motor.command
 	if cmd.attack_pressed:
-		if profile.attack_hold and state == CombatState.READY and kit.can_start(profile.attack_hold) \
-				and get_cooldown(profile.attack_hold.id) <= 0.0:
-			_attack_hold_t = 0.0
-		else:
-			_buf_attack = INPUT_BUFFER
+		_buf_attack = INPUT_BUFFER
+		if (state == CombatState.READY or state == CombatState.GUARD) and _hold_attack_def() != null:
+			_attack_hold_t = 0.0  # held on: the first swing converts into the hold attack
 	if cmd.skill_pressed:
 		if profile.skill_hold:
 			_skill_hold_t = 0.0
@@ -293,6 +326,7 @@ func _physics_process(delta: float) -> void:
 	_buf_attack_hold = maxf(_buf_attack_hold - delta, 0.0)
 	cc_immune_left = maxf(cc_immune_left - delta, 0.0)
 	invuln_left = maxf(invuln_left - delta, 0.0)
+	_quick_left = maxf(_quick_left - delta, 0.0)
 	_tick_holds(delta, cmd)
 	for k in _cooldowns.keys():
 		_cooldowns[k] = maxf(_cooldowns[k] - delta, 0.0)
@@ -364,11 +398,22 @@ func _tick_holds(delta: float, cmd: MechCommand) -> void:
 	if _attack_hold_t >= 0.0:
 		_attack_hold_t += delta
 		if not cmd.attack_held:
-			_attack_hold_t = -1.0
-			_buf_attack = INPUT_BUFFER
-		elif _attack_hold_t >= profile.hold_threshold:
+			_attack_hold_t = -1.0  # a tap: the swing already started on press
+		elif _attack_hold_t >= profile.attack_hold_time:
 			_attack_hold_t = -1.0
 			_buf_attack_hold = INPUT_BUFFER
+
+
+## The hold attack available now: the full one, or the kit's fallback
+## (HELLFANG weak ram below 60 heat). null = none / on cooldown.
+func _hold_attack_def() -> AttackDefinition:
+	if kit == null or kit.blocks_actions():
+		return null
+	for d in [profile.attack_hold, profile.attack_hold_fallback]:
+		var def := d as AttackDefinition
+		if def and get_cooldown(def.cd_id()) <= 0.0 and kit.can_start(def):
+			return def
+	return null
 
 
 func _ready_inputs(cmd: MechCommand) -> void:
@@ -388,13 +433,14 @@ func _ready_inputs(cmd: MechCommand) -> void:
 			return
 	if _buf_attack_hold > 0.0:
 		_buf_attack_hold = 0.0
-		if _start_attack(profile.attack_hold):
+		var hd := _hold_attack_def()
+		if hd and _start_attack(hd):
 			return
 	if _buf_skill > 0.0 and _try_skill():
 		return
 	if _buf_attack > 0.0 and _try_primary():
 		return
-	if _attack_hold_t >= 0.0 or _skill_hold_t >= 0.0:
+	if _skill_hold_t >= 0.0:
 		return  # a press is still deciding tap / hold
 	if cmd.guard_held:
 		if profile.charge_attack:
@@ -438,14 +484,14 @@ func _try_skill() -> bool:
 ## Starts `def`. Returns false when on cooldown / not enough EN / the kit
 ## refuses (heat, deploy limit, overheat).
 func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0, charge := 0.0) -> bool:
-	if def == null or get_cooldown(def.id) > 0.0:
+	if def == null or get_cooldown(def.cd_id()) > 0.0:
 		return false
 	if kit.blocks_actions() or not kit.can_start(def):
 		return false
 	if def.en_cost > 0.0 and not motor.consume_en(def.en_cost * motor.get_en_cost_mult()):
 		return false
 	if def.cooldown > 0.0:
-		_cooldowns[def.id] = def.cooldown
+		_cooldowns[def.cd_id()] = def.cooldown
 	_finish_attack()
 	_clear_state_mods()
 	attack = def
@@ -458,6 +504,11 @@ func _start_attack(def: AttackDefinition, unblockable := false, dmg_mult := 1.0,
 	_landed = false
 	_extra_recovery = 0.0
 	_shot_charge = charge
+	_cur_lunge = def.lunge_duration
+	_hold_charging = def.hold_windup_max > def.windup
+	_hold_extra = 0.0
+	_windup_speed = 1.0 / maxf(_quick_mult, 0.05) if _quick_left > 0.0 else 1.0
+	_quick_left = 0.0
 	_force_unblockable = unblockable
 	_attack_damage_mult = dmg_mult * kit.outgoing_mult(def) * (ultimate.outgoing_mult() if ultimate else 1.0)
 	_carry_speed = 0.0
@@ -584,9 +635,30 @@ func _finish_attack() -> void:
 
 func _tick_attack(delta: float, cmd: MechCommand) -> void:
 	var d := attack
-	# suppression (judgment field) stretches windups only
-	attack_time += delta / maxf(status.windup_mult(), 0.1) if attack_time < d.windup else delta
-	var t_active_end := d.windup + maxf(d.active, d.lunge_duration)
+	# HELLFANG: the first swing held on converts into the ram (weak below 60 heat)
+	if _buf_attack_hold > 0.0 and d == profile.light_combo and attack_time < d.windup:
+		var hd := _hold_attack_def()
+		if hd:
+			_buf_attack_hold = 0.0
+			kit.on_attack_converted(d)
+			if _start_attack(hd):
+				return
+	# suppression (judgment field) stretches windups only; 熔爪截击 shortens the next one
+	if attack_time < d.windup:
+		attack_time += delta * _windup_speed / maxf(status.windup_mult(), 0.1)
+	else:
+		attack_time += delta
+	# hold to charge (终审之矛): the windup stretches while the skill button stays held
+	if _hold_charging and attack_time >= d.windup:
+		var room := d.hold_windup_max - d.windup
+		if cmd.skill_held and _hold_extra < room:
+			_hold_extra = minf(_hold_extra + (attack_time - d.windup) + 0.0001, room)
+			attack_time = d.windup - 0.0001
+			if _hold_extra < room:
+				_update_attack_mod(0, delta)
+				return
+		_release_hold_charge(d)
+	var t_active_end := d.windup + maxf(d.active, _cur_lunge)
 	var phase := 0 if attack_time < d.windup else (1 if attack_time < t_active_end else 2)
 	if phase >= 1 and not _active_announced:
 		_active_announced = true
@@ -623,25 +695,48 @@ func _tick_attack(delta: float, cmd: MechCommand) -> void:
 		_start_attack(d.next_attack)
 		return
 	# cancel window: recovery can be cancelled into defence / skill / movement
-	# (a whiff pushes the window back by the extra recovery)
-	if attack_time >= d.cancel_time + _extra_recovery:
+	# (a whiff pushes the window back by the extra recovery). Round 6 命中取消:
+	# once the attack has landed, dash / jump / skill / parry cancel at once.
+	var hit_cancel := _landed and phase >= 1
+	if attack_time >= d.cancel_time + _extra_recovery or hit_cancel:
+		var open := phase == 2 or hit_cancel
 		if _buf_parry > 0.0:
 			_defend()
 			return
 		if phase == 2 and cmd.guard_held and not profile.charge_attack:
 			_enter_guard()
 			return
-		if phase == 2 and _buf_skill_hold > 0.0 and profile.skill_hold and _start_skill_hold():
+		if open and _buf_skill_hold > 0.0 and profile.skill_hold and _start_skill_hold():
 			_buf_skill_hold = 0.0
 			return
-		if phase == 2 and _buf_skill > 0.0 and _try_skill():
+		if open and _buf_skill > 0.0 and _try_skill():
 			return
-		if phase == 2 and (cmd.dash_pressed or cmd.jump_pressed):
+		if open and (cmd.dash_pressed or cmd.jump_pressed):
+			if hit_cancel and attack_time < d.cancel_time + _extra_recovery:
+				CombatEvents.kit_event.emit(motor, &"hit_cancel")
 			_to_ready()
 			return
-	if attack_time >= d.total_time() + _extra_recovery:
+	if attack_time >= d.windup + maxf(d.active, _cur_lunge) + d.recovery + _extra_recovery:
 		momentum_chain = 0 if _chain_left <= 0.0 else momentum_chain
 		_to_ready()
+
+
+## A held charge ends (released or full): stretch the lunge and the damage.
+func _release_hold_charge(d: AttackDefinition) -> void:
+	_hold_charging = false
+	var room := d.hold_windup_max - d.windup
+	var k := clampf(_hold_extra / room, 0.0, 1.0) if room > 0.0 else 0.0
+	if d.hold_lunge_max > 0.0:
+		_cur_lunge = lerpf(d.lunge_duration, d.hold_lunge_max, k)
+	_attack_damage_mult *= lerpf(1.0, d.hold_damage_max_mult, k)
+	CombatEvents.kit_event.emit(motor, &"hold_release")
+
+
+## Charge fraction of the current hold-charged attack (0..1).
+func hold_charge() -> float:
+	if attack == null or attack.hold_windup_max <= attack.windup:
+		return 0.0
+	return clampf(_hold_extra / (attack.hold_windup_max - attack.windup), 0.0, 1.0)
 
 
 ## Delivery at the start of the active phase.
@@ -708,7 +803,7 @@ func _update_attack_mod(phase: int, delta: float) -> void:
 	m.block_dash = attack_time < d.cancel_time
 	m.block_jump = attack_time < d.cancel_time
 	var lunge_t := attack_time - d.windup
-	var lunging := phase == 1 and absf(d.lunge_speed) > 0.0 and lunge_t < d.lunge_duration and not _lunge_stopped
+	var lunging := phase == 1 and absf(d.lunge_speed) > 0.0 and lunge_t < _cur_lunge and not _lunge_stopped
 	if lunging and d.stop_on_wall and lunge_t > 0.05 and motor.is_on_wall():
 		_lunge_stopped = true
 		lunging = false
@@ -742,7 +837,7 @@ func _update_attack_mod(phase: int, delta: float) -> void:
 				var mx := deg_to_rad(steer_deg) * delta
 				_lunge_dir = _lunge_dir.rotated(Vector3.UP, clampf(ang, -mx, mx)).normalized()
 			if d.vertical_track_speed > 0.0 and absf(to.y) <= d.vertical_track_range:
-				var remaining := maxf(d.lunge_duration - lunge_t, 0.05)
+				var remaining := maxf(_cur_lunge - lunge_t, 0.05)
 				vy = clampf(to.y / remaining, -d.vertical_track_speed, d.vertical_track_speed)
 		var lspeed := maxf(d.lunge_speed * lmult, carry) if carry > 0.0 else d.lunge_speed * lmult  # backstep lunges are negative
 		m.forced_velocity = (Vector3.ZERO if _lunge_reached else _lunge_dir * lspeed) + Vector3.UP * vy
@@ -768,6 +863,13 @@ func _sweep_hitbox() -> void:
 		var id := hb.mech.get_instance_id()
 		if _hit_ids.has(id):
 			continue  # one hit per target per attack
+		if d.hit_cone_deg > 0.0:
+			var to := hb.mech.global_position - motor.global_position
+			to.y = 0.0
+			var fwd := motor.get_forward()
+			fwd.y = 0.0
+			if to.length() > 0.6 and fwd.length() > 0.01 and rad_to_deg(fwd.normalized().angle_to(to.normalized())) > d.hit_cone_deg * 0.5:
+				continue  # outside the cone (may still enter it later in the active phase)
 		_hit_ids[id] = true
 		var hit := HitInfo.new()
 		hit.attacker = motor
@@ -941,7 +1043,7 @@ func _enter_guard() -> void:
 	_clear_state_mods()
 	var m := MovementModifier.create(MOD_GUARD)
 	m.speed_mult = profile.guard_speed_mult
-	m.block_dash = true
+	m.block_dash = not profile.guard_allows_dash
 	motor.add_modifier(m)
 	_enter(CombatState.GUARD)
 	kit.on_guard_started()  # VERDANT 盾墙 / HELLFANG absorb counter reset
@@ -998,11 +1100,17 @@ func on_parried_melee(hit: HitInfo) -> int:
 	if ac:
 		if first and profile.parry_causes_offbalance:
 			ac.apply_offbalance(profile.offbalance_time, push * profile.offbalance_knockback + Vector3.UP, motor)
+		elif first and profile.parry_catch_stagger > 0.0:
+			ac.apply_stagger(profile.parry_catch_stagger)  # 熔爪截击: the weapon is caught, no push
+			if ac.state != CombatState.STAGGER:
+				ac.interrupt()  # hard-control protection ate the stagger: still cut the swing
 		else:
 			# push-back parry (and later attackers in a multi-parry): interrupted and pushed
 			ac.interrupt()
 			attacker.apply_impulse(push * profile.offbalance_knockback * 0.6)
 	CombatEvents.parried.emit(motor, attacker, false)
+	if first:
+		kit.on_parry_success(hit, false)
 	if state == CombatState.ULT_WINDUP:
 		_to_ready()
 		ultimate.enter_judgment()
@@ -1053,6 +1161,13 @@ func _try_riposte() -> bool:
 func on_parried_projectile(hit: HitInfo) -> void:
 	_parry_success = true
 	last_parry_time = time
+	if not profile.parry_reflects:
+		kit.on_parry_success(hit, true)  # swallowed (HELLFANG heat / VERDANT spores)
+		CombatEvents.parried.emit(motor, hit.attacker, true)
+		if state == CombatState.ULT_WINDUP:
+			_to_ready()
+			ultimate.enter_judgment()
+		return
 	var dm := profile.reflect_damage_mult
 	var sm := profile.reflect_speed_mult
 	var homing := 0.0

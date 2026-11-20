@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"hf_flame"
+display_name = "熔炉喷焰"
+attack_type = 3
+windup = 0.25
+active = 0.3
+recovery = 0.35
+cancel_time = 0.55
+telegraphed = true
+damage = 10.0
+parryable = false
+knockback = 6.0
+knockback_up = 1.0
+stagger_time = 0.35
+hitstop = 0.08
+shake = 0.3
+hitbox_offset = Vector3(0, 2.2, -4.4)
+hitbox_size = Vector3(8.0, 3.6, 8.0)
+hit_cone_deg = 70.0
+windup_speed_mult = 0.3
+active_speed_mult = 0.3
+recovery_speed_mult = 0.5
+turn_mult = 0.4
+cooldown = 5.0
+min_heat = 30.0
+heat_damage_per_heat = 0.35
+heat_dump = true

@@ -60,8 +60,38 @@ func on_hit_dealt(_hit: HitInfo) -> void:
 	pass
 
 
-## We blocked a hit with our guard.
+## We blocked a hit with our guard (called before the guard holds or breaks).
 func on_guarded(_hit: HitInfo) -> void:
+	pass
+
+
+## The guard held against `hit` (GUARDED, not broken): mirror refraction.
+func on_guard_held(_hit: HitInfo) -> void:
+	pass
+
+
+## A guard-breaking `hit` does not break our guard (PALE SERAPH mirror vs
+## beams: light is what the mirror is made for).
+func resists_guard_break(_hit: HitInfo) -> bool:
+	return false
+
+
+## May our guard (parry = false) or parry (parry = true) stop `hit` at all?
+## false: the hit goes through as a clean hit (PALE SERAPH overheated mirror,
+## ultimate attacks outside judgment).
+func defends_against(_hit: HitInfo, _parry: bool) -> bool:
+	return true
+
+
+## A parry of ours succeeded (first parried melee attacker, or a swallowed
+## projectile when the profile does not reflect).
+func on_parry_success(_hit: HitInfo, _projectile: bool) -> void:
+	pass
+
+
+## `def` was cut short in its windup and converted into another attack
+## (HELLFANG first swing → ram): refund what it cost.
+func on_attack_converted(_def: AttackDefinition) -> void:
 	pass
 
 

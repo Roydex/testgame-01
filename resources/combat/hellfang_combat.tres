@@ -1,20 +1,20 @@
-[gd_resource type="Resource" script_class="CombatProfile" load_steps=11 format=3]
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_axe1.tres" id="2"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_hook.tres" id="3"]
-[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_vent.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_flame.tres" id="4"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_ram.tres" id="5"]
 [ext_resource type="Script" path="res://scripts/combat/kits/heat_config.gd" id="6"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_furnace_burst.tres" id="7"]
 [ext_resource type="Resource" path="res://resources/combat/status/bitten.tres" id="8"]
+[ext_resource type="Resource" path="res://resources/combat/hellfang/hf_ram_lite.tres" id="9"]
 [ext_resource type="Resource" path="res://resources/combat/ultimates/hellfang_backdraft.tres" id="ult_hellfang_combat"]
 
 [sub_resource type="Resource" id="HeatConfig_1"]
 script = ExtResource("6")
 furnace_burst = ExtResource("7")
 bite_status = ExtResource("8")
-
 
 [resource]
 script = ExtResource("1")
@@ -25,11 +25,14 @@ light_combo = ExtResource("2")
 skill = ExtResource("3")
 skill_hold = ExtResource("4")
 attack_hold = ExtResource("5")
+attack_hold_fallback = ExtResource("9")
 hold_threshold = 0.3
 kit = SubResource("HeatConfig_1")
 guard_damage_taken = 0.2
 guard_speed_mult = 0.45
 guard_en_per_damage = 0.38
-parry_window = 0.08
-parry_whiff_recovery = 0.45
+parry_window = 0.14
+parry_whiff_recovery = 0.35
 parry_causes_offbalance = false
+parry_reflects = false
+parry_catch_stagger = 0.5

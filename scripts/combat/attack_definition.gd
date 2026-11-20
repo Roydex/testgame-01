@@ -26,6 +26,13 @@ extends Resource
 
 ## Extra recovery when the attack hits nothing (a whiffed heavy swing).
 @export var whiff_recovery_extra: float = 0.0
+## Hold to charge (PALE SERAPH 终审之矛, round 6): while the button that
+## started the attack stays held, the windup may stretch up to this total
+## (0 = fixed windup). The longer hold scales the lunge duration up to
+## `hold_lunge_max` and the damage up to `hold_damage_max_mult`.
+@export var hold_windup_max: float = 0.0
+@export var hold_lunge_max: float = 0.0
+@export var hold_damage_max_mult: float = 1.0
 
 @export_group("Damage")
 @export var damage: float = 8.0
@@ -44,10 +51,16 @@ extends Resource
 ## when status_on_guard is set).
 @export var status_effects: Array[StatusEffectDefinition] = []
 @export var status_on_guard: bool = false
+## Spawned by an ultimate (round 6): PALE SERAPH's mirror shield cannot
+## stop these outside its own judgment.
+@export var ultimate_attack: bool = false
 
 @export_group("Hitbox (local space, -Z forward)")
 @export var hitbox_offset: Vector3 = Vector3(0, 2.4, -2.2)
 @export var hitbox_size: Vector3 = Vector3(2.2, 2.4, 3.0)
+## > 0: only victims within this horizontal cone (total angle, deg) of the
+## attacker's facing are hit (HELLFANG flame cone inside its box).
+@export var hit_cone_deg: float = 0.0
 
 @export_group("Movement during the attack")
 @export_range(0.0, 1.0) var windup_speed_mult: float = 0.35
@@ -71,6 +84,9 @@ extends Resource
 @export_group("Cost")
 @export var en_cost: float = 0.0
 @export var cooldown: float = 0.0
+## Cooldown shared under this id (empty = the attack's own id): the weak
+## and the full HELLFANG ram share one timer.
+@export var cooldown_id: StringName = &""
 
 @export_group("Projectile")
 @export var projectile_speed: float = 45.0
@@ -105,6 +121,11 @@ extends Resource
 @export var heat_vent_rate: float = 0.0
 ## A whiff forces an overheat (overdrive ram).
 @export var whiff_overheats: bool = false
+## Damage = current heat × this (fixed at start; replaces `damage`, no
+## scorching bonus). HELLFANG 熔炉喷焰, round 6.
+@export var heat_damage_per_heat: float = 0.0
+## Starting the attack dumps all heat (熔炉喷焰).
+@export var heat_dump: bool = false
 ## AZURE ORACLE marks: damage bonus per mark stack on the victim, consumed on hit.
 @export var mark_consume_bonus: float = 0.0
 
@@ -119,3 +140,8 @@ func get_delivery() -> int:
 
 func total_time() -> float:
 	return windup + maxf(active, lunge_duration) + recovery
+
+
+## Id of the cooldown timer this attack starts and checks.
+func cd_id() -> StringName:
+	return cooldown_id if cooldown_id != &"" else id

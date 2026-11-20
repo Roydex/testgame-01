@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatusEffectDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/specs/status_effect_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"spore_snare"
+display_name = "孢子缠绕"
+duration = 1.5
+max_stacks = 1
+speed_mult = 0.55
+en_cost_mult = 1.5
+color = Color(0.45, 1.0, 0.35, 1.0)

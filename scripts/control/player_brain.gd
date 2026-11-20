@@ -66,6 +66,7 @@ func _physics_process(_delta: float) -> void:
 	if combat:
 		combat.aim_target = targeting.current if targeting.has_target() else null
 		combat.free_aim_active = Experiments.free_aim
+		_update_view_point(combat)
 		if Experiments.free_aim:
 			_update_free_aim(combat)
 			if combat.aim_target == null:
@@ -105,6 +106,23 @@ func update_placement_aim(combat: CombatStateMachine) -> void:
 			on_target = true
 			break
 	_reticle.show_at(p, spec.radius, on_target)
+
+## Screen-centre point (mirror shield reflected light without a lock):
+## camera ray starting at the mech's depth, first wall hit or far away.
+func _update_view_point(combat: CombatStateMachine) -> void:
+	var cam := camera_rig.camera
+	if cam == null:
+		combat.view_point_valid = false
+		return
+	var origin := cam.global_position
+	var fwd := -cam.global_basis.z
+	var start := origin + fwd * maxf((motor.global_position - origin).dot(fwd), 0.0)
+	var q := PhysicsRayQueryParameters3D.create(start, origin + fwd * 120.0, CombatTypes.WORLD_LAYER)
+	q.exclude = [motor.get_rid()]
+	var hit := motor.get_world_3d().direct_space_state.intersect_ray(q)
+	combat.view_point = hit.position if not hit.is_empty() else origin + fwd * 120.0
+	combat.view_point_valid = true
+
 
 ## 自由瞄准: crosshair ray from the camera (starting at the mech's depth so
 ## nothing between camera and mech is aimed at) plus a small aim assist.

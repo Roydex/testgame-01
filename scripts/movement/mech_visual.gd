@@ -594,13 +594,13 @@ func _attack_keys(id: StringName) -> Array:
 				_p({"tp": 0.35 + 0.15 * deep, "cr": 0.25, "rx": 0.9, "rp": 0.2, "ro": -0.4, "le": 1.1})]
 		&"hf_axe2":  # horizontal cleave
 			return [_p({"ty": 0.9, "rx": 1.4, "ry": 1.3, "rp": 0.1}), _p({"ty": -0.8, "rx": 1.4, "ry": -1.3, "rp": 0.1})]
-		&"hf_ram":  # shoulder charge: furnace forward, arms swept back
+		&"hf_ram", &"hf_ram_lite":  # shoulder charge: furnace forward, arms swept back
 			return [_p({"tp": 0.15, "cr": 0.4, "rx": -0.6, "lx": -0.6, "ty": 0.5}),
 				_p({"tp": 0.55, "cr": 0.2, "rx": -0.9, "lx": 1.2, "lz": -0.3, "ty": 0.6})]
 		&"hf_hook":  # claw thrown forward
 			return [_p({"lx": 0.4, "lz": -0.4, "ty": -0.3}), _p({"lx": 1.6, "lz": 0.0, "ty": 0.2})]
-		&"hf_vent":  # braced, venting
-			return [_p({"cr": 0.35, "tp": 0.2, "rx": 0.1, "lx": 0.1}), _p({"cr": 0.35, "tp": 0.25, "rx": 0.1, "lx": 0.1})]
+		&"hf_flame":  # braced, claw thrust forward: the furnace vents through it
+			return [_p({"cr": 0.3, "tp": 0.1, "lx": 0.7, "lz": -0.3, "rx": 0.2}), _p({"cr": 0.25, "tp": 0.3, "lx": 1.55, "lz": 0.0, "rx": 0.4, "ty": 0.1})]
 		&"va_turret", &"va_zone":  # braced deployment
 			return [_p({"cr": 0.4, "tp": 0.15, "rx": 0.3, "lx": 0.3}), _p({"cr": 0.3, "tp": 0.1, "rx": 0.4, "lx": 0.4})]
 		&"ao_orbital":  # cannon to the sky

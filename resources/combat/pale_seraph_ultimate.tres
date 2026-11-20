@@ -10,5 +10,6 @@
 script = ExtResource("1")
 judgment_counter = ExtResource("2")
 final_spear = ExtResource("3")
+spear_charges = 3
 wave_attack = ExtResource("4")
 field_status = ExtResource("5")

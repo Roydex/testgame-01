@@ -108,6 +108,9 @@ func can_start(def: AttackDefinition) -> bool:
 
 
 func outgoing_mult(def: AttackDefinition) -> float:
+	if def.heat_damage_per_heat > 0.0:
+		# 熔炉喷焰: damage is the heat cashed in (no scorching bonus on top)
+		return heat * def.heat_damage_per_heat / maxf(def.damage, 0.01)
 	if def.heat_vent_rate > 0.0:
 		return 1.0
 	return cfg().scorch_damage_mult if is_scorching() else 1.0
@@ -119,6 +122,10 @@ func incoming_mult(_hit: HitInfo) -> float:
 
 func on_attack_started(def: AttackDefinition) -> void:
 	add_heat(def.heat_cost)
+	if def.heat_dump and not overdrive:
+		heat = 0.0  # 熔炉喷焰: the furnace is emptied into the flame
+		_since_gain = 0.0
+		CombatEvents.kit_event.emit(motor, &"flame")
 	if overdrive and def == combat.profile.skill:
 		combat.cap_cooldown(def.id, _overdrive_hook_cd)  # 熔炉逆燃: rapid grapple
 	if def.heat_vent_rate > 0.0:
@@ -173,6 +180,33 @@ func lunge_speed_mult(def: AttackDefinition) -> float:
 
 func lunge_steer_bonus(def: AttackDefinition) -> float:
 	return cfg().bite_steer_bonus_deg if _bites(def) else 0.0
+
+
+## 熔爪截击 (F): a swallowed shot feeds the furnace and reels the grapple
+## back in sooner; a caught swing bites the attacker and our next windup
+## is quicker.
+func on_parry_success(hit: HitInfo, projectile: bool) -> void:
+	var c := cfg()
+	if projectile:
+		add_heat(c.parry_shot_heat)
+		var hook := combat.profile.skill
+		if hook:
+			var cd := combat.get_cooldown(hook.cd_id())
+			if cd > 0.0:
+				combat.set_cooldown(hook.cd_id(), maxf(cd - c.parry_shot_hook_cut, 0.0))
+		CombatEvents.kit_event.emit(motor, &"claw_swallow")
+		return
+	var am := hit.attacker as MechMotor
+	if am:
+		_bite(am)
+	combat.grant_quick_windup(c.parry_catch_windup_mult, c.parry_catch_window)
+	CombatEvents.kit_event.emit(motor, &"claw_catch")
+
+
+## The first swing converted into the ram: its heat is refunded.
+func on_attack_converted(def: AttackDefinition) -> void:
+	if not overdrive and not is_overheated():
+		heat = maxf(heat - def.heat_cost, 0.0)
 
 
 func on_guarded(hit: HitInfo) -> void:
@@ -237,6 +271,9 @@ func hud_text() -> String:
 	if is_overheated():
 		return "热量 过热！强制排气 %.1f s（不能攻击%s，受伤 ×%.2f）" % [overheat_left, " / 冲刺" if cfg().overheat_blocks_dash or _harsh else "，可以冲刺", cfg().overheat_damage_taken]
 	var line := "热量 %3.0f / %.0f%s" % [heat, cfg().max_heat, "  灼热（伤害 ×%.1f）" % cfg().scorch_damage_mult if is_scorching() else ""]
+	var fl := combat.profile.skill_hold
+	if fl and fl.heat_damage_per_heat > 0.0 and heat >= fl.min_heat and combat.get_cooldown(fl.cd_id()) <= 0.0:
+		line += "  喷焰 %.0f" % (heat * fl.heat_damage_per_heat)
 	if bite_active():
 		line += "  咬住 %.1fs" % DamageSystem.get_combat(bite_target).status.time_left(cfg().bite_status.id)
 	if combat.is_guarding() and absorbed > 0.0:
