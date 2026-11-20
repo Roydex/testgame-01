@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="UltimateDefinition" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/ultimate_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/ultimates/sweep_effect.gd" id="2"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_sweep_beam.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_sweep_collapse.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/combat/azure/ao_sweep_burn.tres" id="5"]
+
+[sub_resource type="Resource" id="SweepEffect_1"]
+script = ExtResource("2")
+tick_attack = ExtResource("3")
+collapse_attack = ExtResource("4")
+burn_attack = ExtResource("5")
+
+[resource]
+script = ExtResource("1")
+id = &"orbital_sweep"
+display_name = "轨道扫射"
+hp_threshold = 0.3
+uses_per_match = 1
+effect = SubResource("SweepEffect_1")
+active_label = "轨道扫射"
+cost_label = "轨道炮过热"
+cost_desc = "不能射击，后跃冷却"
+vignette_color = Color(0.45, 0.8, 1.0, 0.6)
+windup = 0.5
+windup_parries = false
+windup_root = true
+interrupt_cooldown = 10.0
+duration = 5.5
+active_ends_on_heavy = true
+overload_duration = 3.0
+overload_damage_taken_mult = 1.0
+overload_blocks_en_regen = false

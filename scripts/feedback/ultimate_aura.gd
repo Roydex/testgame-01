@@ -81,7 +81,7 @@ func _on_phase(mech: Node3D, phase: String) -> void:
 			bm.size = Vector3(0.3, 2.0, 0.3)
 			var a := TAU * i / 8.0
 			_mesh(_active_fx, bm, _mat(Color(1.0, 0.5, 0.1), 0.6, 4.0), Vector3(cos(a) * r * 0.9, 1.0, sin(a) * r * 0.9))
-	elif phase == "JUDGMENT" and eff is CoordinateEffect:
+	elif phase == "JUDGMENT" and eff is SweepEffect:
 		_active_fx = Node3D.new()
 		_active_fx.top_level = true
 		add_child(_active_fx)

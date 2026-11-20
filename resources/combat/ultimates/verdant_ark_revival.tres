@@ -1,12 +1,13 @@
-[gd_resource type="Resource" script_class="UltimateDefinition" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="UltimateDefinition" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/ultimate_definition.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/combat/ultimates/ark_revival_effect.gd" id="2"]
 [ext_resource type="Resource" path="res://resources/combat/status/habitat_edge.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/combat/verdant/va_back_cannon_shot.tres" id="4"]
 
 [sub_resource type="Resource" id="ArkRevivalEffect_1"]
 script = ExtResource("2")
-habitat_radius = 15.0
+habitat_radius = 12.0
 edge_width = 3.0
 edge_status = ExtResource("3")
 turret_rate_mult = 1.5
@@ -15,6 +16,10 @@ turret_range_bonus = 8.0
 owner_regen_frac = 0.02
 owner_damage_taken = 0.75
 dormancy_speed_mult = 0.6
+follow_owner = true
+whole_field = true
+refill_turrets = false
+cannon_shot = ExtResource("4")
 
 [resource]
 script = ExtResource("1")
@@ -23,14 +28,14 @@ display_name = "方舟苏生"
 hp_threshold = 0.3
 uses_per_match = 1
 effect = SubResource("ArkRevivalEffect_1")
-active_label = "方舟苏生"
+active_label = "移动方舟"
 cost_label = "休眠"
 cost_desc = "移动变慢，不能部署"
 vignette_color = Color(0.3, 1.0, 0.45, 0.6)
-windup = 1.0
+windup = 0.6
 windup_parries = false
 windup_root = true
-windup_break_on_hit = true
+windup_super_armor = true
 interrupt_cooldown = 10.0
 duration = 8.0
 overload_duration = 3.0

@@ -90,7 +90,7 @@ func update_placement_aim(combat: CombatStateMachine) -> void:
 	var cam := camera_rig.camera
 	var origin := cam.global_position
 	var fwd := -cam.global_basis.z
-	var def := combat.aim_def
+	var def := combat.placement_def()
 	var spec := def.orbital_spec if def and def.orbital_spec else OrbitalSpec.new()
 	var q := PhysicsRayQueryParameters3D.create(origin, origin + fwd * 400.0, CombatTypes.WORLD_LAYER)
 	q.exclude = [motor.get_rid()]

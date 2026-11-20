@@ -7,7 +7,7 @@
 [ext_resource type="Resource" path="res://resources/combat/azure/ao_rail.tres" id="5"]
 [ext_resource type="Resource" path="res://resources/combat/azure/ao_backstep.tres" id="6"]
 [ext_resource type="Script" path="res://scripts/combat/kits/mark_config.gd" id="7"]
-[ext_resource type="Resource" path="res://resources/combat/ultimates/azure_final_coordinate.tres" id="ult_azure_combat"]
+[ext_resource type="Resource" path="res://resources/combat/ultimates/azure_orbital_sweep.tres" id="ult_azure_combat"]
 
 [sub_resource type="Resource" id="MarkConfig_1"]
 script = ExtResource("7")

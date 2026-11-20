@@ -1,9 +1,11 @@
 class_name Habitat
 extends Node3D
-## VERDANT ARK 方舟苏生 habitat: a fixed circle where the seed core woke.
+## VERDANT ARK 方舟苏生 habitat: a circle around the ark (round 6: it follows
+## the ark when the effect says so; before, it stayed where the seed woke).
 ## Owner's turrets inside fire faster, reach farther and mend; the owner mends
-## inside (damage-taken bonus via DeployKit.incoming_mult); hostile mechs on
-## the rim are slowed (status refreshed each tick). Removed by the effect.
+## inside (damage-taken bonus via DeployKit.incoming_mult); hostile mechs in
+## the field (or only on the rim) are slowed (status refreshed each tick).
+## Removed by the effect.
 
 var owner_mech: MechMotor
 var effect: ArkRevivalEffect
@@ -86,6 +88,8 @@ func _physics_process(delta: float) -> void:
 	if owner_mech.in_hitstop():
 		return
 	_t += delta
+	if effect.follow_owner:
+		global_position = OrbitalStrike.ground_point(get_world_3d(), owner_mech.global_position + Vector3.UP * 2.0)
 	_rim_mat.albedo_color.a = 0.4 + 0.2 * sin(_t * 3.0)
 	var r := effect.habitat_radius
 	for t in Deployables.owned_by(owner_mech, DeploySpec.Kind.TURRET):
@@ -103,7 +107,7 @@ func _physics_process(delta: float) -> void:
 	if effect.edge_status:
 		for e in TeamRules.get_valid_targets(owner_mech, &"mechs"):
 			var d := flat_dist(e)
-			if d <= r and d >= r - effect.edge_width:
+			if d <= r and (effect.whole_field or d >= r - effect.edge_width):
 				var ec := DamageSystem.get_combat(e)
 				if ec:
 					ec.status.apply(effect.edge_status, owner_mech)

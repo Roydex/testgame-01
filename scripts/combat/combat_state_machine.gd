@@ -137,6 +137,9 @@ var _hold_extra := 0.0
 ## unset): where the mirror shield's reflected light goes without a lock.
 var view_point := Vector3.ZERO
 var view_point_valid := false
+## AZURE 轨道扫射: the beam steered by hand (presentation raises the marking
+## view and updates placement_point every frame while this is set).
+var steering_def: AttackDefinition
 var _cc_times: Array[float] = []
 var cc_immune_left: float = 0.0
 
@@ -618,7 +621,12 @@ func is_aiming_placement() -> bool:
 ## Marking in progress, including while suspended by hard control
 ## (presentation keeps the raised view and the ghost up).
 func aim_pending() -> bool:
-	return state == CombatState.AIM or _aim_suspended
+	return state == CombatState.AIM or _aim_suspended or steering_def != null
+
+
+## Definition whose orbital spec shapes the hand-marking ghost (range, radius).
+func placement_def() -> AttackDefinition:
+	return steering_def if steering_def else aim_def
 
 
 ## Tells the kit the current attack is over (finished, chained or interrupted).
@@ -1189,6 +1197,9 @@ func on_guard_broken(hit: HitInfo) -> void:
 func on_clean_hit(hit: HitInfo, push: Vector3) -> void:
 	if ultimate and state == CombatState.ULT_WINDUP and ultimate.definition.windup_break_on_hit:
 		interrupt()  # VERDANT ARK: any landed hit breaks the rooting windup
+	if ultimate and ultimate.is_active() and ultimate.definition.active_ends_on_heavy \
+			and (hit.attack.attack_type == CombatTypes.AttackType.GRAB or hit.attack.guard_break or hit.force_guard_break):
+		ultimate.end_active_early()  # AZURE 轨道扫射: grabs and guard breaks cut the uplink
 	if ultimate and ultimate.armor_absorbs(hit):
 		motor.apply_impulse(push * ultimate.definition.armor_knockback_mult)
 		CombatEvents.kit_event.emit(motor, &"super_armor")

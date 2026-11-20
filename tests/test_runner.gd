@@ -76,7 +76,7 @@ func _run_all() -> void:
 		["T41", "Playtest round 4: close-combat overview camera, toggle orbital marking, outward parry sweep", p3.t41_playtest_round4],
 		["T42", "Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat", p3.t42_playtest_round5],
 		["T43", "Round-5 regressions: point-blank grapple, combo chain cadence", p3.t43_round5_regressions],
-		["T44", "U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 / 终末坐标", p3.t44_ultimates_3b],
+		["T44", "U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 (moving ark) / 轨道扫射", p3.t44_ultimates_3b],
 		["T45", "Air control rework: hover lock, fast / dive descent, hover EN, air regen", p3.t45_air_control],
 		["T46", "Round 6a: mirror heat / claw catch / symbiotic shell / spore burst, spear charge, weak ram, flame", p6.t46_round6_defence_moves],
 	]

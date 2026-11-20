@@ -169,7 +169,9 @@ func _process(delta: float) -> void:
 	_callout_t = maxf(_callout_t - delta, 0.0)
 	_callout.visible = _callout_t > 0.0
 	_update_vignette(delta)
-	if combat.aim_pending():
+	if combat.steering_def:
+		callout("轨道扫射：转动视角引导光柱（移速有上限）", Color(0.6, 0.95, 1.0), 0.1)
+	elif combat.aim_pending():
 		callout("轨道标记：转动鼠标选择落点 · 左键发射 · 右键 / F 取消（剩 %.0f s）" % ceilf(combat.aim_left), Color(0.6, 0.95, 1.0), 0.1)
 	# the mirror shield's reflected light flies to the screen centre when nothing is locked
 	_crosshair.visible = Experiments.free_aim or (combat.kit is MirrorKit and combat.is_guarding() and combat.aim_target == null)

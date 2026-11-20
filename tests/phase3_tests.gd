@@ -2200,106 +2200,189 @@ func t44_ultimates_3b(res: Dictionary) -> void:
 	r._check(res, u.phase == UltimateSystem.Phase.SPENT and not hk.is_overheated(), "one use per match: %s afterwards" % u.get_phase_name())
 	await _free([hf, foe, far, ally])
 
-	# ---------------- VERDANT ARK 方舟苏生
+	# ---------------- VERDANT ARK 方舟苏生 → 移动方舟 (round 6)
 	var va := _mech(&"verdant", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 10))
-	var e1 := _mech(&"seraph", 1, Vector3(0, 0.2, 16.5))  # 13.5 m: on the habitat rim
-	var e2 := _mech(&"seraph", 1, Vector3(8, 0.2, 30))    # inside, not on the rim
-	var al := _mech(&"seraph", 0, Vector3(-13.5, 0.2, 30))
+	var e1 := _mech(&"seraph", 1, Vector3(0, 0.2, 16.5))  # 13.5 m: outside the 12 m field
+	var e2 := _mech(&"seraph", 1, Vector3(8, 0.2, 30))    # inside the field
+	var al := _mech(&"seraph", 0, Vector3(-6, 0.2, 30))   # ally inside the field
 	await r._ticks(20)
 	var vc := _cs(va)
 	var vu := vc.ultimate
+	var veff := vu.definition.effect as ArkRevivalEffect
 	await _ult_ready(va)
 	var p0 := va.global_position
 	va.command.ult_pressed = true
 	await _frames(_rec(), 20, func(_i: int) -> void:
 		va.command.move = Vector3(1, 0, 0))
 	_unrec()
+	va.command.move = Vector3.ZERO
 	var rooted := va.global_position.distance_to(p0) < 0.3
-	_hit(e1, va, pulse)  # a 5-damage, no-stagger hit
+	_hit(e1, va, pulse)  # light hit: super armour keeps the windup
+	await r._ticks(1)
+	var kept := vu.in_windup()
+	_hit(e1, va, finisher)  # guard-breaking hit: interrupts
 	await r._ticks(2)
-	r._check(res, rooted and vu.phase == UltimateSystem.Phase.COOLDOWN, "windup rooted (%s); any landed hit interrupts it → %s" % [rooted, vu.get_phase_name()])
+	r._check(res, is_equal_approx(vu.definition.windup, 0.6) and rooted and kept and vu.phase == UltimateSystem.Phase.COOLDOWN,
+		"windup %.1f s rooted (%s), super armour keeps it on a light hit (%s), a guard break interrupts → %s" % [vu.definition.windup, rooted, kept, vu.get_phase_name()])
 	vc.restore_full()
 	vc.set_cooldown(&"va_turret", 5.0)
+	va.global_position = p0
 	await _ult_ready(va)
 	va.command.ult_pressed = true
-	await r._ticks(70)
+	await r._ticks(50)
 	var dk := vc.kit as DeployKit
-	var tur := dk.turrets()
 	var hab := get_first_habitat()
-	r._check(res, vu.is_active() and tur.size() == 2 and vc.get_cooldown(&"va_turret") <= 0.0 and hab != null,
-		"active: %d turrets refilled, deploy cooldown cleared, habitat up" % tur.size())
-	await r._ticks(5)
-	var t0 := tur[0] as Turret
+	var cannons := []
+	for n in va.get_children():
+		if n is BackCannon:
+			cannons.append(n)
+	r._check(res, vu.is_active() and dk.turrets().size() == 0 and vc.get_cooldown(&"va_turret") <= 0.0 and hab != null and cannons.size() == 2,
+		"active: no turret refill (%d), deploy cooldown cleared, habitat up, %d back cannons" % [dk.turrets().size(), cannons.size()])
+	r._check(res, _cs(e2).status.has(&"habitat_edge") and not _cs(e1).status.has(&"habitat_edge") and not _cs(al).status.has(&"habitat_edge"),
+		"the whole %.0f m field slows the enemy inside (8 m), not the one at 13.5 m, not the ally" % veff.habitat_radius)
+	# back cannons fire on their own
+	var ev4 := _rec()
+	await _frames(ev4, 90)
+	_unrec()
+	var shots := _hits(ev4, e2, &"va_back_cannon_shot").size() + _hits(ev4, e1, &"va_back_cannon_shot").size()
+	r._check(res, shots >= 2 and (cannons[0] as BackCannon).shots_fired + (cannons[1] as BackCannon).shots_fired >= 2,
+		"back cannons hit enemies on their own (%d hits in 1.5 s)" % shots)
+	# a turret placed in the field gets the bonuses; ark regen and armour
+	var tspec := (vc.profile.skill as AttackDefinition).deploy_spec
+	var t0 := Deployables.spawn_turret(vc, tspec, va.global_position + Vector3(-3, 0, 0))
+	await r._ticks(3)
 	var hp_a := vc.health.hp
 	await r._ticks(60)
 	var regen := vc.health.hp - hp_a
 	var hh := _hit(e2, va, l1)
-	var want := l1.damage * dk.cfg().fortress_damage_taken * (vu.definition.effect as ArkRevivalEffect).owner_damage_taken
+	var want := l1.damage * dk.cfg().fortress_damage_taken * veff.owner_damage_taken
 	r._check(res, is_equal_approx(t0.fire_rate_mult, 1.5) and is_equal_approx(t0.range_bonus, 8.0) and regen > vc.health.max_hp * 0.015 \
 			and absf(hh.final_damage - want) < 0.01,
-		"turrets ×%.1f rate +%.0f m range; ark regen %.1f HP/s; hit %.2f (×fortress ×0.75)" % [t0.fire_rate_mult, t0.range_bonus, regen, hh.final_damage])
-	r._check(res, _cs(e1).status.has(&"habitat_edge") and not _cs(e2).status.has(&"habitat_edge") and not _cs(al).status.has(&"habitat_edge"),
-		"rim slows the enemy at 13.5 m, not the one inside, not the ally on the rim")
+		"turret in the field ×%.1f rate +%.0f m; ark regen %.1f HP/s; hit %.2f (×fortress ×0.75)" % [t0.fire_rate_mult, t0.range_bonus, regen, hh.final_damage])
+	# the habitat travels with the ark
+	await _frames(_rec(), 70, func(_i: int) -> void:
+		va.command.move = Vector3(1, 0, 0))
+	_unrec()
+	va.command.move = Vector3.ZERO
+	await r._ticks(2)
+	var moved := va.global_position.distance_to(p0)
+	var off := Vector2(hab.global_position.x - va.global_position.x, hab.global_position.z - va.global_position.z).length()
+	r._check(res, moved > 4.0 and off < 0.5, "habitat follows the ark (ark moved %.1f m, habitat %.2f m off centre)" % [moved, off])
 	await r._ticks(int(vu.phase_time_left * 60.0) + 5)
 	vc.clear_cooldown(&"va_turret")
-	var n_before := dk.turrets().size()
 	var ev5 := _rec()
 	await _frames(ev5, 30, func(i: int) -> void:
 		va.command.skill_pressed = i == 0)
 	_unrec()
-	r._check(res, vu.in_cost() and dk.dormant and _started(ev5, va, &"va_turret") == 0 and get_first_habitat() == null,
-		"cost: dormant (deploy refused, %d turrets kept), habitat gone" % n_before)
-	await _free([va, e1, e2, al])
+	var left := 0
+	for n in va.get_children():
+		if n is BackCannon and not n.is_queued_for_deletion():
+			left += 1
+	r._check(res, vu.in_cost() and dk.dormant and _started(ev5, va, &"va_turret") == 0 and get_first_habitat() == null and left == 0,
+		"cost: dormant (deploy refused), habitat and back cannons gone (%d left)" % left)
+	await _free([va, e1, e2, al, t0])
 
-	# ---------------- AZURE ORACLE 终末坐标
+	# ---------------- AZURE ORACLE 终末坐标 → 轨道扫射 (round 6)
 	var az := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
-	var mk1 := _mech(&"seraph", 1, Vector3(0, 0.2, 18))
-	var un := _mech(&"seraph", 1, Vector3(15, 0.2, 18))
-	var al2 := _mech(&"seraph", 0, Vector3(-15, 0.2, 18))
+	var tg := _mech(&"seraph", 1, Vector3(0, 0.2, 18))
+	var un := _mech(&"seraph", 1, Vector3(14, 0.2, 18))
+	var al2 := _mech(&"seraph", 0, Vector3(-14, 0.2, 18))
 	await r._ticks(20)
 	var ac := _cs(az)
 	var au := ac.ultimate
+	var seff := au.definition.effect as SweepEffect
 	var mark := load("res://resources/combat/status/mark.tres") as StatusEffectDefinition
-	_cs(mk1).status.apply(mark, az, 1)
-	_cs(al2).status.apply(mark, az, 1)
+	_cs(tg).status.apply(mark, az, 2)
+	ac.aim_target = tg
 	await _ult_ready(az)
 	var ap := az.global_position
 	az.command.ult_pressed = true
+	await r._ticks(int(au.definition.windup * 60.0) + 2)
+	var beam: SweepBeam = null
+	for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
+		if n is SweepBeam:
+			beam = n
+	var start_off := Vector2(beam.global_position.x - tg.global_position.x, beam.global_position.z - tg.global_position.z).length() if beam else -1.0
+	r._check(res, au.is_active() and beam != null and start_off < 1.0 and not beam.is_armed() and az.global_position.distance_to(ap) < 0.3,
+		"windup %.1f s rooted → beam called on the lock target (%.2f m off), landing warning first" % [au.definition.windup, start_off])
+	# warning: no damage; then ticks of 6 × (1 + 0.1 × marks) on the target
 	var ev6 := _rec()
-	var strikes := {"mk": 0, "un": 0, "al": 0, "tel": 0.0, "seen": {}}
-	await _frames(ev6, 300, func(_i: int) -> void:
-		az.command.move = Vector3(1, 0, 0)
-		_cs(mk1).status.apply(mark, az, 1)  # keep it marked for the test
-		for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
-			var sid := n.get_instance_id()
-			if strikes.seen.has(sid):
-				continue
-			strikes.seen[sid] = true
-			var s := n as OrbitalStrike
-			strikes.tel = s.telegraph
-			if s.target == mk1: strikes.mk += 1
-			elif s.target == un: strikes.un += 1
-			elif s.target == al2: strikes.al += 1)
+	var probe := {"armed_at": -1}
+	await _frames(ev6, 60, func(i: int) -> void:
+		ac.aim_target = tg
+		_cs(tg).status.apply(mark, az, 0)
+		if probe.armed_at < 0 and beam.is_armed():
+			probe.armed_at = i)
 	_unrec()
-	var tel: float = strikes.tel
-	r._check(res, az.global_position.distance_to(ap) < 0.3 and au.is_active(), "beacon: rooted while active (moved %.2f m)" % az.global_position.distance_to(ap))
-	r._check(res, strikes.mk >= 3 and strikes.un == 0 and strikes.al == 0 and is_equal_approx(tel, 1.1),
-		"strikes on the marked enemy %d, unmarked enemy %d, marked ally %d; telegraph %.1f s" % [strikes.mk, strikes.un, strikes.al, tel])
-	_cs(un).status.consume(&"mark")
-	_hit(az, un, pulse)
-	r._check(res, _cs(un).status.stacks(&"mark") == 2, "pulse marks twice while the beacon is up (%d stacks)" % _cs(un).status.stacks(&"mark"))
-	ac.apply_stagger(0.4)
-	await r._ticks(2)
-	r._check(res, au.in_cost(), "hard control ends the beacon early → %s" % au.get_phase_name())
-	await r._ticks(40)
+	var th := _hits(ev6, tg, &"ao_sweep_beam")
+	var first_tick: int = th[0][0] if th.size() else -1
+	var want_tick := seff.tick_attack.damage * (1.0 + seff.mark_bonus * 2)
+	r._check(res, th.size() >= 3 and first_tick >= probe.armed_at - 1 and absf(th[0][3] - want_tick) < 0.01 and th[0][2] == CombatTypes.HitResult.HIT,
+		"after the %.1f s warning (armed f%d): %d ticks on the target, %.2f each (= %.0f × (1 + %.1f × 2 marks)), first at frame %d (%s)" % [seff.arm_time, probe.armed_at, th.size(), th[0][3] if th.size() else -1.0, seff.tick_attack.damage, seff.mark_bonus, first_tick, CombatTypes.RESULT_NAMES[th[0][2]] if th.size() else "-"])
+	# steering: the beam slides after the aim at ≤ 12 m/s; the oracle walks at ×0.5 and cannot shoot or dash
+	tg.global_position = tg.global_position + Vector3(20, 0, 0)
+	var b0 := beam.global_position
+	var a0 := az.global_position
 	var ev7 := _rec()
-	await _frames(ev7, 20, func(i: int) -> void:
+	await _frames(ev7, 60, func(i: int) -> void:
+		ac.aim_target = tg
+		az.command.move = Vector3(-1, 0, 0)
+		az.command.attack_pressed = i == 5
+		az.command.dash_pressed = i == 10)
+	_unrec()
+	az.command.move = Vector3.ZERO
+	var bmove := Vector2(beam.global_position.x - b0.x, beam.global_position.z - b0.z).length()
+	var amove := az.global_position.distance_to(a0)
+	r._check(res, bmove > seff.speed * 0.8 and bmove <= seff.speed * 1.02,
+		"beam slides %.1f m in 1 s toward the moved target (cap %.0f m/s)" % [bmove, seff.speed])
+	r._check(res, amove > 1.0 and amove < az.profile.ground_max_speed * seff.owner_speed_mult * 1.1 and _started(ev7, az, &"ao_pulse") == 0
+		and az.state != MechMotor.MotionState.GROUND_DASH,
+		"oracle walks %.1f m in 1 s (×%.1f), no pulse, no dash" % [amove, seff.owner_speed_mult])
+	# allies are never hit; a guarding mirror does not stop an ultimate beam outside judgment
+	var ally_hits := _hits(ev6, al2, &"ao_sweep_beam").size() + _hits(ev7, al2, &"ao_sweep_beam").size()
+	var burns := 0
+	for n in r.arena.get_children():
+		if n is BurnZone:
+			burns += 1
+	r._check(res, ally_hits == 0 and burns >= 1, "ally never hit (%d); burning trail left behind (%d zones)" % [ally_hits, burns])
+	un.global_position = beam.global_position + Vector3(0, 0.2, 0)
+	_cs(un)._enter_guard()
+	un.command.guard_held = true
+	var ev8 := _rec()
+	await _frames(ev8, 30, func(_i: int) -> void:
+		ac.aim_target = un
+		un.command.guard_held = true)
+	_unrec()
+	un.command.guard_held = false
+	var uh := _hits(ev8, un, &"ao_sweep_beam")
+	r._check(res, uh.size() >= 1 and uh[0][2] == CombatTypes.HitResult.HIT, "guarding PALE SERAPH under the beam: %s (ultimate light passes the mirror outside judgment)" % (CombatTypes.RESULT_NAMES[uh[0][2]] if uh.size() else "no hit"))
+	# a plain stagger does not end it; a grab does, and the beam collapses where it stands
+	ac.apply_stagger(0.4)
+	await r._ticks(3)
+	var uplink := au.is_active()
+	var hook := load("res://resources/combat/hellfang/hf_hook.tres") as AttackDefinition
+	var bpos := beam.global_position
+	_hit(un, az, hook)
+	await r._ticks(2)
+	var collapse: OrbitalStrike = null
+	for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
+		if n is OrbitalStrike and (n as OrbitalStrike).attack.id == &"ao_sweep_collapse":
+			collapse = n
+	r._check(res, uplink and au.in_cost() and collapse != null and Vector2(collapse.global_position.x - bpos.x, collapse.global_position.z - bpos.z).length() < 1.0,
+		"stagger keeps the uplink (%s); a grab ends it → %s, collapse called where the beam stood" % [uplink, au.get_phase_name()])
+	await r._ticks(40)
+	var ev9 := _rec()
+	await _frames(ev9, 20, func(i: int) -> void:
 		_aim(az, un)
 		az.command.attack_pressed = i == 0)
 	_unrec()
-	r._check(res, au.in_cost() and _started(ev7, az, &"ao_pulse") == 0 and ac.get_cooldown(&"ao_backstep") > 0.0,
+	r._check(res, au.in_cost() and _started(ev9, az, &"ao_pulse") == 0 and ac.get_cooldown(&"ao_backstep") > 0.0,
 		"cost: cannon overheated (no shot), backstep on cooldown %.1f s" % ac.get_cooldown(&"ao_backstep"))
-	await _free([az, mk1, un, al2])
+	await _free([az, tg, un, al2])
+	for n in r.arena.get_children():
+		if n is BurnZone or n is SweepBeam:
+			n.queue_free()
+	await r._ticks(2)
 
 	# ---------------- shared rules
 	var x := _mech(&"hellfang", 0, Vector3(0, 0.2, 30))

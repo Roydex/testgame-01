@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ao_sweep_burn"
+display_name = "扫射灼烧"
+attack_type = 3
+delivery = 5
+damage = 3.0
+parryable = false
+knockback = 0.0
+knockback_up = 0.0
+stagger_time = 0.0
+hitstop = 0.0
+shake = 0.0

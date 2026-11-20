@@ -106,6 +106,19 @@ static func call_on(combat: CombatStateMachine, def: AttackDefinition, target: N
 	return s
 
 
+## A strike on a fixed ground point (no follow phase): the full lock warning
+## of the spec, then the beam (AZURE 轨道扫射 collapse).
+static func call_at(owner: Node3D, def: AttackDefinition, point: Vector3) -> OrbitalStrike:
+	var spec := def.orbital_spec if def.orbital_spec else OrbitalSpec.new()
+	var s := OrbitalStrike.new()
+	owner.get_parent().add_child(s)
+	s.global_position = ground_point(owner.get_world_3d(), point + Vector3.UP * 2.0)
+	s.fixed_point = true
+	s.follow_duration = 0.0
+	s.setup(owner, def, spec, spec.radius)
+	return s
+
+
 ## Horizontal clamp of a marked point to the call range around `from`.
 static func clamp_to_range(from: Vector3, p: Vector3, max_range: float) -> Vector3:
 	var d := Vector2(p.x - from.x, p.z - from.z)

@@ -18,10 +18,12 @@ func setup(p_combat: CombatStateMachine, p_config: KitConfig) -> void:
 var double_marks := false
 ## 终末坐标 cost: the cannon is overheated (no shooting at all).
 var cannon_overheat := false
+## 轨道扫射 active: the cannon is the uplink (no other weapon, no backstep).
+var sweeping := false
 
 
 func blocks_actions() -> bool:
-	return cannon_overheat
+	return cannon_overheat or sweeping
 
 
 func on_hit_dealt(hit: HitInfo) -> void:
@@ -38,6 +40,7 @@ func on_hit_dealt(hit: HitInfo) -> void:
 func reset() -> void:
 	double_marks = false
 	cannon_overheat = false
+	sweeping = false
 
 
 func target_marks() -> int:
@@ -48,6 +51,8 @@ func target_marks() -> int:
 func hud_text() -> String:
 	if cannon_overheat:
 		return "轨道炮过热：不能射击"
+	if sweeping:
+		return "轨道扫射：轨道炮上行链路中（不能射击、不能后跃）"
 	var line := "目标标记 %d / 3%s" % [target_marks(), "  标记 ×2" if double_marks else ""]
 	if combat.is_charging():
 		line += "  磁轨蓄力 %3.0f%%%s" % [combat.charge_level * 100.0, "  满蓄：破防" if combat.charge_level >= 0.99 else ""]

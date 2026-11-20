@@ -33,6 +33,9 @@ extends Resource
 @export var windup_break_on_hit: bool = false
 ## Hard control during the active phase ends it early (AZURE beacon).
 @export var active_ends_on_stagger: bool = false
+## Only a grab or a guard-breaking hit ends the active phase early (AZURE
+## 轨道扫射, round 6).
+@export var active_ends_on_heavy: bool = false
 ## After a successful parry, pressing the ultimate within this time skips the windup.
 @export var parry_activation_window: float = 0.5
 ## Interrupted windup: the ultimate is kept but locked for this long.

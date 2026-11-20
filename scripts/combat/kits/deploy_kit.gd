@@ -114,8 +114,9 @@ func incoming_mult(_hit: HitInfo) -> float:
 	return m
 
 
-## 方舟苏生: turrets refilled next to the ark, deploy / zone / wall ready.
-func revive() -> void:
+## 方舟苏生: deploy / zone / wall ready (and, if asked, turrets refilled
+## next to the ark — the pre-round-6 behaviour).
+func revive(refill := true) -> void:
 	var p := combat.profile
 	if p.skill:
 		combat.clear_cooldown(p.skill.id)
@@ -123,7 +124,8 @@ func revive() -> void:
 		combat.clear_cooldown(p.skill_hold.id)
 	wall_cooldown_left = 0.0
 	var spec: DeploySpec = p.skill.deploy_spec if p.skill and p.skill.deploy_spec else null
-	if spec == null:
+	if spec == null or not refill:
+		CombatEvents.kit_event.emit(motor, &"ark_revive")
 		return
 	var side := 1.0
 	while turrets().size() < cfg().max_turrets:

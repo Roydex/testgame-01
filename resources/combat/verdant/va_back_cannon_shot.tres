@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/specs/projectile_spec.gd" id="2"]
+
+[sub_resource type="Resource" id="ProjectileSpec_1"]
+script = ExtResource("2")
+color = Color(0.75, 1.0, 0.35, 1.0)
+
+[resource]
+script = ExtResource("1")
+id = &"va_back_cannon_shot"
+display_name = "背甲炮孢弹"
+attack_type = 1
+delivery = 1
+damage = 5.0
+knockback = 1.0
+knockback_up = 0.0
+stagger_time = 0.0
+hitstop = 0.02
+shake = 0.03
+ultimate_attack = true
+projectile_speed = 55.0
+projectile_range = 36.0
+projectile_radius = 0.28
+projectile_spec = SubResource("ProjectileSpec_1")

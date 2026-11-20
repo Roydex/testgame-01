@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/specs/orbital_spec.gd" id="2"]
+
+[sub_resource type="Resource" id="OrbitalSpec_1"]
+script = ExtResource("2")
+follow_time = 0.0
+follow_per_mark = 0.0
+lock_time = 0.6
+radius = 6.0
+radius_per_mark = 0.0
+min_radius = 6.0
+beam_duration = 0.35
+max_call_range = 60.0
+
+[resource]
+script = ExtResource("1")
+id = &"ao_sweep_collapse"
+display_name = "扫射坍缩"
+attack_type = 2
+delivery = 3
+telegraphed = true
+damage = 40.0
+parryable = false
+knockback = 0.0
+knockback_up = 14.0
+stagger_time = 0.7
+hitstop = 0.12
+shake = 0.5
+ultimate_attack = true
+orbital_spec = SubResource("OrbitalSpec_1")
