@@ -1,7 +1,8 @@
 class_name Grapple
 extends Node3D
 ## HELLFANG 磁索钩爪. A claw on a chain, thrown from the power claw: it
-## flies straight (travel time, no homing, sidestep to dodge), latches onto
+## flies with travel time, leading its target and steering at it a little
+## (round 7; a dash shakes both off), latches onto
 ## walls (pulls the owner there: mobility) and reels back on a miss. A GRAB hit (unparryable,
 ## unguardable) either pulls the owner in (grounded target) or drags an
 ## airborne target down. The target is interrupted and stays staggered until
@@ -28,6 +29,9 @@ var _head: Node3D
 var _prongs: Array[Node3D] = []
 var _shape: SphereShape3D
 var _anchor := Vector3.ZERO
+## Round 7: the mech the claw leads / steers at, and whether it still does.
+var target: MechMotor
+var homing := false
 const LINK := 0.45  # chain link spacing (m)
 
 
@@ -39,11 +43,65 @@ func launch(p_combat: CombatStateMachine, def: AttackDefinition, origin: Vector3
 	dir = aim_dir.normalized()
 	global_position = origin
 	name = "Grapple"
+	_aim_at_target(origin)
 	_shape = SphereShape3D.new()
 	_shape.radius = spec.radius
 	_build_visual()
 	_set_claw_launched(true)
 	CombatEvents.entity_spawned.emit(self, &"grapple")
+
+
+## Round 7: lead the locked (or aim-assisted) target by its horizontal
+## velocity over the flight time, and steer at it in flight. A target caught
+## mid-dash gets neither (it is thrown straight at where it is); a dash
+## during the flight ends the steering.
+func _aim_at_target(origin: Vector3) -> void:
+	var t := combat.ranged_target() as MechMotor
+	if t == null or not is_instance_valid(t) or not TeamRules.is_alive(t):
+		return
+	target = t
+	if _is_dashing(t):
+		return  # dashing right now: no lead, no homing
+	var p := t.get_lock_point()
+	if spec.lead_time_max > 0.0:
+		var v := t.get_horizontal_velocity()
+		var lt := 0.0
+		for i in 2:  # flight time to the predicted point (two refinements)
+			lt = minf(origin.distance_to(p + v * lt) / maxf(spec.speed, 1.0), spec.lead_time_max)
+		var aim := p + v * lt
+		if origin.distance_to(aim) > 0.5:
+			dir = (aim - origin).normalized()
+	if spec.homing_deg > 0.0:
+		homing = true
+		t.dashed.connect(_on_target_dashed)
+
+
+static func _is_dashing(m: MechMotor) -> bool:
+	return m.state == MechMotor.MotionState.GROUND_DASH or m.state == MechMotor.MotionState.AIR_DASH
+
+
+func _on_target_dashed(_in_air: bool) -> void:
+	if _state == 0 and homing:
+		homing = false
+		CombatEvents.kit_event.emit(owner_mech, &"grapple_shaken")
+
+
+## In flight: turn toward the target at most homing_deg per second (only
+## while it is still ahead: the claw never turns back).
+func _steer(delta: float) -> void:
+	if not homing or target == null or not is_instance_valid(target) or not TeamRules.is_alive(target):
+		return
+	var to := target.get_lock_point() - global_position
+	if to.length() < 0.3 or dir.dot(to) <= 0.0:
+		return
+	var want := to.normalized()
+	var ang := dir.angle_to(want)
+	if ang < 0.0001:
+		return
+	var axis := dir.cross(want)
+	if axis.length() < 0.0001:
+		return
+	dir = dir.rotated(axis.normalized(), minf(ang, deg_to_rad(spec.homing_deg) * delta)).normalized()
 
 
 ## Presentation: a three-pronged claw head and a chain of links back to the
@@ -161,6 +219,7 @@ func _physics_process(delta: float) -> void:
 func _fly(delta: float) -> void:
 	if travelled == 0.0 and _point_blank():
 		return
+	_steer(delta)
 	var step := spec.speed * delta
 	var from := global_position
 	var space := get_world_3d().direct_space_state
@@ -372,6 +431,8 @@ func _finish() -> void:
 	if _state == 3:
 		return
 	_state = 3
+	if target and is_instance_valid(target) and target.dashed.is_connected(_on_target_dashed):
+		target.dashed.disconnect(_on_target_dashed)
 	if _mod and _mod_on and is_instance_valid(_mod_on):
 		# bleed off over a few ticks (the motor expires it): no slide-through
 		_mod.forced_velocity = _mod.forced_velocity.normalized() * 3.0

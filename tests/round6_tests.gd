@@ -493,3 +493,52 @@ func t47_round6_tempo(res: Dictionary) -> void:
 	r._check(res, is_equal_approx(CombatProfile.new().guard_break_stagger, 0.6) and is_equal_approx(CombatProfile.new().parry_whiff_recovery, 0.3)
 		and is_equal_approx(dcfg.wall_cooldown, 4.5),
 		"guard-break stagger 0.6 s, whiffed parry 0.3 s, shield wall cooldown %.1f s" % dcfg.wall_cooldown)
+
+
+# ------------------------------------------------------------------ T48
+
+## Round 7: HELLFANG's grapple leads a walking target and steers at it;
+## a dash (mid-dash at launch, or during the flight) shakes both off.
+func t48_hook_assist(res: Dictionary) -> void:
+	var hook := load("res://resources/combat/hellfang/hf_hook.tres") as AttackDefinition
+	var plain := hook.duplicate(true) as AttackDefinition  # the round-5 claw: straight, no lead
+	plain.grapple_spec.lead_time_max = 0.0
+	plain.grapple_spec.homing_deg = 0.0
+	plain.grapple_spec.radius = 0.9
+	var outs := {}
+	for kind in ["walk_round5", "walk", "walk_air", "dash_in_flight", "dash_at_launch"]:
+		var h := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 12))
+		var t := _mech(&"seraph", 1, Vector3(-10, 0.2, 12) if kind != "walk_air" else Vector3(-10, 6.2, 12))
+		await r._ticks(20)
+		var hc := _cs(h)
+		if kind == "walk_round5":
+			hc.profile = hc.profile.duplicate() as CombatProfile
+			hc.profile.skill = plain
+		if kind == "walk_air":
+			t.set_hover_lock(true)
+		var ev := _rec()
+		var p := {"launch": -1}
+		await _frames(ev, 90, func(i: int) -> void:
+			_aim(h, t)
+			t.command.move = Vector3(1, 0, 0)  # walk sideways at full speed
+			h.command.skill_pressed = i == 20
+			h.command.skill_held = i == 20
+			if p.launch < 0:
+				for s in ev.spawned:
+					if s[2] == &"grapple":
+						p.launch = s[0]
+			if kind == "dash_in_flight" and p.launch >= 0 and i == p.launch + 1:
+				t.command.dash_pressed = true
+			if kind == "dash_at_launch" and i == 26:
+				t.command.dash_pressed = true)
+		_unrec()
+		t.command.move = Vector3.ZERO
+		var g := _hits(ev, t, hook.id)
+		outs[kind] = [g.size() > 0 and g[0][2] == CombatTypes.HitResult.HIT, _kit_events(ev, &"grapple_miss"), _kit_events(ev, &"grapple_shaken"), p.launch]
+		await _free([h, t])
+	r._info("hook vs a target walking sideways at 18 m [grabbed, misses, shaken, launch frame]: %s" % [outs])
+	r._check(res, not outs.walk_round5[0] and outs.walk_round5[1] == 1, "round-5 claw (straight, no lead) misses the walking target")
+	r._check(res, outs.walk[0] and outs.walk[1] == 0, "round-7 claw (lead %.1f s, homing %.0f°/s, radius %.1f m) grabs it" % [hook.grapple_spec.lead_time_max, hook.grapple_spec.homing_deg, hook.grapple_spec.radius])
+	r._check(res, outs.walk_air[0], "grabs a target hovering 6 m up while it drifts sideways")
+	r._check(res, not outs.dash_in_flight[0] and outs.dash_in_flight[1] == 1 and outs.dash_in_flight[2] == 1, "a dash during the flight shakes the steering off → miss")
+	r._check(res, not outs.dash_at_launch[0] and outs.dash_at_launch[1] == 1, "a target mid-dash at launch gets no lead / homing → miss")

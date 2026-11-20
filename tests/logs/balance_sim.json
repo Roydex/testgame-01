@@ -184,27 +184,53 @@
     },
     {
       "by_attack": {
-        "hf_axe1": 30.0,
+        "hf_axe1": 60.0,
         "hf_axe2": 17.0,
-        "hf_hook": 18.0,
-        "hf_ram": 41.6
+        "hf_hook": 18.0
       },
-      "dps": 7.10666666666667,
-      "hit_rate": 0.388888888888889,
+      "dps": 6.33333333333333,
+      "hit_rate": 0.444444444444444,
       "mech": "hellfang",
       "range": 5.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "hf_axe1": 33.0,
-        "hf_finisher": 26.0,
-        "hf_hook": 12.0
+        "hf_axe1": 45.0,
+        "hf_finisher": 52.0,
+        "hf_hook": 26.4
       },
-      "dps": 4.73333333333333,
-      "hit_rate": 0.3125,
+      "dps": 8.22666666666667,
+      "hit_rate": 0.473684210526316,
       "mech": "hellfang",
       "range": 12.0,
+      "strafe": true
+    },
+    {
+      "by_attack": {
+        "hf_axe1": 33.0,
+        "hf_axe2": 37.4,
+        "hf_finisher": 26.0,
+        "hf_hook": 26.4,
+        "hf_ram": 49.9
+      },
+      "dps": 11.5146666666667,
+      "hit_rate": 0.526315789473684,
+      "mech": "hellfang",
+      "range": 20.0,
+      "strafe": true
+    },
+    {
+      "by_attack": {
+        "hf_axe1": 52.5,
+        "hf_axe2": 17.0,
+        "hf_finisher": 26.0,
+        "hf_hook": 19.2
+      },
+      "dps": 7.64666666666667,
+      "hit_rate": 0.421052631578947,
+      "mech": "hellfang",
+      "range": 30.0,
       "strafe": true
     },
     {
@@ -214,25 +240,7 @@
         "hf_hook": 6.0
       },
       "dps": 2.53333333333333,
-      "hit_rate": 0.176470588235294,
-      "mech": "hellfang",
-      "range": 20.0,
-      "strafe": true
-    },
-    {
-      "by_attack": {},
-      "dps": 0.0,
-      "hit_rate": 0.0,
-      "mech": "hellfang",
-      "range": 30.0,
-      "strafe": true
-    },
-    {
-      "by_attack": {
-        "hf_hook": 12.0
-      },
-      "dps": 0.8,
-      "hit_rate": 0.111111111111111,
+      "hit_rate": 0.157894736842105,
       "mech": "hellfang",
       "range": 45.0,
       "strafe": true
@@ -564,9 +572,9 @@
       "b": "verdant",
       "damage": {
         "hellfang_dealt": 352.0,
-        "verdant_dealt": 200.0
+        "verdant_dealt": 210.0
       },
-      "hp_a": 0.310344827586207,
+      "hp_a": 0.275862068965517,
       "hp_b": 0.0,
       "time": 17.8000000000003,
       "ults": {},
@@ -576,12 +584,12 @@
       "a": "verdant",
       "b": "hellfang",
       "damage": {
-        "hellfang_dealt": 329.0,
-        "verdant_dealt": 158.0
+        "hellfang_dealt": 382.0,
+        "verdant_dealt": 232.0
       },
       "hp_a": 0.0,
-      "hp_b": 0.455172413793103,
-      "time": 14.716666666667,
+      "hp_b": 0.2,
+      "time": 18.7333333333336,
       "ults": {},
       "winner": "hellfang"
     },
@@ -589,10 +597,10 @@
       "a": "hellfang",
       "b": "azure",
       "damage": {
-        "azure_dealt": 25.0,
+        "azure_dealt": 30.0,
         "hellfang_dealt": 259.0
       },
-      "hp_a": 0.913793103448276,
+      "hp_a": 0.896551724137931,
       "hp_b": 0.0,
       "time": 14.8000000000003,
       "ults": {},
@@ -602,11 +610,11 @@
       "a": "azure",
       "b": "hellfang",
       "damage": {
-        "azure_dealt": 70.0,
+        "azure_dealt": 80.0,
         "hellfang_dealt": 250.0
       },
       "hp_a": 0.0,
-      "hp_b": 0.76021711366539,
+      "hp_b": 0.725255427841635,
       "time": 14.3333333333336,
       "ults": {},
       "winner": "hellfang"
@@ -749,23 +757,26 @@
       "a": "verdant",
       "b": "hellfang",
       "damage": {
-        "hellfang_dealt": 329.0,
-        "verdant_dealt": 131.0
+        "hellfang_dealt": 345.0,
+        "verdant_dealt": 293.0
       },
-      "hp_a": 0.0,
-      "hp_b": 0.548275862068966,
-      "time": 14.716666666667,
-      "ults": {},
-      "winner": "hellfang"
+      "hp_a": 0.313359289617494,
+      "hp_b": 0.0,
+      "time": 17.466666666667,
+      "ults": {
+        "hellfang": 1,
+        "verdant": 1
+      },
+      "winner": "verdant"
     },
     {
       "a": "hellfang",
       "b": "azure",
       "damage": {
-        "azure_dealt": 127.0,
+        "azure_dealt": 132.0,
         "hellfang_dealt": 259.0
       },
-      "hp_a": 0.563448275862069,
+      "hp_a": 0.546206896551724,
       "hp_b": 0.0,
       "time": 14.8833333333337,
       "ults": {
@@ -777,11 +788,11 @@
       "a": "azure",
       "b": "hellfang",
       "damage": {
-        "azure_dealt": 70.0,
+        "azure_dealt": 80.0,
         "hellfang_dealt": 250.0
       },
       "hp_a": 0.0,
-      "hp_b": 0.76021711366539,
+      "hp_b": 0.725255427841635,
       "time": 14.3500000000003,
       "ults": {},
       "winner": "hellfang"

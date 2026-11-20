@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-20T08:25:18  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-20T10:34:08  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -689,9 +689,9 @@ PASS  T41
   ok   axe steps in 4.2 m and hits a target 5.7 m away (1 hit), target bitten true
   ok   bitten target 7.5 m away: the swing lunges 6.1 m (plain lunge 2.2 m) and connects
   ok   dash 45° off a bitten target swerves onto it (0.0° off)
-  ok   hook data: speed 85 m/s, radius 0.9 m
+  ok   hook data: speed 85 m/s, radius 1.2 m (round 7: 0.9 → 1.2, plus lead / homing, T48)
   ok   hook hits WallThick: latched, pulled 15.1 m toward it, no damage, cooldown 0.6 s
-  ok   chain drawn (33 links) and the arm claw is out while the hook flies
+  ok   chain drawn (32 links) and the arm claw is out while the hook flies
   ok   cooldown after a miss 0.9 s (≤ 1.4), after a grab 1.4 s (full 2.3 s)
   ok   overheat 1.0 s, damage taken ×1.15, can dash (true); steam pushed the enemy 2.3 m, no damage
 PASS  T42
@@ -791,6 +791,15 @@ PASS  T46
   ok   guard-break stagger 0.6 s, whiffed parry 0.3 s, shield wall cooldown 4.5 s
 PASS  T47
 
+--- T48  Round 7: grapple leads and steers at a walking target; a dash shakes it off
+  info hook vs a target walking sideways at 18 m [grabbed, misses, shaken, launch frame]: { "walk_round5": [false, 1, 0, 32], "walk": [true, 0, 0, 32], "walk_air": [true, 0, 0, 32], "dash_in_flight": [false, 1, 1, 32], "dash_at_launch": [false, 1, 0, 32] }
+  ok   round-5 claw (straight, no lead) misses the walking target
+  ok   round-7 claw (lead 0.4 s, homing 90°/s, radius 1.2 m) grabs it
+  ok   grabs a target hovering 6 m up while it drifts sideways
+  ok   a dash during the flight shakes the steering off → miss
+  ok   a target mid-dash at launch gets no lead / homing → miss
+PASS  T48
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -839,4 +848,5 @@ T44  PASS  U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 (moving ark
 T45  PASS  Air control rework: hover lock, fast / dive descent, hover EN, air regen
 T46  PASS  Round 6a: mirror heat / claw catch / symbiotic shell / spore burst, spear charge, weak ram, flame
 T47  PASS  Round 6c: hit-confirm cancels, cooldowns ×0.75, quicker deploy / charge, HP ×0.85, EN delay
-47/47 passed
+T48  PASS  Round 7: grapple leads and steers at a walking target; a dash shakes it off
+48/48 passed

@@ -2008,8 +2008,8 @@ func t42_playtest_round5(res: Dictionary) -> void:
 
 	# --- 3. HELLFANG grapple: a claw on a chain; misses cool down faster; walls are latched
 	var hook := load("res://resources/combat/hellfang/hf_hook.tres") as AttackDefinition
-	r._check(res, is_equal_approx(hook.grapple_spec.speed, 85.0) and is_equal_approx(hook.grapple_spec.radius, 0.9),
-		"hook data: speed %.0f m/s, radius %.1f m" % [hook.grapple_spec.speed, hook.grapple_spec.radius])
+	r._check(res, is_equal_approx(hook.grapple_spec.speed, 85.0) and is_equal_approx(hook.grapple_spec.radius, 1.2),
+		"hook data: speed %.0f m/s, radius %.1f m (round 7: 0.9 → 1.2, plus lead / homing, T48)" % [hook.grapple_spec.speed, hook.grapple_spec.radius])
 	var g := MechFactory.create_by_id(&"hellfang", 0, true)
 	g.position = Vector3(0, 0.2, -22)
 	g.rotation.y = 0.0  # facing -z: WallThick is 18 m ahead

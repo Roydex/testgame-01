@@ -7,6 +7,13 @@ extends Resource
 @export var speed: float = 62.0
 @export var max_range: float = 25.0
 @export var radius: float = 0.5
+## Round 7 (playtest: too hard to land on a walking target): at launch the
+## claw leads the target by its horizontal velocity over the flight time
+## (capped), then steers at it at most `homing_deg` per second. A target
+## that dashes (mid-dash at launch, or during the flight) shakes both off:
+## the dash stays the clear counter.
+@export var lead_time_max: float = 0.0
+@export var homing_deg: float = 0.0
 ## A target this high above the ground counts as airborne (m).
 @export var airborne_height: float = 2.5
 @export_group("Pull self (grounded target)")

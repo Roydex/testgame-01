@@ -80,6 +80,7 @@ func _run_all() -> void:
 		["T45", "Air control rework: hover lock, fast / dive descent, hover EN, air regen", p3.t45_air_control],
 		["T46", "Round 6a: mirror heat / claw catch / symbiotic shell / spore burst, spear charge, weak ram, flame", p6.t46_round6_defence_moves],
 		["T47", "Round 6c: hit-confirm cancels, cooldowns ×0.75, quicker deploy / charge, HP ×0.85, EN delay", p6.t47_round6_tempo],
+		["T48", "Round 7: grapple leads and steers at a walking target; a dash shakes it off", p6.t48_hook_assist],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
