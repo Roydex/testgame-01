@@ -1,72 +1,72 @@
-=== Phase 3a balance simulation  2026-11-20T04:36:51 ===
+=== Phase 3a balance simulation  2026-11-20T08:24:11 ===
 
 --- 1. DPS probe (damage per second while held at distance d; target does not defend)
 mech      target     d (m)      DPS     hit%  damage by attack
 seraph    still          5     21.0     100%  { "seraph_l1": 81.0, "seraph_l2": 90.0, "seraph_l3": 144.0 }
-seraph    still         12     15.0      67%  { "seraph_dash_slash": 70.0, "seraph_l1": 45.0, "seraph_l2": 30.0, "seraph_l3": 80.0 }
-seraph    still         20     13.4      59%  { "seraph_l1": 45.0, "seraph_l2": 20.0, "seraph_l3": 80.0, "seraph_dash_slash": 56.0 }
-seraph    still         30     13.1      59%  { "seraph_dash_slash": 56.0, "seraph_l1": 36.0, "seraph_l2": 40.0, "seraph_l3": 64.0 }
-seraph    still         45      9.8      44%  { "seraph_dash_slash": 42.0, "seraph_l1": 27.0, "seraph_l2": 30.0, "seraph_l3": 48.0 }
-seraph    strafing       5     10.1      45%  { "seraph_l1": 54.0, "seraph_l2": 20.0, "seraph_l3": 64.0, "seraph_dash_slash": 14.0 }
-seraph    strafing      12      1.9       7%  { "seraph_dash_slash": 28.0 }
-seraph    strafing      20      1.5       7%  { "seraph_l1": 9.0, "seraph_dash_slash": 14.0 }
+seraph    still         12     17.2      80%  { "seraph_dash_slash": 98.0, "seraph_l1": 54.0, "seraph_l2": 10.0, "seraph_l3": 96.0 }
+seraph    still         20     16.0      70%  { "seraph_l1": 54.0, "seraph_l2": 20.0, "seraph_l3": 96.0, "seraph_dash_slash": 70.0 }
+seraph    still         30     14.6      68%  { "seraph_dash_slash": 84.0, "seraph_l1": 45.0, "seraph_l2": 10.0, "seraph_l3": 80.0 }
+seraph    still         45     11.3      50%  { "seraph_dash_slash": 70.0, "seraph_l1": 36.0, "seraph_l3": 64.0 }
+seraph    strafing       5     11.1      52%  { "seraph_l1": 36.0, "seraph_l2": 40.0, "seraph_l3": 48.0, "seraph_dash_slash": 42.0 }
+seraph    strafing      12      3.9      14%  { "seraph_dash_slash": 42.0, "seraph_l3": 16.0 }
+seraph    strafing      20      4.1      17%  { "seraph_l1": 18.0, "seraph_l3": 16.0, "seraph_dash_slash": 28.0 }
 seraph    strafing      30      0.0       0%  {  }
-seraph    strafing      45      0.0       0%  {  }
-hellfang  still          5     27.6     100%  { "hf_axe1": 133.8, "hf_axe2": 98.6, "hf_finisher": 160.2, "hf_hook": 21.6 }
-hellfang  still         12     23.6      95%  { "hf_hook": 27.6, "hf_axe1": 110.4, "hf_axe2": 78.2, "hf_finisher": 138.4 }
-hellfang  still         20     23.6      95%  { "hf_hook": 27.6, "hf_axe1": 110.4, "hf_axe2": 78.2, "hf_finisher": 138.4 }
-hellfang  still         30     20.9      85%  { "hf_hook": 27.6, "hf_axe1": 139.2, "hf_axe2": 57.8, "hf_finisher": 88.4 }
-hellfang  still         45      8.0      44%  { "hf_hook": 19.2, "hf_axe1": 57.9, "hf_axe2": 17.0, "hf_finisher": 26.0 }
-hellfang  strafing       5      2.5      19%  { "hf_axe1": 15.0, "hf_axe2": 17.0, "hf_hook": 6.0 }
-hellfang  strafing      12      7.1      33%  { "hf_hook": 6.0, "hf_axe1": 33.0, "hf_finisher": 26.0, "hf_ram": 41.6 }
-hellfang  strafing      20      0.4       6%  { "hf_hook": 6.0 }
+seraph    strafing      45      0.6       3%  { "seraph_l1": 9.0 }
+hellfang  still          5     27.6      95%  { "hf_axe1": 133.8, "hf_axe2": 98.6, "hf_finisher": 160.2, "hf_hook": 21.6 }
+hellfang  still         12     27.1     100%  { "hf_hook": 27.6, "hf_axe1": 110.4, "hf_axe2": 98.6, "hf_finisher": 169.6 }
+hellfang  still         20     27.1     100%  { "hf_hook": 27.6, "hf_axe1": 110.4, "hf_axe2": 98.6, "hf_finisher": 169.6 }
+hellfang  still         30     22.2      86%  { "hf_hook": 27.6, "hf_axe1": 139.2, "hf_axe2": 78.2, "hf_finisher": 88.4 }
+hellfang  still         45     10.6      53%  { "hf_hook": 19.2, "hf_axe1": 75.9, "hf_axe2": 37.4, "hf_finisher": 26.0 }
+hellfang  strafing       5      7.1      39%  { "hf_axe1": 30.0, "hf_axe2": 17.0, "hf_hook": 18.0, "hf_ram": 41.6 }
+hellfang  strafing      12      4.7      31%  { "hf_hook": 12.0, "hf_axe1": 33.0, "hf_finisher": 26.0 }
+hellfang  strafing      20      2.5      18%  { "hf_hook": 6.0, "hf_axe1": 15.0, "hf_axe2": 17.0 }
 hellfang  strafing      30      0.0       0%  {  }
-hellfang  strafing      45      4.1      24%  { "hf_hook": 12.0, "hf_finisher": 26.0, "hf_axe1": 23.4 }
-verdant   still          5     40.9     583%  { "va_scatter": 513.0, "va_turret_shot": 100.0 }
-verdant   still         12     40.0     600%  { "va_turret_shot": 120.0, "va_scatter": 481.8 }
-verdant   still         20     22.6     430%  { "va_turret_shot": 115.0, "va_scatter": 224.6 }
-verdant   still         30     11.9     274%  { "va_scatter": 64.0, "va_turret_shot": 115.0 }
+hellfang  strafing      45      0.8      11%  { "hf_hook": 12.0 }
+verdant   still          5     41.9     596%  { "va_scatter": 513.0, "va_turret_shot": 115.0 }
+verdant   still         12     40.2     604%  { "va_turret_shot": 125.0, "va_scatter": 479.4 }
+verdant   still         20     23.2     439%  { "va_turret_shot": 125.0, "va_scatter": 224.2 }
+verdant   still         30     12.5     283%  { "va_scatter": 64.0, "va_turret_shot": 125.0 }
 verdant   still         45      0.0       0%  {  }
-verdant   strafing       5     30.7     439%  { "va_scatter": 390.6, "va_turret_shot": 70.0 }
-verdant   strafing      12      3.8      57%  { "va_scatter": 41.6, "va_turret_shot": 15.0 }
-verdant   strafing      20      2.5      61%  { "va_scatter": 32.9, "va_turret_shot": 5.0 }
-verdant   strafing      30      0.6      26%  { "va_scatter": 9.6 }
+verdant   strafing       5      9.8     204%  { "va_scatter": 92.0, "va_turret_shot": 55.0 }
+verdant   strafing      12     11.7     183%  { "va_scatter": 156.8, "va_turret_shot": 20.0 }
+verdant   strafing      20      3.0      65%  { "va_scatter": 40.5, "va_turret_shot": 5.0 }
+verdant   strafing      30      0.2       9%  { "va_scatter": 3.2 }
 verdant   strafing      45      0.0       0%  {  }
-azure     still          5     23.6     115%  { "ao_pulse": 180.0, "ao_orbital": 150.0, "ao_orbital_burn": 24.0 }
-azure     still         12     23.6     119%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_missiles": 21.0, "ao_pulse": 95.0, "ao_rail": 64.0 }
-azure     still         20     26.2     107%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_missiles": 21.0, "ao_pulse": 75.0, "ao_rail": 123.4 }
-azure     still         30     27.6     115%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_pulse": 60.0, "ao_missiles": 56.0, "ao_rail": 123.4 }
-azure     still         45     26.4     107%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_missiles": 56.0, "ao_pulse": 50.0, "ao_rail": 116.5 }
-azure     strafing       5     22.7      94%  { "ao_pulse": 90.0, "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_rail": 69.2, "ao_missiles": 7.0 }
-azure     strafing      12      7.0      24%  { "ao_orbital_shock": 40.0, "ao_missiles": 14.0, "ao_pulse": 5.0, "ao_rail": 46.6 }
-azure     strafing      20     15.1      48%  { "ao_orbital_shock": 20.0, "ao_missiles": 14.0, "ao_pulse": 25.0, "ao_rail": 60.0, "ao_orbital": 100.0, "ao_orbital_burn": 8.0 }
-azure     strafing      30      6.9      22%  { "ao_orbital": 50.0, "ao_pulse": 5.0, "ao_orbital_shock": 40.0, "ao_orbital_burn": 8.0 }
-azure     strafing      45     12.6      30%  { "ao_orbital": 100.0, "ao_orbital_burn": 8.0, "ao_pulse": 10.0, "ao_rail": 50.7, "ao_orbital_shock": 20.0 }
+azure     still          5     25.6     117%  { "ao_pulse": 160.0, "ao_orbital": 200.0, "ao_orbital_burn": 24.0 }
+azure     still         12     30.4     126%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_missiles": 28.0, "ao_pulse": 65.0, "ao_rail": 189.0 }
+azure     still         20     29.7     122%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_missiles": 35.0, "ao_pulse": 55.0, "ao_rail": 181.1 }
+azure     still         30     29.7     122%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_pulse": 40.0, "ao_missiles": 56.0, "ao_rail": 175.1 }
+azure     still         45     27.7     109%  { "ao_orbital": 150.0, "ao_orbital_burn": 24.0, "ao_missiles": 56.0, "ao_pulse": 25.0, "ao_rail": 161.1 }
+azure     strafing       5     19.6      81%  { "ao_pulse": 100.0, "ao_orbital": 100.0, "ao_orbital_burn": 8.0, "ao_rail": 66.6, "ao_orbital_shock": 20.0 }
+azure     strafing      12     18.4      35%  { "ao_orbital_shock": 20.0, "ao_missiles": 7.0, "ao_pulse": 5.0, "ao_rail": 143.8, "ao_orbital": 100.0 }
+azure     strafing      20     20.8      57%  { "ao_orbital_shock": 20.0, "ao_missiles": 7.0, "ao_pulse": 15.0, "ao_rail": 158.3, "ao_orbital": 100.0, "ao_orbital_burn": 12.0 }
+azure     strafing      30     13.5      42%  { "ao_orbital": 100.0, "ao_pulse": 5.0, "ao_missiles": 28.0, "ao_rail": 46.1, "ao_orbital_shock": 20.0, "ao_orbital_burn": 4.0 }
+azure     strafing      45      9.7      38%  { "ao_orbital": 100.0, "ao_orbital_burn": 16.0, "ao_pulse": 10.0, "ao_orbital_shock": 20.0 }
 
 --- 2. Scripted 1v1 (full-aggression partner pattern, ultimates off; both spawn sides)
-seraph    vs hellfang  → winner hellfang    29.4 s   HP left seraph 0% / hellfang 9%   dmg { "seraph_dealt": 310.0, "hellfang_dealt": 317.0 }
-hellfang  vs seraph    → winner seraph      31.2 s   HP left hellfang 0% / seraph 1%   dmg { "hellfang_dealt": 297.0, "seraph_dealt": 354.0 }
-seraph    vs verdant   → winner verdant     33.0 s   HP left seraph 0% / verdant 39%   dmg { "seraph_dealt": 221.0, "verdant_dealt": 303.0 }
-verdant   vs seraph    → winner verdant     26.8 s   HP left verdant 58% / seraph 0%   dmg { "verdant_dealt": 301.0, "seraph_dealt": 151.0 }
-seraph    vs azure     → winner azure       23.4 s   HP left seraph 0% / azure 31%   dmg { "seraph_dealt": 192.0, "azure_dealt": 348.0 }
-azure     vs seraph    → winner azure       24.7 s   HP left azure 22% / seraph 0%   dmg { "azure_dealt": 358.0, "seraph_dealt": 218.0 }
-hellfang  vs verdant   → winner hellfang    21.8 s   HP left hellfang 52% / verdant 0%   dmg { "hellfang_dealt": 441.0, "verdant_dealt": 162.0 }
-verdant   vs hellfang  → winner hellfang    25.8 s   HP left verdant 0% / hellfang 28%   dmg { "verdant_dealt": 246.0, "hellfang_dealt": 437.0 }
-hellfang  vs azure     → winner hellfang    14.9 s   HP left hellfang 80% / azure 0%   dmg { "hellfang_dealt": 283.0, "azure_dealt": 68.0 }
-azure     vs hellfang  → winner hellfang    14.9 s   HP left azure 0% / hellfang 80%   dmg { "azure_dealt": 68.0, "hellfang_dealt": 283.0 }
-verdant   vs azure     → winner azure       28.8 s   HP left verdant 0% / azure 36%   dmg { "verdant_dealt": 201.0, "azure_dealt": 571.0 }
-azure     vs verdant   → winner azure       25.7 s   HP left azure 48% / verdant 0%   dmg { "azure_dealt": 567.0, "verdant_dealt": 154.0 }
+seraph    vs hellfang  → winner hellfang    21.8 s   HP left seraph 0% / hellfang 26%   dmg { "seraph_dealt": 215.0, "hellfang_dealt": 278.0 }
+hellfang  vs seraph    → winner hellfang    21.8 s   HP left hellfang 26% / seraph 0%   dmg { "hellfang_dealt": 278.0, "seraph_dealt": 215.0 }
+seraph    vs verdant   → winner verdant     30.0 s   HP left seraph 0% / verdant 28%   dmg { "seraph_dealt": 220.0, "verdant_dealt": 258.0 }
+verdant   vs seraph    → winner verdant     26.9 s   HP left verdant 32% / seraph 0%   dmg { "verdant_dealt": 256.0, "seraph_dealt": 208.0 }
+seraph    vs azure     → winner azure       16.7 s   HP left seraph 0% / azure 49%   dmg { "seraph_dealt": 123.0, "azure_dealt": 267.0 }
+azure     vs seraph    → winner azure       16.7 s   HP left azure 36% / seraph 0%   dmg { "azure_dealt": 257.0, "seraph_dealt": 154.0 }
+hellfang  vs verdant   → winner hellfang    17.8 s   HP left hellfang 31% / verdant 0%   dmg { "hellfang_dealt": 352.0, "verdant_dealt": 200.0 }
+verdant   vs hellfang  → winner hellfang    14.7 s   HP left verdant 0% / hellfang 46%   dmg { "verdant_dealt": 158.0, "hellfang_dealt": 329.0 }
+hellfang  vs azure     → winner hellfang    14.8 s   HP left hellfang 91% / azure 0%   dmg { "hellfang_dealt": 259.0, "azure_dealt": 25.0 }
+azure     vs hellfang  → winner hellfang    14.3 s   HP left azure 0% / hellfang 76%   dmg { "azure_dealt": 70.0, "hellfang_dealt": 250.0 }
+verdant   vs azure     → winner azure       23.6 s   HP left verdant 0% / azure 38%   dmg { "verdant_dealt": 155.0, "azure_dealt": 520.0 }
+azure     vs verdant   → winner azure       23.6 s   HP left azure 42% / verdant 0%   dmg { "azure_dealt": 528.0, "verdant_dealt": 147.0 }
 
 --- 3. Scripted 1v1 (full-aggression partner pattern, ultimates ON; both spawn sides)
-seraph    vs hellfang  → winner seraph      28.9 s   HP left seraph 2% / hellfang 0%   dmg { "seraph_dealt": 342.0, "hellfang_dealt": 293.0 }   ults { "seraph": 1, "hellfang": 1 }
-hellfang  vs seraph    → winner seraph      28.1 s   HP left hellfang 0% / seraph 3%   dmg { "hellfang_dealt": 292.0, "seraph_dealt": 342.0 }   ults { "seraph": 1, "hellfang": 1 }
-seraph    vs verdant   → winner verdant     30.2 s   HP left seraph 0% / verdant 13%   dmg { "seraph_dealt": 331.0, "verdant_dealt": 304.0 }   ults { "seraph": 1, "verdant": 1 }
-verdant   vs seraph    → winner verdant     30.0 s   HP left verdant 6% / seraph 0%   dmg { "verdant_dealt": 303.0, "seraph_dealt": 340.0 }   ults { "seraph": 1 }
-seraph    vs azure     → winner seraph      23.0 s   HP left seraph 22% / azure 0%   dmg { "seraph_dealt": 286.0, "azure_dealt": 233.0 }   ults { "seraph": 1 }
-azure     vs seraph    → winner seraph      22.7 s   HP left azure 0% / seraph 21%   dmg { "azure_dealt": 238.0, "seraph_dealt": 281.0 }   ults { "seraph": 1 }
-hellfang  vs verdant   → winner hellfang    21.8 s   HP left hellfang 52% / verdant 0%   dmg { "hellfang_dealt": 441.0, "verdant_dealt": 162.0 }   ults {  }
-verdant   vs hellfang  → winner hellfang    28.9 s   HP left verdant 0% / hellfang 14%   dmg { "verdant_dealt": 293.0, "hellfang_dealt": 537.0 }   ults { "hellfang": 1, "verdant": 1 }
-hellfang  vs azure     → winner hellfang    14.9 s   HP left hellfang 81% / azure 0%   dmg { "hellfang_dealt": 283.0, "azure_dealt": 63.0 }   ults {  }
-azure     vs hellfang  → winner hellfang    14.9 s   HP left azure 0% / hellfang 81%   dmg { "azure_dealt": 63.0, "hellfang_dealt": 283.0 }   ults {  }
-verdant   vs azure     → winner verdant     30.2 s   HP left verdant 13% / azure 0%   dmg { "verdant_dealt": 301.0, "azure_dealt": 686.0 }   ults { "verdant": 1, "azure": 1 }
-azure     vs verdant   → winner azure       31.2 s   HP left azure 3% / verdant 0%   dmg { "azure_dealt": 621.0, "verdant_dealt": 292.0 }   ults { "verdant": 1, "azure": 1 }
+seraph    vs hellfang  → winner hellfang    22.3 s   HP left seraph 0% / hellfang 29%   dmg { "seraph_dealt": 206.0, "hellfang_dealt": 274.0 }   ults { "seraph": 1, "hellfang": 1 }
+hellfang  vs seraph    → winner hellfang    22.3 s   HP left hellfang 29% / seraph 0%   dmg { "hellfang_dealt": 274.0, "seraph_dealt": 206.0 }   ults { "seraph": 1, "hellfang": 1 }
+seraph    vs verdant   → winner verdant     26.8 s   HP left seraph 0% / verdant 16%   dmg { "seraph_dealt": 265.0, "verdant_dealt": 259.0 }   ults { "seraph": 1, "verdant": 1 }
+verdant   vs seraph    → winner verdant     23.7 s   HP left verdant 25% / seraph 0%   dmg { "verdant_dealt": 257.0, "seraph_dealt": 240.0 }   ults { "seraph": 1, "verdant": 1 }
+seraph    vs azure     → winner azure       16.7 s   HP left seraph 0% / azure 49%   dmg { "seraph_dealt": 123.0, "azure_dealt": 267.0 }   ults {  }
+azure     vs seraph    → winner azure       16.7 s   HP left azure 36% / seraph 0%   dmg { "azure_dealt": 257.0, "seraph_dealt": 154.0 }   ults {  }
+hellfang  vs verdant   → winner verdant     17.4 s   HP left hellfang 0% / verdant 23%   dmg { "hellfang_dealt": 318.0, "verdant_dealt": 292.0 }   ults { "verdant": 1, "hellfang": 1 }
+verdant   vs hellfang  → winner hellfang    14.7 s   HP left verdant 0% / hellfang 55%   dmg { "verdant_dealt": 131.0, "hellfang_dealt": 329.0 }   ults {  }
+hellfang  vs azure     → winner hellfang    14.9 s   HP left hellfang 56% / azure 0%   dmg { "hellfang_dealt": 259.0, "azure_dealt": 127.0 }   ults { "azure": 1 }
+azure     vs hellfang  → winner hellfang    14.4 s   HP left azure 0% / hellfang 76%   dmg { "azure_dealt": 70.0, "hellfang_dealt": 250.0 }   ults {  }
+verdant   vs azure     → winner verdant     23.8 s   HP left verdant 2% / azure 0%   dmg { "verdant_dealt": 251.0, "azure_dealt": 501.0 }   ults { "verdant": 1, "azure": 1 }
+azure     vs verdant   → winner verdant     24.6 s   HP left azure 0% / verdant 2%   dmg { "azure_dealt": 543.0, "verdant_dealt": 261.0 }   ults { "verdant": 1, "azure": 1 }

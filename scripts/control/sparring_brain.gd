@@ -208,7 +208,10 @@ func _ranged(cmd: MechCommand, flat: Vector3, dist: float, interval: float) -> v
 ## readable loop built from their profile: keep a preferred range, then
 ## perform the next action of a fixed cycle. Still a script, not an AI.
 func _uses_kit_pattern() -> bool:
-	return combat.profile.kit != null or combat.profile.skill_hold != null
+	# PALE SERAPH's mirror heat kit (round 6) is not a phase-3a kit: it keeps
+	# its own melee / training script
+	var k := combat.profile.kit
+	return (k != null and not k is MirrorConfig) or combat.profile.skill_hold != null
 
 
 func _kit_actions() -> Array[StringName]:

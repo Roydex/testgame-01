@@ -199,3 +199,8 @@
 
 - **D-60 悬浮锁定和速降都在 MechMotor 里。** 双击判定（`hover_double_tap_window`）由运动层根据 `jump_pressed` 计时，玩家和脚本共用同一规则；脚本和 AI 也可以直接写 `MechCommand.hover_lock_request`（+1 锁定 / −1 解除）。`hover_engaged` 现在就是悬浮锁定，每次起飞默认不锁定，落地、EN 耗尽、开始速降时清除。速降是新的边沿 `descend_pressed`，进入后由 `fast_descent` / `dive_dash` 标志接管，运动状态保持 FALLING（战斗层看到的仍是“空中下落”）；冲刺速降不是 AIR_DASH 状态，也不会再接一次空中冲刺。战斗层仍不写速度：硬直（`block_thrust`）会把速降直接打断成普通下落。
 - **D-61 空中回能 + 推进锁定。** `_regen()` 在空中只有“不推进”（不上升、不悬停、不冲刺、不速降）时按 `air_regen_per_sec` 回能。EN 在空中归零时设置 `thrust_locked`，落地前悬停、上升、速降、空中冲刺都不可用，防止“回一点 EN、推一下”的无限滞空；这是对 AGENT.md §10.2“EN 耗尽后进入重力下降、保留有限空中方向控制”的直接实现。速降虽然不耗 EN，也属于推进动作，所以同样需要 EN > 0 且没有推进锁定（F39）。
+- **D-62 机体防御走 kit 钩子（第 6 轮）。** `DamageSystem` 在招架 / 格挡前问 `kit.defends_against(hit, parry)`（白祷镜盾过热、大招攻击），破防前问 `kit.resists_guard_break(hit)`（镜盾挡光束），格挡成立后调 `kit.on_guard_held(hit)`（折射弹丸 / 射出折射光）；招架成功调 `kit.on_parry_success(hit, projectile)`（赤狱截击、苍藓爆散）。是否反弹弹丸由 `CombatProfile.parry_reflects` 决定，只有白祷为是。共用战斗内核不出现机体名。
+- **D-63 命中取消在状态机里（第 6 轮）。** `_tick_attack` 中，攻击一旦命中（`_landed`），冲刺 / 跳跃 / 技能 / 招架立刻可以取消；打空仍按 `cancel_time`。“速度即伤害”实验只在此之上叠伤害层数。按住蓄力（`hold_windup_max`，终审之矛）把 `attack_time` 停在前摇末尾并按蓄力比例拉长本次突进（`_cur_lunge`）；赤狱首斧前摇中按住满 `attack_hold_time` 就转成长按招式（`_hold_attack_def()` 在完整版与 `attack_hold_fallback` 之间选择）。
+- **D-64 轨道扫射是实体 + 手动瞄准状态（第 6 轮）。** `SweepEffect` 生成 `SweepBeam`（自己计时、限速移动、按 tick 结算、留 `BurnZone`、结束时用 `OrbitalStrike.call_at` 坍缩），并设置 `CombatStateMachine.steering_def`；`aim_pending()` 因此为真，PlayerBrain 沿用轨道标记的抬高视角和落点虚影，每帧写 `placement_point`。脚本没有手动标记时光柱追锁定目标。
+- **D-65 移动方舟（第 6 轮）。** `Habitat.follow_owner` 让栖地每帧贴着苍藓；`BackCannon` 挂在苍藓身上，无血量、无碰撞，用苍藓作为弹丸归属（TeamRules 判断敌我）。
+
