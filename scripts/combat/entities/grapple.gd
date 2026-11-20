@@ -159,6 +159,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _fly(delta: float) -> void:
+	if travelled == 0.0 and _point_blank():
+		return
 	var step := spec.speed * delta
 	var from := global_position
 	var space := get_world_3d().direct_space_state
@@ -208,6 +210,35 @@ func _fly(delta: float) -> void:
 	travelled += step
 	if travelled >= spec.max_range:
 		_miss()
+
+
+## The claw leaves the arm in front of the chest (the muzzle is 1.6 m ahead):
+## an enemy already touching the chest → muzzle segment, or overlapping the
+## start point, would be skipped by the motion sweep (it ignores shapes it
+## starts inside). Grab it right away instead (round-5 diagnosis: hooks at
+## 2–3 m passed through the target and hit the ground behind it).
+func _point_blank() -> bool:
+	var space := get_world_3d().direct_space_state
+	var start := owner_mech.global_position + Vector3.UP * 2.6
+	var ex: Array[RID] = [owner_mech.get_rid()]
+	if combat.hurtbox:
+		ex.append(combat.hurtbox.get_rid())
+	for k in 4:
+		var p := start.lerp(global_position, k / 3.0)
+		var cq := PhysicsShapeQueryParameters3D.new()
+		cq.shape = _shape
+		cq.transform = Transform3D(Basis(), p)
+		cq.collision_mask = CombatTypes.HURTBOX_LAYER
+		cq.collide_with_areas = true
+		cq.collide_with_bodies = false
+		cq.exclude = ex
+		for t in space.intersect_shape(cq, 6):
+			var hb := t.collider as Hurtbox
+			if hb and hb.mech is MechMotor and TeamRules.can_damage(owner_mech, hb.mech):
+				global_position = p
+				_grab(hb.mech as MechMotor)
+				return true
+	return false
 
 
 func _grab(victim: MechMotor) -> void:

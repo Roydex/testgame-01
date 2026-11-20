@@ -26,6 +26,13 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
+## Each probe / duel gets its own fixed seed, so a change to one mech no
+## longer reshuffles the random strafing of every later matchup (round-5
+## diagnosis: one changed duel shifted all the following results).
+func _seed_for(key: String) -> int:
+	return 20261119 ^ key.hash()
+
+
 func _log(s: String) -> void:
 	print(s)
 	lines.append(s)
@@ -56,6 +63,7 @@ func _run() -> void:
 		for strafe in [false, true]:
 			for d: float in RANGES:
 				await _new_arena()
+				seed(_seed_for("%s/%s/%d" % [id, strafe, int(d)]))
 				var r := await _probe(id, d, strafe)
 				await _free_arena()
 				out.dps.append(r)
@@ -68,6 +76,7 @@ func _run() -> void:
 				var a: StringName = ids[i] if side == 0 else ids[j]
 				var b: StringName = ids[j] if side == 0 else ids[i]
 				await _new_arena()
+				seed(_seed_for("%s/%s" % [a, b]))
 				var r := await _duel(a, b)
 				await _free_arena()
 				out.duels.append(r)

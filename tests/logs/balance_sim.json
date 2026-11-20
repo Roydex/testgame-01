@@ -65,21 +65,24 @@
       "strafe": false
     },
     {
-      "by_attack": {},
-      "dps": 0.0,
-      "hit_rate": 0.0,
+      "by_attack": {
+        "seraph_dash_slash": 14.0,
+        "seraph_l1": 54.0,
+        "seraph_l2": 20.0,
+        "seraph_l3": 64.0
+      },
+      "dps": 10.1333333333333,
+      "hit_rate": 0.448275862068966,
       "mech": "seraph",
       "range": 5.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "seraph_dash_slash": 28.0,
-        "seraph_l1": 9.0,
-        "seraph_l3": 16.0
+        "seraph_dash_slash": 28.0
       },
-      "dps": 3.53333333333333,
-      "hit_rate": 0.137931034482759,
+      "dps": 1.86666666666667,
+      "hit_rate": 0.0714285714285714,
       "mech": "seraph",
       "range": 12.0,
       "strafe": true
@@ -96,12 +99,9 @@
       "strafe": true
     },
     {
-      "by_attack": {
-        "seraph_dash_slash": 14.0,
-        "seraph_l1": 9.0
-      },
-      "dps": 1.53333333333333,
-      "hit_rate": 0.0666666666666667,
+      "by_attack": {},
+      "dps": 0.0,
+      "hit_rate": 0.0,
       "mech": "seraph",
       "range": 30.0,
       "strafe": true
@@ -116,66 +116,65 @@
     },
     {
       "by_attack": {
-        "hf_axe1": 92.4,
-        "hf_axe2": 78.2,
-        "hf_finisher": 129.0,
-        "hf_hook": 14.4,
-        "hf_ram": 49.9
+        "hf_axe1": 133.8,
+        "hf_axe2": 98.6,
+        "hf_finisher": 160.2,
+        "hf_hook": 21.6
       },
-      "dps": 24.2586666666667,
-      "hit_rate": 0.941176470588235,
+      "dps": 27.6106666666667,
+      "hit_rate": 1.0,
       "mech": "hellfang",
       "range": 5.0,
       "strafe": false
     },
     {
       "by_attack": {
-        "hf_axe1": 92.4,
+        "hf_axe1": 110.4,
         "hf_axe2": 78.2,
         "hf_finisher": 138.4,
         "hf_hook": 27.6
       },
-      "dps": 22.4346666666667,
-      "hit_rate": 0.944444444444444,
+      "dps": 23.6346666666667,
+      "hit_rate": 0.947368421052632,
       "mech": "hellfang",
       "range": 12.0,
       "strafe": false
     },
     {
       "by_attack": {
-        "hf_axe1": 92.4,
+        "hf_axe1": 110.4,
         "hf_axe2": 78.2,
         "hf_finisher": 138.4,
         "hf_hook": 27.6
       },
-      "dps": 22.4346666666667,
-      "hit_rate": 0.944444444444444,
+      "dps": 23.6346666666667,
+      "hit_rate": 0.947368421052632,
       "mech": "hellfang",
       "range": 20.0,
       "strafe": false
     },
     {
       "by_attack": {
-        "hf_axe1": 121.2,
+        "hf_axe1": 139.2,
         "hf_axe2": 57.8,
         "hf_finisher": 88.4,
         "hf_hook": 27.6
       },
-      "dps": 19.6666666666667,
-      "hit_rate": 0.842105263157895,
+      "dps": 20.8666666666667,
+      "hit_rate": 0.85,
       "mech": "hellfang",
       "range": 30.0,
       "strafe": false
     },
     {
       "by_attack": {
-        "hf_axe1": 38.4,
+        "hf_axe1": 57.9,
         "hf_axe2": 17.0,
         "hf_finisher": 26.0,
-        "hf_hook": 13.2
+        "hf_hook": 19.2
       },
-      "dps": 6.30666666666667,
-      "hit_rate": 0.333333333333333,
+      "dps": 8.00666666666667,
+      "hit_rate": 0.444444444444444,
       "mech": "hellfang",
       "range": 45.0,
       "strafe": false
@@ -184,34 +183,33 @@
       "by_attack": {
         "hf_axe1": 15.0,
         "hf_axe2": 17.0,
-        "hf_finisher": 67.6,
         "hf_hook": 6.0
       },
-      "dps": 7.04,
-      "hit_rate": 0.294117647058824,
+      "dps": 2.53333333333333,
+      "hit_rate": 0.1875,
       "mech": "hellfang",
       "range": 5.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "hf_axe1": 15.0,
-        "hf_axe2": 17.0,
-        "hf_hook": 12.0
+        "hf_axe1": 33.0,
+        "hf_finisher": 26.0,
+        "hf_hook": 6.0
       },
-      "dps": 2.93333333333333,
-      "hit_rate": 0.25,
+      "dps": 4.33333333333333,
+      "hit_rate": 0.2,
       "mech": "hellfang",
       "range": 12.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "hf_hook": 18.0,
-        "hf_ram": 41.6
+        "hf_axe1": 15.0,
+        "hf_hook": 12.0
       },
-      "dps": 3.97333333333333,
-      "hit_rate": 0.285714285714286,
+      "dps": 1.8,
+      "hit_rate": 0.1875,
       "mech": "hellfang",
       "range": 20.0,
       "strafe": true
@@ -286,43 +284,43 @@
     },
     {
       "by_attack": {
-        "va_scatter": 122.2,
-        "va_turret_shot": 15.0
+        "va_scatter": 75.3,
+        "va_turret_shot": 5.0
       },
-      "dps": 9.14541657239199,
-      "hit_rate": 1.34782608695652,
+      "dps": 5.34152768005927,
+      "hit_rate": 0.826086956521739,
       "mech": "verdant",
       "range": 5.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "va_scatter": 28.5,
-        "va_turret_shot": 5.0
+        "va_scatter": 41.4,
+        "va_turret_shot": 10.0
       },
-      "dps": 2.22506936997175,
-      "hit_rate": 0.391304347826087,
+      "dps": 3.42048603082697,
+      "hit_rate": 0.565217391304348,
       "mech": "verdant",
       "range": 12.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "va_scatter": 4.9
+        "va_scatter": 32.9,
+        "va_turret_shot": 5.0
       },
-      "dps": 0.326458308796088,
-      "hit_rate": 0.0869565217391304,
+      "dps": 2.51624975979328,
+      "hit_rate": 0.608695652173913,
       "mech": "verdant",
       "range": 20.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "va_scatter": 12.8,
-        "va_turret_shot": 5.0
+        "va_scatter": 9.6
       },
-      "dps": 1.18416659434636,
-      "hit_rate": 0.391304347826087,
+      "dps": 0.63,
+      "hit_rate": 0.260869565217391,
       "mech": "verdant",
       "range": 30.0,
       "strafe": true
@@ -405,26 +403,27 @@
     },
     {
       "by_attack": {
+        "ao_missiles": 7.0,
         "ao_orbital": 150.0,
-        "ao_orbital_burn": 8.0,
-        "ao_pulse": 20.0
+        "ao_orbital_burn": 24.0,
+        "ao_pulse": 90.0,
+        "ao_rail": 69.2
       },
-      "dps": 11.8666666666667,
-      "hit_rate": 0.333333333333333,
+      "dps": 22.6816049382716,
+      "hit_rate": 0.935483870967742,
       "mech": "azure",
       "range": 5.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "ao_missiles": 7.0,
-        "ao_orbital_burn": 4.0,
-        "ao_orbital_shock": 20.0,
-        "ao_pulse": 20.0,
-        "ao_rail": 150.3
+        "ao_missiles": 14.0,
+        "ao_orbital_shock": 40.0,
+        "ao_pulse": 5.0,
+        "ao_rail": 46.6
       },
-      "dps": 13.4211111111111,
-      "hit_rate": 0.416666666666667,
+      "dps": 7.03691358024691,
+      "hit_rate": 0.24,
       "mech": "azure",
       "range": 12.0,
       "strafe": true
@@ -432,38 +431,42 @@
     {
       "by_attack": {
         "ao_missiles": 14.0,
-        "ao_orbital": 150.0,
-        "ao_orbital_burn": 12.0,
-        "ao_pulse": 30.0,
-        "ao_rail": 50.7
+        "ao_orbital": 100.0,
+        "ao_orbital_burn": 8.0,
+        "ao_orbital_shock": 20.0,
+        "ao_pulse": 25.0,
+        "ao_rail": 60.0
       },
-      "dps": 17.1151851851852,
-      "hit_rate": 0.555555555555556,
+      "dps": 15.136049382716,
+      "hit_rate": 0.481481481481481,
       "mech": "azure",
       "range": 20.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "ao_missiles": 7.0,
-        "ao_orbital": 100.0,
-        "ao_orbital_burn": 4.0
+        "ao_missiles": 28.0,
+        "ao_orbital": 50.0,
+        "ao_orbital_burn": 8.0,
+        "ao_orbital_shock": 40.0,
+        "ao_pulse": 10.0
       },
-      "dps": 7.4,
-      "hit_rate": 0.166666666666667,
+      "dps": 9.06666666666667,
+      "hit_rate": 0.407407407407407,
       "mech": "azure",
       "range": 30.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "ao_missiles": 7.0,
-        "ao_orbital": 100.0,
-        "ao_orbital_burn": 12.0,
-        "ao_pulse": 5.0
+        "ao_missiles": 28.0,
+        "ao_orbital": 50.0,
+        "ao_orbital_burn": 8.0,
+        "ao_orbital_shock": 40.0,
+        "ao_pulse": 10.0
       },
-      "dps": 8.26666666666667,
-      "hit_rate": 0.259259259259259,
+      "dps": 9.06666666666667,
+      "hit_rate": 0.407407407407407,
       "mech": "azure",
       "range": 45.0,
       "strafe": true
@@ -474,23 +477,23 @@
       "a": "seraph",
       "b": "hellfang",
       "damage": {
-        "hellfang_dealt": 197.0,
-        "seraph_dealt": 354.0
+        "hellfang_dealt": 317.0,
+        "seraph_dealt": 310.0
       },
-      "hp_a": 0.343333333333333,
-      "hp_b": 0.0,
-      "time": 31.2166666666662,
-      "winner": "seraph"
+      "hp_a": 0.0,
+      "hp_b": 0.0882352941176471,
+      "time": 29.3833333333329,
+      "winner": "hellfang"
     },
     {
       "a": "hellfang",
       "b": "seraph",
       "damage": {
-        "hellfang_dealt": 197.0,
+        "hellfang_dealt": 297.0,
         "seraph_dealt": 354.0
       },
       "hp_a": 0.0,
-      "hp_b": 0.343333333333333,
+      "hp_b": 0.00853333333333334,
       "time": 31.2166666666662,
       "winner": "seraph"
     },
@@ -498,121 +501,121 @@
       "a": "seraph",
       "b": "verdant",
       "damage": {
-        "seraph_dealt": 263.0,
+        "seraph_dealt": 221.0,
         "verdant_dealt": 303.0
       },
       "hp_a": 0.0,
-      "hp_b": 0.269444444444444,
-      "time": 33.0499999999994,
+      "hp_b": 0.386111111111111,
+      "time": 33.0333333333327,
       "winner": "verdant"
     },
     {
       "a": "verdant",
       "b": "seraph",
       "damage": {
-        "seraph_dealt": 296.0,
+        "seraph_dealt": 151.0,
         "verdant_dealt": 301.0
       },
-      "hp_a": 0.1775,
+      "hp_a": 0.581527777777778,
       "hp_b": 0.0,
-      "time": 29.9166666666662,
+      "time": 26.7833333333331,
       "winner": "verdant"
     },
     {
       "a": "seraph",
       "b": "azure",
       "damage": {
-        "azure_dealt": 250.0,
-        "seraph_dealt": 288.0
+        "azure_dealt": 302.0,
+        "seraph_dealt": 158.0
       },
-      "hp_a": 0.166666666666667,
-      "hp_b": 0.0,
-      "time": 25.5333333333332,
-      "winner": "seraph"
+      "hp_a": 0.0,
+      "hp_b": 0.435714285714286,
+      "time": 19.3166666666669,
+      "winner": "azure"
     },
     {
       "a": "azure",
       "b": "seraph",
       "damage": {
-        "azure_dealt": 304.0,
-        "seraph_dealt": 157.0
+        "azure_dealt": 315.0,
+        "seraph_dealt": 228.0
       },
-      "hp_a": 0.439285714285714,
+      "hp_a": 0.185714285714286,
       "hp_b": 0.0,
-      "time": 17.7000000000003,
+      "time": 23.5999999999999,
       "winner": "azure"
     },
     {
       "a": "hellfang",
       "b": "verdant",
       "damage": {
-        "hellfang_dealt": 277.0,
-        "verdant_dealt": 341.0
+        "hellfang_dealt": 441.0,
+        "verdant_dealt": 162.0
       },
-      "hp_a": 0.0,
-      "hp_b": 0.273472222222222,
-      "time": 33.0499999999994,
-      "winner": "verdant"
+      "hp_a": 0.523529411764706,
+      "hp_b": 0.0,
+      "time": 21.7666666666667,
+      "winner": "hellfang"
     },
     {
       "a": "verdant",
       "b": "hellfang",
       "damage": {
-        "hellfang_dealt": 279.0,
-        "verdant_dealt": 341.0
+        "hellfang_dealt": 437.0,
+        "verdant_dealt": 246.0
       },
-      "hp_a": 0.313611111111111,
-      "hp_b": 0.0,
-      "time": 33.0499999999994,
-      "winner": "verdant"
+      "hp_a": 0.0,
+      "hp_b": 0.276470588235294,
+      "time": 25.7999999999998,
+      "winner": "hellfang"
     },
     {
       "a": "hellfang",
       "b": "azure",
       "damage": {
-        "azure_dealt": 343.0,
-        "hellfang_dealt": 229.0
+        "azure_dealt": 68.0,
+        "hellfang_dealt": 283.0
       },
-      "hp_a": 0.0,
-      "hp_b": 0.183571428571429,
-      "time": 24.5833333333332,
-      "winner": "azure"
+      "hp_a": 0.800272331154684,
+      "hp_b": 0.0,
+      "time": 14.866666666667,
+      "winner": "hellfang"
     },
     {
       "a": "azure",
       "b": "hellfang",
       "damage": {
-        "azure_dealt": 342.0,
-        "hellfang_dealt": 220.0
+        "azure_dealt": 68.0,
+        "hellfang_dealt": 283.0
       },
-      "hp_a": 0.215714285714286,
-      "hp_b": 0.0,
-      "time": 24.7499999999999,
-      "winner": "azure"
+      "hp_a": 0.0,
+      "hp_b": 0.800272331154684,
+      "time": 14.866666666667,
+      "winner": "hellfang"
     },
     {
       "a": "verdant",
       "b": "azure",
       "damage": {
-        "azure_dealt": 570.0,
-        "verdant_dealt": 301.0
+        "azure_dealt": 553.0,
+        "verdant_dealt": 298.0
       },
-      "hp_a": 0.262777777777778,
-      "hp_b": 0.0,
-      "time": 34.4499999999993,
-      "winner": "verdant"
+      "hp_a": 0.0,
+      "hp_b": 0.0276004686020315,
+      "time": 35.3333333333326,
+      "winner": "azure"
     },
     {
       "a": "azure",
       "b": "verdant",
       "damage": {
-        "azure_dealt": 606.0,
-        "verdant_dealt": 304.0
+        "azure_dealt": 499.0,
+        "verdant_dealt": 217.0
       },
-      "hp_a": 0.0,
-      "hp_b": 0.076927726337449,
-      "time": 37.1499999999992,
-      "winner": "verdant"
+      "hp_a": 0.282604183190103,
+      "hp_b": 0.0,
+      "time": 32.6333333333328,
+      "winner": "azure"
     }
   ]
 }

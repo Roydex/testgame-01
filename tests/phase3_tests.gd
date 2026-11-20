@@ -2062,3 +2062,40 @@ func t42_playtest_round5(res: Dictionary) -> void:
 			and pushed2 > 2.0 and is_equal_approx(_cs(e).health.hp, hp0),
 		"overheat %.1f s, damage taken ×%.2f, can dash (%s); steam pushed the enemy %.1f m, no damage" % [cfg.overheat_duration, cfg.overheat_damage_taken, s5.dashed, pushed2])
 	await _free([h, e])
+
+
+## Round-5 regressions found by diagnosis (scripted duels: HELLFANG weaker).
+func t43_round5_regressions(res: Dictionary) -> void:
+	# 1. point-blank grapple: the hook starts inside / past an adjacent target
+	for gap in [2.0, 3.0, 4.5]:
+		var hf := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 20))
+		var tg := _mech(&"seraph", 1, Vector3(0, 0.2, 30.0 - gap))
+		await r._ticks(20)
+		var ev := _rec()
+		await _frames(ev, 40, func(i: int) -> void:
+			_aim(hf, tg)
+			hf.command.skill_pressed = i == 0)
+		_unrec()
+		r._check(res, _hits(ev, tg, &"hf_hook").size() == 1 and _kit_events(ev, &"grapple_miss") == 0,
+			"hook at point blank (%.1f m): grabbed %d, misses %d" % [gap, _hits(ev, tg, &"hf_hook").size(), _kit_events(ev, &"grapple_miss")])
+		await _free([hf, tg])
+	# 2. rhythmic presses (every 0.32 s, the sparring cadence) still reach the finisher
+	var a := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 20))
+	var b := _mech(&"seraph", 1, Vector3(0, 0.2, 27))
+	await r._ticks(20)
+	_cs(b).health.setup(100000.0)
+	var ev2 := _rec()
+	await _frames(ev2, 90, func(i: int) -> void:
+		_aim(a, b)
+		a.command.attack_pressed = i == 0 or i == 19 or i == 38)
+	_unrec()
+	r._check(res, _started(ev2, a, &"hf_finisher") == 1,
+		"presses every 0.32 s: axe → cleave → finisher (finisher started %d×)" % _started(ev2, a, &"hf_finisher"))
+	var p := (load("res://resources/combat/hellfang_combat.tres") as CombatProfile)
+	var d := p.light_combo
+	var ok := true
+	while d:
+		ok = ok and d.lunge_duration <= d.active + 0.001
+		d = d.next_attack
+	r._check(res, ok, "combo lunges fit inside the active window (the chain point does not move)")
+	await _free([a, b])

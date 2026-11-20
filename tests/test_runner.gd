@@ -74,6 +74,7 @@ func _run_all() -> void:
 		["T40", "Playtest round 3: orbital hand marking, F9 ranged sync", p3.t40_playtest_round3],
 		["T41", "Playtest round 4: close-combat overview camera, toggle orbital marking, outward parry sweep", p3.t41_playtest_round4],
 		["T42", "Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat", p3.t42_playtest_round5],
+		["T43", "Round-5 regressions: point-blank grapple, combo chain cadence", p3.t43_round5_regressions],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):

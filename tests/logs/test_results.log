@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-20T02:53:38  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-20T03:05:48  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -414,7 +414,7 @@ PASS  T21
   ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 20.8 m and attacked via MechCommand
+  ok   partner moved 18.2 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -538,11 +538,11 @@ PASS  T29
   ok   BEAM (heavy orbital) vs parry / guard → HIT / GUARD_BREAK (expected HIT / GUARD_BREAK)
   ok   EXPLOSION vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
   ok   real grapple vs guarding SERAPH: HIT (grabs ignore guard)
-  ok   every HP change goes through DamageSystem.resolve(): Mech lost 144.1 / resolved 144.1, @CharacterBody3D@5465 lost 103.6 / resolved 103.7; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
+  ok   every HP change goes through DamageSystem.resolve(): Mech lost 117.1 / resolved 117.0, @CharacterBody3D@5387 lost 103.6 / resolved 103.7; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
 PASS  T30
 
 --- T31  P04 status effects: armor break, restraint, marks
-  ok   finisher landed (1) → armor break applied (true, 4.9 s left)
+  ok   finisher landed (1) → armor break applied (true, 4.8 s left)
   ok   armored-broken victim takes ×1.2: axe 15 → 18.0
   ok   armor break expired after 5 s
   ok   inside the zone: speed 8.8 m/s ≤ 55% of 16 (slowed, not rooted)
@@ -565,8 +565,8 @@ PASS  T31
 PASS  T32
 
 --- T33  P06 resources: heat, deployables, charge and marks
-  ok   axe chain builds heat: peak 25
-  ok   idle cooling after 1.0 s: 25 → 3
+  ok   axe chain builds heat: peak 39
+  ok   idle cooling after 1.0 s: 45 → 22
   ok   scorching (heat ≥ 70): axe deals 19.5 (= 15 × 1.3)
   ok   overheat at 100: no attack starts, dash blocked (EN 100 → 100)
   ok   overheated: takes ×1.1 (10.4)
@@ -630,7 +630,7 @@ PASS  T37
   ok   attacker made CC-immune (1.5 s)
   ok   window opens without off-balance (attacker READY), length 0.80 s
   ok   riposte 0.33 s after the parry: seraph_riposte 30.0 dmg
-  ok   acquire: idle units → nearest (@CharacterBody3D@6985); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6991 (threat 15 m)
+  ok   acquire: idle units → nearest (@CharacterBody3D@6895); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6901 (threat 15 m)
   ok   judgment 10 s, damage ×1.25
   ok   field: enemy at 6 m suppressed (EN 50 → 50, no regen), enemy at 30 m not
   ok   lance strike releases a shockwave: 1 hit, 8.75 dmg
@@ -657,7 +657,7 @@ PASS  T39
 --- T40  Playtest round 3: orbital hand marking, F9 ranged sync
   ok   X held → AIM, still marking after X is released; left click → strike on the marked ground (0.0 m off), fixed (moved 0.00 m)
   ok   fixed mark keeps the full 0.8 s warning; the target 14 m away is not hit
-  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7308), mark consumed
+  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7218), mark consumed
   ok   right button during AIM cancels: no strike, no cooldown, EN 100 → 100
   ok   the marker starts on the locked target 18 m away (3.9 m off, circle r 7)
   ok   AIM: raised view on, ghost shown 21.8 m ahead (≤ 60 m)
@@ -694,6 +694,14 @@ PASS  T41
   ok   cooldown after a miss 1.3 s (≤ 1.8), after a grab 2.1 s (full 3 s)
   ok   overheat 1.0 s, damage taken ×1.15, can dash (true); steam pushed the enemy 2.3 m, no damage
 PASS  T42
+
+--- T43  Round-5 regressions: point-blank grapple, combo chain cadence
+  ok   hook at point blank (2.0 m): grabbed 1, misses 0
+  ok   hook at point blank (3.0 m): grabbed 1, misses 0
+  ok   hook at point blank (4.5 m): grabbed 1, misses 0
+  ok   presses every 0.32 s: axe → cleave → finisher (finisher started 1×)
+  ok   combo lunges fit inside the active window (the chain point does not move)
+PASS  T43
 
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
@@ -738,4 +746,5 @@ T39  PASS  Playtest round 2 experiments: momentum, free aim, duel camera (switch
 T40  PASS  Playtest round 3: orbital hand marking, F9 ranged sync
 T41  PASS  Playtest round 4: close-combat overview camera, toggle orbital marking, outward parry sweep
 T42  PASS  Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat
-42/42 passed
+T43  PASS  Round-5 regressions: point-blank grapple, combo chain cadence
+43/43 passed
