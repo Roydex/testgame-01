@@ -38,9 +38,19 @@ var state_time: float = 0.0
 var en: float = 100.0
 ## Feet height when the mech last left the ground; thrust ceiling is relative to it.
 var takeoff_height: float = 0.0
-## True once the pilot has used thrust in this flight; releasing ascend then hovers.
+## Hover lock (2026-11-20): toggled by double-tapping ascend (or
+## set_hover_lock() for AI / scripts). While set, releasing ascend holds the
+## altitude; otherwise the mech falls. Cleared on touchdown, when EN runs dry
+## and by a fast descent.
 var hover_engaged: bool = false
 var active_descent: bool = false
+## Tap-descend fast descent in progress (committed until touchdown).
+var fast_descent: bool = false
+## The fast descent is a dive dash (dash-speed diagonal).
+var dive_dash: bool = false
+## EN ran dry in this flight: no ascend / hover until touchdown (air regen
+## cannot re-launch the mech).
+var thrust_locked: bool = false
 var air_time: float = 0.0
 var last_impact_speed: float = 0.0
 var transition_log: Array[String] = []
@@ -69,6 +79,8 @@ var _jump_buffer := 0.0
 var _dash_buffer := 0.0
 var _dash_cooldown := 0.0
 var _dash_dir := Vector3.FORWARD
+var _dive_dir := Vector3.FORWARD
+var _since_ascend_tap := 99.0
 var _regen_timer := 0.0
 var _landing_timer := 0.0
 var _coyote := 0.0
@@ -152,6 +164,9 @@ func reset_to(pos: Vector3) -> void:
 	velocity = Vector3.ZERO
 	en = profile.max_en
 	hover_engaged = false
+	fast_descent = false
+	dive_dash = false
+	thrust_locked = false
 	takeoff_height = pos.y
 	_set_state(MotionState.FALLING)
 
@@ -192,6 +207,15 @@ func get_height_above_ground(max_dist: float = 500.0) -> float:
 	if hit.is_empty():
 		return INF
 	return global_position.y - (hit.position as Vector3).y
+
+
+## Hover lock on / off (the double tap of ascend does the same). Only while
+## airborne, with EN, outside a fast descent.
+func set_hover_lock(on: bool) -> void:
+	if not on:
+		hover_engaged = false
+	elif is_air_state() and not fast_descent and not thrust_locked and en > 0.0:
+		hover_engaged = true
 
 
 func can_afford(cost: float) -> bool:
@@ -248,6 +272,16 @@ func _physics_process(delta: float) -> void:
 	if _cmd.move.length_squared() > 1.0:
 		_cmd.move = _cmd.move.normalized()
 
+	if _cmd.hover_lock_request != 0:
+		set_hover_lock(_cmd.hover_lock_request > 0)
+	# double tap of ascend toggles the hover lock (the first tap still jumps)
+	_since_ascend_tap += delta
+	if _cmd.jump_pressed:
+		if _since_ascend_tap <= profile.hover_double_tap_window:
+			set_hover_lock(not hover_engaged)
+			_since_ascend_tap = 99.0
+		else:
+			_since_ascend_tap = 0.0
 	_jump_buffer = INPUT_BUFFER if _cmd.jump_pressed else maxf(_jump_buffer - delta, 0.0)
 	_dash_buffer = INPUT_BUFFER if _cmd.dash_pressed else maxf(_dash_buffer - delta, 0.0)
 	_dash_cooldown = maxf(_dash_cooldown - delta, 0.0)
@@ -351,15 +385,22 @@ func _do_jump() -> void:
 # --------------------------------------------------------------------------
 
 func _update_air(delta: float) -> void:
+	if fast_descent or (_cmd.descend_pressed and _can_fast_descend()):
+		if not fast_descent:
+			_start_fast_descent(false)
+		_update_fast_descent(delta)
+		return
 	air_time += delta
-	var control := 1.0 if en > 0.0 else profile.exhausted_air_control
+	var control := 1.0 if en > 0.0 and not thrust_locked else profile.exhausted_air_control
 	var h := _steer(get_horizontal_velocity(), _cmd.move * profile.air_max_speed * _m_speed,
 		profile.air_accel * _m_accel * control, profile.air_decel * control,
 		profile.air_turn_grip * control, profile.overspeed_decel * 0.5, delta)
 	velocity.x = h.x
 	velocity.z = h.z
 
-	if _dash_buffer > 0.0 and _can_dash(profile.air_dash_cost * _m_en_cost):
+	# thrust locked (EN ran dry in this flight): no air dash either, even if
+	# the slow air regen has refilled a dash's worth on a long drop
+	if _dash_buffer > 0.0 and not thrust_locked and _can_dash(profile.air_dash_cost * _m_en_cost):
 		_start_dash(true)
 		return
 
@@ -370,10 +411,9 @@ func _update_air(delta: float) -> void:
 			_set_state(MotionState.AIRBORNE if velocity.y > 0.0 else MotionState.FALLING)
 		return
 
-	var thrust_ok := en > 0.0 and not _m_block_thrust
+	var thrust_ok := en > 0.0 and not _m_block_thrust and not thrust_locked
 	active_descent = false
 	if _cmd.ascend and thrust_ok:
-		hover_engaged = true
 		var room := get_ascent_ceiling() - global_position.y
 		if room > 0.05:
 			var rate := profile.ascend_accel if velocity.y >= 0.0 else profile.ascend_accel + profile.hover_brake
@@ -384,24 +424,84 @@ func _update_air(delta: float) -> void:
 			_set_state(MotionState.AIRBORNE)
 		else:
 			velocity.y = minf(move_toward(velocity.y, 0.0, profile.hover_brake * delta), 0.0)
-			_spend(profile.hover_cost_per_sec * delta)
+			_spend(hover_cost() * delta)
 			_set_state(MotionState.HOVER)
-	elif _cmd.descend and thrust_ok:
-		# controlled descent: thrusters hold the sink rate at descend_speed
-		# (no EN cost). With EN exhausted this branch is skipped -> free fall.
-		active_descent = true
-		velocity.y = move_toward(velocity.y, -profile.descend_speed, maxf(profile.descend_accel, g) * delta)
-		_set_state(MotionState.FALLING)
 	elif hover_engaged and thrust_ok:
 		velocity.y = move_toward(velocity.y, 0.0, profile.hover_brake * delta)
-		_spend(profile.hover_cost_per_sec * delta)
+		_spend(hover_cost() * delta)
 		_set_state(MotionState.HOVER)
 	else:
 		velocity.y = maxf(velocity.y - g * delta, -profile.max_fall_speed)
 		_set_state(MotionState.AIRBORNE if velocity.y > 0.0 else MotionState.FALLING)
 
 
+## Fast descent is a thrust action: it costs no EN but needs working
+## thrusters, so with EN at 0 (thrust locked) or while staggered the mech
+## only falls, with the limited exhausted air control (AGENT.md §10.2, D-06).
+func _can_fast_descend() -> bool:
+	return en > 0.0 and not thrust_locked and not _m_block_thrust
+
+
+## Hover EN per second: cheaper with no move input and little horizontal speed.
+func hover_cost() -> float:
+	var idle := _cmd.move.length_squared() < 0.01 and get_horizontal_velocity().length() < profile.idle_hover_speed
+	return profile.hover_cost_per_sec * (profile.idle_hover_mult if idle else 1.0)
+
+
+## Tap descend: committed fast descent (tilted by move input). From an air
+## dash it becomes a dive dash along the dash direction.
+func _start_fast_descent(dive: bool) -> void:
+	fast_descent = true
+	dive_dash = dive
+	hover_engaged = false
+	active_descent = true
+	if dive:
+		_dive_dir = _dash_dir
+	_set_state(MotionState.FALLING)
+
+
+func _update_fast_descent(delta: float) -> void:
+	air_time += delta
+	if _m_block_thrust:
+		# staggered: thrusters cut out, plain fall from here
+		fast_descent = false
+		dive_dash = false
+		active_descent = false
+		velocity.y = maxf(velocity.y - profile.gravity * _m_gravity * delta, -profile.max_fall_speed)
+		return
+	if not dive_dash and _dash_buffer > 0.0 and _can_dash(profile.air_dash_cost * _m_en_cost):
+		# dash during a fast descent: dive dash (costs one air dash)
+		_dash_buffer = 0.0
+		_dash_cooldown = profile.dash_cooldown
+		var dir := _cmd.move if _cmd.move.length_squared() > 0.01 else get_forward()
+		dir.y = 0.0
+		_dive_dir = dir.normalized()
+		_spend(profile.air_dash_cost * _m_en_cost)
+		dive_dash = true
+		dashed.emit(true)
+	var h: Vector3
+	var vy_target := -profile.fast_descent_speed
+	if dive_dash:
+		if _cmd.move.length_squared() > 0.01:
+			var steer := deg_to_rad(profile.air_dash_steer_deg) * delta
+			var ang := _dive_dir.signed_angle_to(_cmd.move.normalized(), Vector3.UP)
+			_dive_dir = _dive_dir.rotated(Vector3.UP, clampf(ang, -steer, steer)).normalized()
+		h = _dive_dir * profile.air_dash_speed * maxf(_m_speed, 0.5)
+		vy_target = -profile.dive_descent_speed
+	else:
+		h = _steer(get_horizontal_velocity(), _cmd.move * profile.fast_descent_lateral_speed * _m_speed,
+			profile.air_accel * 2.0, profile.air_decel * 2.0, profile.air_turn_grip * 2.0, profile.overspeed_decel, delta)
+	velocity.x = h.x
+	velocity.z = h.z
+	velocity.y = move_toward(velocity.y, vy_target, profile.fast_descent_accel * delta)
+	_set_state(MotionState.FALLING)
+
+
 func _update_air_dash(delta: float) -> void:
+	if _cmd.descend_pressed and _can_fast_descend():
+		_start_fast_descent(true)  # descend during an air dash: dive dash
+		_update_fast_descent(delta)
+		return
 	air_time += delta
 	if _cmd.move.length_squared() > 0.01:
 		var steer := deg_to_rad(profile.air_dash_steer_deg) * delta
@@ -434,7 +534,6 @@ func _start_dash(in_air: bool) -> void:
 			_dash_dir = to.normalized()  # bitten target: the dash swerves onto it
 	if in_air:
 		_spend(profile.air_dash_cost * _m_en_cost)
-		hover_engaged = true
 		velocity = _dash_dir * profile.air_dash_speed
 		_set_state(MotionState.AIR_DASH)
 	else:
@@ -487,10 +586,14 @@ func _post_move(vy_before: float, delta: float) -> void:
 
 func _land(impact: float) -> void:
 	last_impact_speed = impact
-	var hard := impact >= profile.hard_landing_speed
+	# a fast descent / dive dash is braked by the thrusters: never a hard landing
+	var hard := impact >= profile.hard_landing_speed and not fast_descent
 	_landing_timer = profile.hard_landing_recovery if hard else profile.landing_recovery
 	hover_engaged = false
 	active_descent = false
+	fast_descent = false
+	dive_dash = false
+	thrust_locked = false
 	air_time = 0.0
 	_stuck_timer = 0.0
 	velocity.y = 0.0
@@ -555,6 +658,9 @@ func _spend(amount: float) -> void:
 	_regen_timer = profile.regen_delay
 	en_changed.emit(en, profile.max_en)
 	if before > 0.0 and en <= 0.0:
+		if is_air_state():
+			thrust_locked = true  # no thrust until touchdown
+			hover_engaged = false
 		en_exhausted.emit()
 
 
@@ -572,8 +678,8 @@ func _regen(delta: float) -> void:
 		rate = profile.ground_regen_per_sec
 		if is_idle_for_regen():
 			rate *= profile.idle_regen_mult
-	elif is_air_state():
-		rate = profile.air_regen_per_sec
+	elif is_air_state() and not fast_descent and state != MotionState.AIR_DASH:
+		rate = profile.air_regen_per_sec  # only reached when not thrusting (thrust spends and resets the delay)
 	if rate > 0.0:
 		en = minf(en + rate * delta, profile.max_en)
 		en_changed.emit(en, profile.max_en)

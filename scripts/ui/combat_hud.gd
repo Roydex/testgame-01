@@ -9,6 +9,9 @@ var targeting: TargetingSystem
 
 var _hp: ProgressBar
 var _en: ProgressBar
+## Air state line under the EN bar (hover lock / fast descent / thrust lock).
+var _air: Label
+var _en_fill: StyleBoxFlat
 var _ult: Label
 var _target_box: VBoxContainer
 var _target_name: Label
@@ -87,6 +90,8 @@ func _ready() -> void:
 	_hp = _bar(bottom, Color(0.35, 0.9, 0.45))
 	_en = _bar(bottom, Color(0.35, 0.7, 1.0))
 	_en.custom_minimum_size.y = 10
+	_en_fill = _en.get_theme_stylebox(&"fill") as StyleBoxFlat
+	_air = _label(bottom, 15)
 	_ult = _label(bottom, 17)
 	_kit_bar = _bar(bottom, Color(1.0, 0.45, 0.15))
 	_kit_bar.custom_minimum_size.y = 10
@@ -179,6 +184,7 @@ func _process(delta: float) -> void:
 	_hp.value = h.hp
 	_en.max_value = motor.profile.max_en
 	_en.value = motor.en
+	_update_air_line()
 	var u := combat.ultimate
 	if u == null:
 		_ult.text = ""
@@ -332,6 +338,27 @@ func _ult_text_generic(u: UltimateSystem) -> String:
 		UltimateSystem.Phase.SPENT:
 			return "%s 已用尽（F12 切到练习模式可不限次数）" % d.display_name
 	return ""
+
+
+func _update_air_line() -> void:
+	var t := ""
+	var regen := false
+	if motor.is_air_state():
+		if motor.dive_dash:
+			t = "冲刺速降"
+		elif motor.fast_descent:
+			t = "速降"
+		elif motor.thrust_locked:
+			t = "EN 耗尽：推进锁定，落地后恢复"
+		elif motor.hover_engaged:
+			t = "悬浮锁定（双击空格解除）"
+		else:
+			regen = motor.state == MechMotor.MotionState.FALLING and motor.en < motor.profile.max_en
+			t = "下落中 · EN 回复" if regen else ""
+	_air.text = t
+	_air.visible = t != ""
+	if _en_fill:
+		_en_fill.bg_color = Color(0.45, 1.0, 0.75) if regen else Color(0.35, 0.7, 1.0)
 
 
 func _update_vignette(delta: float) -> void:

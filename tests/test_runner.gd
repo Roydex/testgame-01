@@ -76,6 +76,7 @@ func _run_all() -> void:
 		["T42", "Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat", p3.t42_playtest_round5],
 		["T43", "Round-5 regressions: point-blank grapple, combo chain cadence", p3.t43_round5_regressions],
 		["T44", "U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 / 终末坐标", p3.t44_ultimates_3b],
+		["T45", "Air control rework: hover lock, fast / dive descent, hover EN, air regen", p3.t45_air_control],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
@@ -175,10 +176,13 @@ func _info(msg: String) -> void:
 	_log("  info " + msg)
 
 
-## Brings a mech into a steady hover at ~6 m above its takeoff point.
+## Brings a mech into a steady hover at ~6 m above its takeoff point:
+## jump + double tap (hover lock, 2026-11-20), climb, release.
 func _enter_hover(m: MechMotor) -> void:
 	m.command.jump_pressed = true
-	await _sim(m, 0.8, func(mm, _t): mm.command.ascend = true)
+	await _sim(m, 0.8, func(mm, t):
+		mm.command.ascend = true
+		mm.command.jump_pressed = mm.command.jump_pressed or absf(t - 0.1) < DT * 0.5)
 	await _sim(m, 0.6, func(mm, _t): mm.command.ascend = false)
 
 
@@ -290,16 +294,17 @@ func t03_state_chain(res: Dictionary) -> void:
 		m.transition_log.clear()
 		var fwd_d := func(mm: MechMotor, _t: float) -> void:
 			mm.command.move = Vector3(0, 0, -1)
-		var climb := func(mm: MechMotor, _t: float) -> void:
+		var climb := func(mm: MechMotor, t: float) -> void:
 			mm.command.move = Vector3(0, 0, -1)
 			mm.command.ascend = true
+			mm.command.jump_pressed = mm.command.jump_pressed or absf(t - 0.1) < DT * 0.5  # double tap: hover lock
 		var release := func(mm: MechMotor, _t: float) -> void:
 			mm.command.ascend = false
 		var side := func(mm: MechMotor, _t: float) -> void:
 			mm.command.move = Vector3(1, 0, 0)
-		var down := func(mm: MechMotor, _t: float) -> void:
+		var down := func(mm: MechMotor, t: float) -> void:
 			mm.command.move = Vector3.ZERO
-			mm.command.descend = true
+			mm.command.descend_pressed = t < DT * 0.5  # tap: fast descent
 		var idle := func(_mm: MechMotor, _t: float) -> void:
 			pass
 		await _sim(m, 0.3, fwd_d)
@@ -331,13 +336,15 @@ func _measure_air_endurance(idx: int, dashes: int, ground_dashes: int) -> Dictio
 	_clear(m)
 	var en_at_takeoff := m.en
 	m.command.jump_pressed = true
-	var up := func(mm: MechMotor, _t: float) -> void:
+	var up := func(mm: MechMotor, t: float) -> void:
 		mm.command.ascend = true
+		mm.command.jump_pressed = mm.command.jump_pressed or absf(t - 0.1) < DT * 0.5  # double tap: hover lock
 	await _sim(m, 0.45, up)
 	var dash_done := 0
 	var wait := 0.0
 	var t := 0.0
-	while t < 15.0:
+	var cap := m.profile.get_max_air_time_estimate() + 2.0  # 2026-11-20: cheaper idle hover lasts longer than 15 s
+	while t < cap:
 		_clear(m)
 		wait -= DT
 		if dash_done < dashes and wait <= 0.0:
@@ -406,12 +413,16 @@ func t05_en_exhaustion(res: Dictionary) -> void:
 		_clear(m)
 		var idle := func(_mm: MechMotor, _t: float) -> void:
 			pass
+		# 2026-11-20: EN now trickles back while falling (air regen), so measure
+		# the ground regen rate after touchdown instead of an empty bar
 		var early_t := maxf(m.profile.regen_delay - 0.15, 0.05)
+		var en_land := m.en
 		await _sim(m, early_t, idle)
 		var en_early := m.en
 		await _sim(m, 1.0, idle)
 		var en_late := m.en
-		_check(res, en_early < 1.0 and en_late > 5.0, "[%s] regen after delay %.1fs: %.1f @%.2fs → %.1f @%.2fs after landing" % [n, m.profile.regen_delay, en_early, early_t, en_late, early_t + 1.0])
+		_check(res, en_early - en_land < 0.5 and en_late - en_early > m.profile.ground_regen_per_sec * 0.5,
+			"[%s] regen after delay %.1fs: %.1f at touchdown, %.1f @%.2fs → %.1f @%.2fs" % [n, m.profile.regen_delay, en_land, en_early, early_t, en_late, early_t + 1.0])
 		m.command.jump_pressed = true
 		await _sim(m, 0.3, idle)
 		_check(res, m.is_air_state(), "[%s] can jump again after landing (%s)" % [n, m.get_state_name()])
@@ -496,15 +507,15 @@ func t07_collisions(res: Dictionary) -> void:
 		var m := await _spawn(idx, Vector3(-40, 34.0, -50), false)
 		m.takeoff_height = 34.0
 		var s := {"min_y": 999.0, "max_v": 0.0}
-		var down := func(mm: MechMotor, _t: float) -> void:
-			mm.command.descend = true
+		var down := func(mm: MechMotor, t: float) -> void:
+			mm.command.descend_pressed = t < DT * 0.5  # tap: fast descent
 		var probe := func(mm: MechMotor, _t: float) -> void:
 			s.min_y = minf(s.min_y, mm.global_position.y)
 			s.max_v = maxf(s.max_v, -mm.velocity.y)
 		await _sim(m, 4.0, down, probe)
 		_check(res, s.min_y >= 16.3 - 0.05, "[%s] fall at up to %.1f m/s onto 0.3 m slab: lowest feet %.2f (slab top 16.30)" % [PROFILE_NAMES[idx], s.max_v, s.min_y])
 		_check(res, m.is_grounded_state(), "[%s] landed on slab (%s)" % [PROFILE_NAMES[idx], m.get_state_name()])
-		_check(res, s.max_v <= m.profile.descend_speed + 0.1, "[%s] controlled descent capped at %.1f m/s (max %.1f)" % [PROFILE_NAMES[idx], m.profile.descend_speed, s.max_v])
+		_check(res, s.max_v <= m.profile.fast_descent_speed + 0.1, "[%s] fast descent capped at %.1f m/s (max %.1f)" % [PROFILE_NAMES[idx], m.profile.fast_descent_speed, s.max_v])
 		m.queue_free()
 		await _ticks(2)
 	# free fall with zero EN from the map ceiling onto the thin slab (terminal velocity)
@@ -593,6 +604,7 @@ func t08_fuzz(res: Dictionary) -> void:
 				mv = Vector3(cos(a), 0, sin(a)) * (0.0 if rng.randf() < 0.15 else 1.0)
 				asc = rng.randf() < 0.45
 				dsc = not asc and rng.randf() < 0.2
+				m.command.descend_pressed = dsc  # tap: fast descent (or dive dash mid air dash)
 				if rng.randf() < 0.3:
 					m.command.jump_pressed = true
 				if rng.randf() < 0.35:
@@ -960,6 +972,8 @@ func _evasion_run(target: TestTarget, m: MechMotor, shots: int, mode: String) ->
 		mm.command.ascend = mm.global_position.y < want_alt and since > 1.0
 		if mm.command.ascend and mm.is_grounded_state():
 			mm.command.jump_pressed = true
+		if mm.is_air_state() and not mm.hover_engaged and not mm.fast_descent and since > 1.0:
+			mm.command.hover_lock_request = 1  # 2026-11-20: hovering needs the lock
 		if mode == "strafe" or mode == "reverse" or mode == "air_dash":
 			if not s.flipped_mid and since >= 2.0:
 				s.dir = -s.dir  # mid-cycle turn keeps the mech inside the arena
@@ -976,7 +990,7 @@ func _evasion_run(target: TestTarget, m: MechMotor, shots: int, mode: String) ->
 					s.dir = -s.dir
 					mm.command.move = Vector3(s.dir, 0, 0)
 		if mode == "descend" and since >= REACTION and since < REACTION + 0.6:
-			mm.command.descend = true
+			mm.command.descend_pressed = not mm.fast_descent and mm.is_air_state()  # tap: fast descent
 			mm.command.ascend = false
 	var until := func(_mm: MechMotor, _t: float) -> bool:
 		return target.shots_fired - int(s.fired0) >= shots
@@ -1019,7 +1033,7 @@ func t13_air_evasion(res: Dictionary) -> void:
 		_check(res, results[k].hits + results[k].dodges == results[k].fired, "%s: every shot resolved (%d fired)" % [k, results[k].fired])
 	_check(res, results.hold.fired == 4 and results.hold.hits >= 3, "control: hovering still is hit by aimed shots (%d/4)" % results.hold.hits)
 	_check(res, results.air_dash.hits <= 1, "lateral air dash at the telegraph dodges (%d/4 hit)" % results.air_dash.hits)
-	_check(res, results.descend.hits <= 1, "controlled descent at the telegraph dodges (%d/4 hit)" % results.descend.hits)
+	_check(res, results.descend.hits <= 1, "fast descent at the telegraph dodges (%d/4 hit)" % results.descend.hits)
 	_check(res, results.lead_strafe.hits >= 3, "control: leading shot hits a constant strafe (%d/4)" % results.lead_strafe.hits)
 	_check(res, results.lead_reverse.hits <= 1, "direction change before the shot beats the lead (%d/4 hit)" % results.lead_reverse.hits)
 

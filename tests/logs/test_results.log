@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-20T03:32:59  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-20T04:36:23  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -73,68 +73,68 @@ PASS  T02
 PASS  T03
 
 --- T04  M05 dashes compress remaining air time
-  info [base] total powered air time: 0 dash 5.05s | 1 air dash 3.97s | 2 air dashes 2.88s | 2 ground dashes first 3.62s (EN at takeoff 71)
-  info [base] remaining hover after chain: 1 dash 3.44s vs 4.52s (76%) | 2 dashes 1.82s vs 3.99s (46%)
-  ok   [base] 1 air dash leaves ≤80% of remaining hover (76%)
-  ok   [base] 2 consecutive air dashes remove ≥40% of remaining hover (46% left)
+  info [base] total powered air time: 0 dash 19.15s | 1 air dash 10.97s | 2 air dashes 5.47s | 2 ground dashes first 12.05s (EN at takeoff 71)
+  info [base] remaining hover after chain: 1 dash 10.44s vs 18.62s (56%) | 2 dashes 4.41s vs 18.09s (24%)
+  ok   [base] 1 air dash leaves ≤80% of remaining hover (56%)
+  ok   [base] 2 consecutive air dashes remove ≥40% of remaining hover (24% left)
   ok   [base] total air time strictly decreasing with dash count
-  ok   [base] 2 ground dashes before takeoff cut air time to 72%
-  info [seraph] total powered air time: 0 dash 5.05s | 1 air dash 3.93s | 2 air dashes 2.82s | 2 ground dashes first 3.45s (EN at takeoff 68)
-  info [seraph] remaining hover after chain: 1 dash 3.50s vs 4.62s (76%) | 2 dashes 1.96s vs 4.19s (47%)
-  ok   [seraph] 1 air dash leaves ≤80% of remaining hover (76%)
-  ok   [seraph] 2 consecutive air dashes remove ≥40% of remaining hover (47% left)
+  ok   [base] 2 ground dashes before takeoff cut air time to 63%
+  info [seraph] total powered air time: 0 dash 19.15s | 1 air dash 11.48s | 2 air dashes 6.02s | 2 ground dashes first 11.60s (EN at takeoff 68)
+  info [seraph] remaining hover after chain: 1 dash 11.05s vs 18.72s (59%) | 2 dashes 5.16s vs 18.29s (28%)
+  ok   [seraph] 1 air dash leaves ≤80% of remaining hover (59%)
+  ok   [seraph] 2 consecutive air dashes remove ≥40% of remaining hover (28% left)
   ok   [seraph] total air time strictly decreasing with dash count
-  ok   [seraph] 2 ground dashes before takeoff cut air time to 68%
-  info [hellfang] total powered air time: 0 dash 3.82s | 1 air dash 3.13s | 2 air dashes 2.45s | 2 ground dashes first 3.00s (EN at takeoff 78)
-  info [hellfang] remaining hover after chain: 1 dash 2.51s vs 3.20s (79%) | 2 dashes 1.21s vs 2.58s (47%)
-  ok   [hellfang] 1 air dash leaves ≤80% of remaining hover (79%)
-  ok   [hellfang] 2 consecutive air dashes remove ≥40% of remaining hover (47% left)
+  ok   [seraph] 2 ground dashes before takeoff cut air time to 61%
+  info [hellfang] total powered air time: 0 dash 13.65s | 1 air dash 7.35s | 2 air dashes 3.77s | 2 ground dashes first 10.02s (EN at takeoff 78)
+  info [hellfang] remaining hover after chain: 1 dash 6.73s vs 13.03s (52%) | 2 dashes 2.53s vs 12.41s (20%)
+  ok   [hellfang] 1 air dash leaves ≤80% of remaining hover (52%)
+  ok   [hellfang] 2 consecutive air dashes remove ≥40% of remaining hover (20% left)
   ok   [hellfang] total air time strictly decreasing with dash count
-  ok   [hellfang] 2 ground dashes before takeoff cut air time to 79%
-  info [ark] total powered air time: 0 dash 7.82s | 1 air dash 6.13s | 2 air dashes 4.45s | 2 ground dashes first 5.98s (EN at takeoff 84)
-  info [ark] remaining hover after chain: 1 dash 5.60s vs 7.29s (77%) | 2 dashes 3.39s vs 6.76s (50%)
-  ok   [ark] 1 air dash leaves ≤80% of remaining hover (77%)
-  ok   [ark] 2 consecutive air dashes remove ≥40% of remaining hover (50% left)
+  ok   [hellfang] 2 ground dashes before takeoff cut air time to 73%
+  info [ark] total powered air time: 0 dash 30.27s | 1 air dash 21.47s | 2 air dashes 13.57s | 2 ground dashes first 23.03s (EN at takeoff 84)
+  info [ark] remaining hover after chain: 1 dash 20.94s vs 29.74s (70%) | 2 dashes 12.51s vs 29.21s (43%)
+  ok   [ark] 1 air dash leaves ≤80% of remaining hover (70%)
+  ok   [ark] 2 consecutive air dashes remove ≥40% of remaining hover (43% left)
   ok   [ark] total air time strictly decreasing with dash count
-  ok   [ark] 2 ground dashes before takeoff cut air time to 77%
-  info [oracle] total powered air time: 0 dash 6.20s | 1 air dash 4.77s | 2 air dashes 3.33s | 2 ground dashes first 4.40s (EN at takeoff 71)
-  info [oracle] remaining hover after chain: 1 dash 4.24s vs 5.67s (75%) | 2 dashes 2.27s vs 5.14s (44%)
-  ok   [oracle] 1 air dash leaves ≤80% of remaining hover (75%)
-  ok   [oracle] 2 consecutive air dashes remove ≥40% of remaining hover (44% left)
+  ok   [ark] 2 ground dashes before takeoff cut air time to 76%
+  info [oracle] total powered air time: 0 dash 23.83s | 1 air dash 15.45s | 2 air dashes 8.57s | 2 ground dashes first 16.07s (EN at takeoff 71)
+  info [oracle] remaining hover after chain: 1 dash 14.92s vs 23.30s (64%) | 2 dashes 7.51s vs 22.77s (33%)
+  ok   [oracle] 1 air dash leaves ≤80% of remaining hover (64%)
+  ok   [oracle] 2 consecutive air dashes remove ≥40% of remaining hover (33% left)
   ok   [oracle] total air time strictly decreasing with dash count
-  ok   [oracle] 2 ground dashes before takeoff cut air time to 71%
+  ok   [oracle] 2 ground dashes before takeoff cut air time to 67%
 PASS  T04
 
 --- T05  EN exhaustion -> normal descent, no stall, regen
-  info [base] EN 0 at 4.73s, landed at 5.65s (bound 8.13s), state LANDING
+  info [base] EN 0 at 8.83s, landed at 9.75s (bound 24.31s), state LANDING
   ok   [base] EN reaches 0 while holding ascend
   ok   [base] no upward thrust after EN exhaustion
-  ok   [base] lands within air-time bound (5.65s ≤ 8.13s)
-  ok   [base] regen after delay 0.5s: 0.0 @0.35s → 55.5 @1.35s after landing
+  ok   [base] lands within air-time bound (9.75s ≤ 24.31s)
+  ok   [base] regen after delay 0.5s: 2.5 at touchdown, 2.5 @0.35s → 58.0 @1.35s
   ok   [base] can jump again after landing (AIRBORNE)
-  info [seraph] EN 0 at 4.77s, landed at 5.72s (bound 8.18s), state LANDING
+  info [seraph] EN 0 at 8.93s, landed at 9.88s (bound 24.42s), state LANDING
   ok   [seraph] EN reaches 0 while holding ascend
   ok   [seraph] no upward thrust after EN exhaustion
-  ok   [seraph] lands within air-time bound (5.72s ≤ 8.18s)
-  ok   [seraph] regen after delay 0.5s: 0.0 @0.35s → 55.5 @1.35s after landing
+  ok   [seraph] lands within air-time bound (9.88s ≤ 24.42s)
+  ok   [seraph] regen after delay 0.5s: 2.7 at touchdown, 2.7 @0.35s → 58.2 @1.35s
   ok   [seraph] can jump again after landing (AIRBORNE)
-  info [hellfang] EN 0 at 3.72s, landed at 4.57s (bound 6.75s), state LANDING
+  info [hellfang] EN 0 at 6.53s, landed at 7.38s (bound 18.10s), state LANDING
   ok   [hellfang] EN reaches 0 while holding ascend
   ok   [hellfang] no upward thrust after EN exhaustion
-  ok   [hellfang] lands within air-time bound (4.57s ≤ 6.75s)
-  ok   [hellfang] regen after delay 0.5s: 0.0 @0.35s → 55.5 @1.35s after landing
+  ok   [hellfang] lands within air-time bound (7.38s ≤ 18.10s)
+  ok   [hellfang] regen after delay 0.5s: 2.1 at touchdown, 2.1 @0.35s → 57.6 @1.35s
   ok   [hellfang] can jump again after landing (AIRBORNE)
-  info [ark] EN 0 at 7.10s, landed at 7.98s (bound 10.94s), state LANDING
+  info [ark] EN 0 at 13.67s, landed at 14.55s (bound 36.13s), state LANDING
   ok   [ark] EN reaches 0 while holding ascend
   ok   [ark] no upward thrust after EN exhaustion
-  ok   [ark] lands within air-time bound (7.98s ≤ 10.94s)
-  ok   [ark] regen after delay 0.5s: 0.0 @0.35s → 55.5 @1.35s after landing
+  ok   [ark] lands within air-time bound (14.55s ≤ 36.13s)
+  ok   [ark] regen after delay 0.5s: 2.3 at touchdown, 2.3 @0.35s → 57.8 @1.35s
   ok   [ark] can jump again after landing (AIRBORNE)
-  info [oracle] EN 0 at 5.58s, landed at 6.52s (bound 9.40s), state LANDING
+  info [oracle] EN 0 at 10.72s, landed at 11.65s (bound 29.67s), state LANDING
   ok   [oracle] EN reaches 0 while holding ascend
   ok   [oracle] no upward thrust after EN exhaustion
-  ok   [oracle] lands within air-time bound (6.52s ≤ 9.40s)
-  ok   [oracle] regen after delay 0.5s: 0.0 @0.35s → 55.5 @1.35s after landing
+  ok   [oracle] lands within air-time bound (11.65s ≤ 29.67s)
+  ok   [oracle] regen after delay 0.5s: 2.6 at touchdown, 2.6 @0.35s → 58.1 @1.35s
   ok   [oracle] can jump again after landing (AIRBORNE)
 PASS  T05
 
@@ -169,15 +169,15 @@ PASS  T06
   ok   [thick wall, hellfang, air dash, +25°] no tunnelling (closest centre z within wall span -39.02, wall plane -40.00, slid around wall end)
   ok   [thick wall, hellfang, ground dash, -40°] no tunnelling (closest centre z within wall span -38.85, wall plane -40.00, slid around wall end)
   ok   [thick wall, hellfang, air dash, -40°] no tunnelling (closest centre z within wall span -38.84, wall plane -40.00, slid around wall end)
-  ok   [base] fall at up to 14.0 m/s onto 0.3 m slab: lowest feet 16.30 (slab top 16.30)
+  ok   [base] fall at up to 28.0 m/s onto 0.3 m slab: lowest feet 16.30 (slab top 16.30)
   ok   [base] landed on slab (GROUNDED)
-  ok   [base] controlled descent capped at 14.0 m/s (max 14.0)
-  ok   [hellfang] fall at up to 14.0 m/s onto 0.3 m slab: lowest feet 16.30 (slab top 16.30)
+  ok   [base] fast descent capped at 28.0 m/s (max 28.0)
+  ok   [hellfang] fall at up to 28.0 m/s onto 0.3 m slab: lowest feet 16.30 (slab top 16.30)
   ok   [hellfang] landed on slab (GROUNDED)
-  ok   [hellfang] controlled descent capped at 14.0 m/s (max 14.0)
-  ok   [ark] fall at up to 14.0 m/s onto 0.3 m slab: lowest feet 16.30 (slab top 16.30)
+  ok   [hellfang] fast descent capped at 28.0 m/s (max 28.0)
+  ok   [ark] fall at up to 28.0 m/s onto 0.3 m slab: lowest feet 16.30 (slab top 16.30)
   ok   [ark] landed on slab (GROUNDED)
-  ok   [ark] controlled descent capped at 14.0 m/s (max 14.0)
+  ok   [ark] fast descent capped at 28.0 m/s (max 28.0)
   ok   [hellfang] EN-0 free fall at 32.2 m/s onto 0.3 m slab: lowest feet 16.30
   ok   thrust under 0.4 m slab: head max 8.00 (underside 8.00)
   ok   corridor: max lateral offset 0.70 m (free space ±0.70)
@@ -187,65 +187,65 @@ PASS  T07
 
 --- T08  M10 seeded fuzz: bounds, penetration, airtime, stalls
   info seed 20261119, 10 runs x 60 s (5 profiles in the open, then 5 runs next to slabs / walls / corridor / towers / steps)
-  info [base@open] frames per state { "GROUND_DASH": 229, "GROUNDED": 1609, "TAKEOFF": 102, "AIRBORNE": 534, "AIR_DASH": 144, "HOVER": 321, "FALLING": 522, "LANDING": 140 }, max feet y 10.1, max air time 4.18s (bound 9.83s)
+  info [base@open] frames per state { "GROUND_DASH": 251, "GROUNDED": 1651, "TAKEOFF": 95, "AIRBORNE": 734, "AIR_DASH": 174, "FALLING": 556, "LANDING": 94, "HOVER": 46 }, max feet y 10.1, max air time 3.65s (bound 14.83s)
   ok   [base@open] no NaN positions
   ok   [base@open] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [base@open] no geometry penetration (0 frames)
-  ok   [base@open] no infinite air time: max 4.18s ≤ 9.83s
+  ok   [base@open] no infinite air time: max 3.65s ≤ 14.83s
   ok   [base@open] exercised 8 / 8 motion states
-  info [seraph@open] frames per state { "GROUND_DASH": 62, "GROUNDED": 1691, "TAKEOFF": 103, "AIR_DASH": 112, "HOVER": 307, "AIRBORNE": 660, "FALLING": 577, "LANDING": 89 }, max feet y 10.0, max air time 5.05s (bound 9.91s)
+  info [seraph@open] frames per state { "GROUND_DASH": 79, "GROUNDED": 1724, "TAKEOFF": 77, "AIR_DASH": 128, "FALLING": 473, "AIRBORNE": 668, "LANDING": 79, "HOVER": 373 }, max feet y 10.0, max air time 4.97s (bound 14.91s)
   ok   [seraph@open] no NaN positions
   ok   [seraph@open] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [seraph@open] no geometry penetration (0 frames)
-  ok   [seraph@open] no infinite air time: max 5.05s ≤ 9.91s
+  ok   [seraph@open] no infinite air time: max 4.97s ≤ 14.91s
   ok   [seraph@open] exercised 8 / 8 motion states
-  info [hellfang@open] frames per state { "TAKEOFF": 159, "AIRBORNE": 627, "FALLING": 601, "AIR_DASH": 180, "HOVER": 299, "LANDING": 270, "GROUNDED": 1349, "GROUND_DASH": 116 }, max feet y 10.1, max air time 4.08s (bound 8.39s)
+  info [hellfang@open] frames per state { "TAKEOFF": 150, "AIRBORNE": 667, "FALLING": 622, "AIR_DASH": 220, "HOVER": 212, "LANDING": 145, "GROUNDED": 1448, "GROUND_DASH": 137 }, max feet y 10.0, max air time 4.08s (bound 11.83s)
   ok   [hellfang@open] no NaN positions
   ok   [hellfang@open] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [hellfang@open] no geometry penetration (0 frames)
-  ok   [hellfang@open] no infinite air time: max 4.08s ≤ 8.39s
+  ok   [hellfang@open] no infinite air time: max 4.08s ≤ 11.83s
   ok   [hellfang@open] exercised 8 / 8 motion states
-  info [ark@open] frames per state { "GROUNDED": 1420, "TAKEOFF": 111, "AIRBORNE": 607, "HOVER": 626, "AIR_DASH": 108, "FALLING": 458, "LANDING": 117, "GROUND_DASH": 154 }, max feet y 10.1, max air time 5.90s (bound 12.61s)
+  info [ark@open] frames per state { "GROUNDED": 1523, "TAKEOFF": 103, "AIRBORNE": 844, "FALLING": 535, "AIR_DASH": 162, "LANDING": 108, "GROUND_DASH": 264, "HOVER": 62 }, max feet y 10.5, max air time 4.12s (bound 20.47s)
   ok   [ark@open] no NaN positions
   ok   [ark@open] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [ark@open] no geometry penetration (0 frames)
-  ok   [ark@open] no infinite air time: max 5.90s ≤ 12.61s
+  ok   [ark@open] no infinite air time: max 4.12s ≤ 20.47s
   ok   [ark@open] exercised 8 / 8 motion states
-  info [oracle@open] frames per state { "GROUND_DASH": 351, "TAKEOFF": 73, "AIRBORNE": 340, "FALLING": 332, "LANDING": 87, "GROUNDED": 1906, "AIR_DASH": 108, "HOVER": 404 }, max feet y 10.1, max air time 5.08s (bound 11.12s)
+  info [oracle@open] frames per state { "GROUND_DASH": 231, "TAKEOFF": 74, "AIRBORNE": 639, "FALLING": 466, "LANDING": 97, "GROUNDED": 1711, "AIR_DASH": 180, "HOVER": 203 }, max feet y 10.6, max air time 4.95s (bound 17.37s)
   ok   [oracle@open] no NaN positions
   ok   [oracle@open] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [oracle@open] no geometry penetration (0 frames)
-  ok   [oracle@open] no infinite air time: max 5.08s ≤ 11.12s
+  ok   [oracle@open] no infinite air time: max 4.95s ≤ 17.37s
   ok   [oracle@open] exercised 8 / 8 motion states
-  info [base@slab] frames per state { "GROUNDED": 1688, "GROUND_DASH": 147, "TAKEOFF": 116, "AIR_DASH": 180, "HOVER": 399, "AIRBORNE": 468, "FALLING": 509, "LANDING": 94 }, max feet y 10.0, max air time 4.07s (bound 9.83s)
+  info [base@slab] frames per state { "GROUNDED": 1695, "GROUND_DASH": 267, "TAKEOFF": 100, "AIR_DASH": 234, "FALLING": 490, "AIRBORNE": 624, "LANDING": 108, "HOVER": 83 }, max feet y 10.0, max air time 3.87s (bound 14.83s)
   ok   [base@slab] no NaN positions
   ok   [base@slab] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [base@slab] no geometry penetration (0 frames)
-  ok   [base@slab] no infinite air time: max 4.07s ≤ 9.83s
+  ok   [base@slab] no infinite air time: max 3.87s ≤ 14.83s
   ok   [base@slab] exercised 8 / 8 motion states
-  info [seraph@walls] frames per state { "TAKEOFF": 110, "AIR_DASH": 128, "HOVER": 543, "FALLING": 527, "LANDING": 135, "GROUNDED": 1467, "AIRBORNE": 538, "GROUND_DASH": 153 }, max feet y 10.1, max air time 3.98s (bound 9.91s)
+  info [seraph@walls] frames per state { "TAKEOFF": 102, "AIR_DASH": 192, "FALLING": 563, "LANDING": 93, "GROUNDED": 1673, "GROUND_DASH": 170, "AIRBORNE": 637, "HOVER": 171 }, max feet y 10.3, max air time 5.00s (bound 14.91s)
   ok   [seraph@walls] no NaN positions
   ok   [seraph@walls] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [seraph@walls] no geometry penetration (0 frames)
-  ok   [seraph@walls] no infinite air time: max 3.98s ≤ 9.91s
+  ok   [seraph@walls] no infinite air time: max 5.00s ≤ 14.91s
   ok   [seraph@walls] exercised 8 / 8 motion states
-  info [hellfang@corridor] frames per state { "GROUNDED": 1870, "TAKEOFF": 68, "AIR_DASH": 160, "HOVER": 465, "FALLING": 397, "LANDING": 120, "AIRBORNE": 353, "GROUND_DASH": 168 }, max feet y 10.0, max air time 3.85s (bound 8.39s)
+  info [hellfang@corridor] frames per state { "GROUNDED": 2085, "TAKEOFF": 77, "AIR_DASH": 180, "FALLING": 340, "LANDING": 125, "AIRBORNE": 349, "HOVER": 151, "GROUND_DASH": 294 }, max feet y 10.0, max air time 3.65s (bound 11.83s)
   ok   [hellfang@corridor] no NaN positions
   ok   [hellfang@corridor] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [hellfang@corridor] no geometry penetration (0 frames)
-  ok   [hellfang@corridor] no infinite air time: max 3.85s ≤ 8.39s
+  ok   [hellfang@corridor] no infinite air time: max 3.65s ≤ 11.83s
   ok   [hellfang@corridor] exercised 8 / 8 motion states
-  info [ark@towers] frames per state { "TAKEOFF": 157, "AIRBORNE": 515, "AIR_DASH": 216, "HOVER": 509, "FALLING": 516, "LANDING": 114, "GROUNDED": 1464, "GROUND_DASH": 110 }, max feet y 9.2, max air time 4.48s (bound 12.61s)
+  info [ark@towers] frames per state { "TAKEOFF": 133, "AIRBORNE": 736, "AIR_DASH": 245, "FALLING": 511, "LANDING": 114, "GROUNDED": 1544, "HOVER": 142, "GROUND_DASH": 176 }, max feet y 10.2, max air time 5.33s (bound 20.47s)
   ok   [ark@towers] no NaN positions
   ok   [ark@towers] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [ark@towers] no geometry penetration (0 frames)
-  ok   [ark@towers] no infinite air time: max 4.48s ≤ 12.61s
+  ok   [ark@towers] no infinite air time: max 5.33s ≤ 20.47s
   ok   [ark@towers] exercised 8 / 8 motion states
-  info [oracle@steps] frames per state { "GROUND_DASH": 168, "GROUNDED": 1720, "TAKEOFF": 111, "AIR_DASH": 108, "HOVER": 334, "FALLING": 513, "LANDING": 103, "AIRBORNE": 544 }, max feet y 10.0, max air time 5.05s (bound 11.12s)
+  info [oracle@steps] frames per state { "GROUND_DASH": 228, "GROUNDED": 1772, "TAKEOFF": 111, "AIR_DASH": 180, "FALLING": 533, "LANDING": 103, "AIRBORNE": 600, "HOVER": 74 }, max feet y 10.5, max air time 4.23s (bound 17.37s)
   ok   [oracle@steps] no NaN positions
   ok   [oracle@steps] stayed inside floor / ceiling / side bounds (0 bad frames)
   ok   [oracle@steps] no geometry penetration (0 frames)
-  ok   [oracle@steps] no infinite air time: max 5.05s ≤ 11.12s
+  ok   [oracle@steps] no infinite air time: max 4.23s ≤ 17.37s
   ok   [oracle@steps] exercised 8 / 8 motion states
 PASS  T08
 
@@ -270,11 +270,11 @@ PASS  T09
   ok   stationary, target bobbing ±12 m: player inside safe frame ≥98% (100.0%)
   ok   stationary, target bobbing ±12 m: attack telegraph visible ≥95% (100.0%)
   ok   stationary, target bobbing ±12 m: camera rotation ≤ 240°/s (max 8)
-  info strafing + takeoff/landing: target in safe frame 100.0%, player 100.0%, telegraph visible 100.0% of 96 frames, max cam rotation 29°/s
+  info strafing + takeoff/landing: target in safe frame 100.0%, player 100.0%, telegraph visible 100.0% of 96 frames, max cam rotation 27°/s
   ok   strafing + takeoff/landing: locked target inside 90% safe frame ≥95% of frames (100.0%)
   ok   strafing + takeoff/landing: player inside safe frame ≥98% (100.0%)
   ok   strafing + takeoff/landing: attack telegraph visible ≥95% (100.0%)
-  ok   strafing + takeoff/landing: camera rotation ≤ 240°/s (max 29)
+  ok   strafing + takeoff/landing: camera rotation ≤ 240°/s (max 27)
   info cornered vs T2_high: arm 14.02 m, target on screen 100%, player 100%
   ok   cornered against tower: arm 14.02 m ≥ 2.0, player on screen 60/60 frames
   info switch T5_ground: cam (6.0, 3.7, 38.4) mech (0.0, 0.0, 30.0) target (-10.0, 1.6, 12.0) blend 1.00
@@ -308,7 +308,7 @@ PASS  T10
 PASS  T11
 
 --- T12  M03 support: movement-only pursuit of hovering target
-  info hellfang reached within 2.52 m of the 6 m-high target at t=1.52s (scripted chase, not AI)
+  info hellfang reached within 2.54 m of the 6 m-high target at t=1.52s (scripted chase, not AI)
   ok   movement alone closes to <4 m of a hovering target (supporting evidence only)
 PASS  T12
 
@@ -325,7 +325,7 @@ PASS  T12
   ok   lead_reverse: every shot resolved (4 fired)
   ok   control: hovering still is hit by aimed shots (4/4)
   ok   lateral air dash at the telegraph dodges (0/4 hit)
-  ok   controlled descent at the telegraph dodges (0/4 hit)
+  ok   fast descent at the telegraph dodges (0/4 hit)
   ok   control: leading shot hits a constant strafe (4/4)
   ok   direction change before the shot beats the lead (0/4 hit)
 PASS  T13
@@ -372,7 +372,7 @@ PASS  T17
   ok   hitstop on both attacker (14 f) and victim (14 f)
   ok   knockback displaced the victim 2.04 m
   ok   victim spent 52 frames in STAGGER
-  ok   airborne stagger: thrust blocked while holding ascend, dropped 2.84 m
+  ok   airborne stagger: thrust blocked while holding ascend, dropped 3.34 m
 PASS  T18
 
 --- T19  C06 telegraphs + hard-control protection
@@ -538,7 +538,7 @@ PASS  T29
   ok   BEAM (heavy orbital) vs parry / guard → HIT / GUARD_BREAK (expected HIT / GUARD_BREAK)
   ok   EXPLOSION vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
   ok   real grapple vs guarding SERAPH: HIT (grabs ignore guard)
-  ok   every HP change goes through DamageSystem.resolve(): Mech lost 117.1 / resolved 117.0, @CharacterBody3D@5376 lost 103.6 / resolved 103.7; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
+  ok   every HP change goes through DamageSystem.resolve(): Mech lost 117.1 / resolved 117.0, @CharacterBody3D@5382 lost 103.6 / resolved 103.7; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
 PASS  T30
 
 --- T31  P04 status effects: armor break, restraint, marks
@@ -630,7 +630,7 @@ PASS  T37
   ok   attacker made CC-immune (1.5 s)
   ok   window opens without off-balance (attacker READY), length 0.80 s
   ok   riposte 0.33 s after the parry: seraph_riposte 30.0 dmg
-  ok   acquire: idle units → nearest (@CharacterBody3D@6884); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6890 (threat 15 m)
+  ok   acquire: idle units → nearest (@CharacterBody3D@6890); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6896 (threat 15 m)
   ok   judgment 10 s, damage ×1.25
   ok   field: enemy at 6 m suppressed (EN 50 → 50, no regen), enemy at 30 m not
   ok   lance strike releases a shockwave: 1 hit, 8.75 dmg
@@ -657,7 +657,7 @@ PASS  T39
 --- T40  Playtest round 3: orbital hand marking, F9 ranged sync
   ok   X held → AIM, still marking after X is released; left click → strike on the marked ground (0.0 m off), fixed (moved 0.00 m)
   ok   fixed mark keeps the full 0.8 s warning; the target 14 m away is not hit
-  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7207), mark consumed
+  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7213), mark consumed
   ok   right button during AIM cancels: no strike, no cooldown, EN 100 → 100
   ok   the marker starts on the locked target 18 m away (3.9 m off, circle r 7)
   ok   AIM: raised view on, ghost shown 21.8 m ahead (≤ 60 m)
@@ -723,6 +723,24 @@ PASS  T43
   ok   practice: uses not consumed (1 left); a 3b ultimate is not PALE SERAPH judgment (no parry bonus)
 PASS  T44
 
+--- T45  Air control rework: hover lock, fast / dive descent, hover EN, air regen
+  ok   release ascend without the lock: falls (vy -1.0, FALLING)
+  ok   double tap: hover lock, altitude held after release (Δy 0.00 m)
+  ok   double tap again: lock released, falling (vy -9.5)
+  ok   PALE SERAPH hover: idle 5.0 EN/s, moving 10.0 EN/s (5 / 10)
+  ok   tap C from 7.2 m: landed in 0.37 s, ascend ignored (true), 28 m/s impact but no hard landing (GROUNDED)
+  ok   C + direction: tilted descent, landed 21.4 m sideways
+  ok   air dash + C: dive dash at 36 m/s, landed 43.5 m away
+  ok   dive from an air dash costs only the dash (28.0 EN)
+  ok   C then dash: dive dash for one air dash of EN (28.0)
+  ok   falling without thrust regenerates 6.0 EN/s after the delay
+  ok   EN dry in the air: thrust locked until touchdown even though EN trickles back
+  ok   EN 0: tap C does nothing (plain fall, peak vy -15.8, lateral 6.1 m/s with exhausted control)
+  ok   thrust locked: no air dash until touchdown even with EN back
+  ok   ascend / fall bobbing: EN 64 after 5 s, lands at 14.9 s (bound 24.4 s)
+  ok   hover cost order kept: HELLFANG 14 > PALE SERAPH 10 > AZURE 8 > VERDANT 7 EN/s
+PASS  T45
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -768,4 +786,5 @@ T41  PASS  Playtest round 4: close-combat overview camera, toggle orbital markin
 T42  PASS  Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat
 T43  PASS  Round-5 regressions: point-blank grapple, combo chain cadence
 T44  PASS  U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 / 终末坐标
-44/44 passed
+T45  PASS  Air control rework: hover lock, fast / dive descent, hover EN, air regen
+45/45 passed

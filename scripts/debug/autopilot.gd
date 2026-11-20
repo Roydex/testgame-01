@@ -88,6 +88,7 @@ func _sequence() -> void:
 	await _hold(0.25, fwd)
 	_press_jump()
 	await _hold(0.1, fwd, true)
+	_press_jump()  # double tap (2026-11-20): hover lock
 	await _hold(1.2, fwd, true)
 	await _shot("03_ascend")
 	await _hold(0.6, fwd)
@@ -96,7 +97,10 @@ func _sequence() -> void:
 	await _hold(0.12, Vector3(1, 0, -1).normalized())
 	await _shot("05_air_dash")
 	await _hold(0.4, Vector3(1, 0, -1).normalized())
-	await _hold(2.5, Vector3.ZERO, false, true)
+	motor.command.descend_pressed = true  # tap C (2026-11-20): fast descent
+	await _hold(0.25, Vector3(1, 0, 0))
+	await _shot("06b_fast_descent")
+	await _hold(2.2)
 	await _shot("06_descend_landed")
 	# lock-on: bobbing target T3
 	scene.targeting.toggle_lock()
@@ -110,7 +114,8 @@ func _sequence() -> void:
 	_press_jump()
 	await _hold(1.5, Vector3(1, 0, 0), true)
 	await _shot("09_lock_airborne_strafe")
-	await _hold(2.5, Vector3.ZERO, false, true)
+	motor.command.descend_pressed = true
+	await _hold(2.5)
 	# camera occlusion: walk behind the thick wall facing it
 	scene.targeting.toggle_lock()
 	motor.reset_to(Vector3(0, 0.2, -44))

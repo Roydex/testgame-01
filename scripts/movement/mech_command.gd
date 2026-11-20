@@ -7,8 +7,13 @@ extends RefCounted
 var move: Vector3 = Vector3.ZERO
 ## Held: thrust upward (jump on the ground when newly pressed).
 var ascend: bool = false
-## Held: active descent while airborne.
+## Held: descend key (informational; the motor acts on the edge below).
 var descend: bool = false
+## Edge: fast descent (and dive dash during an air dash) requested this frame.
+var descend_pressed: bool = false
+## Edge: explicit hover-lock request for scripted brains / AI (+1 on, -1
+## off, 0 none). The player gets the same through a double tap of ascend.
+var hover_lock_request: int = 0
 ## Edge: jump requested this frame.
 var jump_pressed: bool = false
 ## Edge: dash requested this frame.
@@ -30,6 +35,8 @@ var skill_held: bool = false
 func clear_edges() -> void:
 	jump_pressed = false
 	dash_pressed = false
+	descend_pressed = false
+	hover_lock_request = 0
 	attack_pressed = false
 	skill_pressed = false
 	parry_pressed = false
@@ -40,6 +47,8 @@ func copy_from(other: MechCommand) -> void:
 	move = other.move
 	ascend = other.ascend
 	descend = other.descend
+	descend_pressed = other.descend_pressed
+	hover_lock_request = other.hover_lock_request
 	jump_pressed = other.jump_pressed
 	dash_pressed = other.dash_pressed
 	face_dir = other.face_dir

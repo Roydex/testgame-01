@@ -17,5 +17,5 @@ air_dash_speed = 30.0
 air_dash_steer_deg = 80.0
 ascend_speed = 8.5
 hover_brake = 35.0
-hover_cost_per_sec = 16.0
+hover_cost_per_sec = 8.0
 gravity = 23.0

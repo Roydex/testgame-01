@@ -5,7 +5,7 @@
 | 1 | GDD 与技术架构 | **文档已补写（2026-11-19）**：GDD.md、ARCHITECTURE.md、MECH_DESIGN.md（02–04 设计已由用户确认）、ART_BIBLE.md（美术方向草案，待用户确认） |
 | 2a | **Ground-Air Hybrid 机动原型**：MechMotor、EN、分层状态机、Profile、CameraRig、锁定、灰盒、调试 | **PASS**（2026-11-19；自动化 13/13，人工验收已由用户确认；M03/M07/M08/M09 DEFERRED） |
 | 2b | 单机体可玩战斗原型（01 白祷）：攻击、防御 / 招架、受击、伤害、Hitbox/Hurtbox、死亡重开、打击反馈、特色大招、混战判定 | **AWAITING_USER_ACCEPTANCE**（自动化 26/26 PASS；C09 已由用户按“基础可读”确认 PASS；C03/C04/C07/C11/C12 待人工确认） |
-| 3 | 四机体差异化系统。**3a**：赤狱 / 苍藓 / 苍穹 的武装、资源机制、技能测试场景、平衡表；**3b**：三台机体的特色大招 | **3a：AWAITING_USER_ACCEPTANCE**（P01 / P07 / P08 / P10 与第 1–5 轮复测待试玩，见 TEST_MATRIX）；**3b：AWAITING_USER_ACCEPTANCE**（2026-11-20 实现三台机体的特色大招；自动化 44/44 PASS；U04 / U07 待试玩） |
+| 3 | 四机体差异化系统。**3a**：赤狱 / 苍藓 / 苍穹 的武装、资源机制、技能测试场景、平衡表；**3b**：三台机体的特色大招 | **3a：AWAITING_USER_ACCEPTANCE**（P01 / P07 / P08 / P10 与第 1–5 轮复测待试玩，见 TEST_MATRIX）；**3b：AWAITING_USER_ACCEPTANCE**（2026-11-20 实现三台机体的特色大招；自动化 45/45 PASS；U04 / U07 待试玩） |
 | 4 | FFA 目标决策与比赛系统 | 未开始 |
 | 5 | 联盟 AI 协同与公平性 | 未开始 |
 | 6 | 三张地图、破坏与道具 | 未开始 |
@@ -41,4 +41,5 @@
 1. 用户在技能测试场景（`scenes/test/skill_lab.tscn`）完成阶段 3a 的人工验收（P01 / P07 / P08 / P10），顺便验收 2b 遗留的五项。
 2. 根据试玩反馈决定 BALANCE_REPORT 中 B1 / B4 / B6 的调整。
 3. 阶段 3b 已实现（2026-11-20），待用户试玩确认 U04 / U07。
-4. ART_BIBLE.md 的美术方向仍待用户审阅。
+4. 空中机动改版（2026-11-20，点按 C 速降、双击空格锁定悬浮、悬浮耗能减半、空中回能）待用户复测，见 TEST_MATRIX 末节 A1–A6。
+5. ART_BIBLE.md 的美术方向仍待用户审阅。

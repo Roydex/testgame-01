@@ -769,4 +769,6 @@ func _process(delta: float) -> void:
 			thrust = 2.0
 	if attacking and combat.attack and combat.attack.lunge_speed > 20.0:
 		thrust = 6.0
+	if motor.fast_descent:
+		thrust = 6.0  # thrusters firing downward
 	_thruster_mat.emission_energy_multiplier = lerpf(_thruster_mat.emission_energy_multiplier, thrust, 1.0 - exp(-12.0 * delta))

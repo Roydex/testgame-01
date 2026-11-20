@@ -52,23 +52,41 @@ extends Resource
 @export_group("Vertical Thrust")
 @export var ascend_speed: float = 9.0
 @export var ascend_accel: float = 30.0
-@export var descend_speed: float = 14.0
-@export var descend_accel: float = 40.0
 ## How fast vertical velocity is braked to zero when hovering (m/s²).
 @export var hover_brake: float = 25.0
 
+@export_group("Hover lock / fast descent (2026-11-20)")
+## Releasing ascend makes the mech FALL; a double tap of ascend (within
+## this window) toggles the hover lock, which holds altitude instead.
+@export var hover_double_tap_window: float = 0.3
+## Tap descend: committed fast descent until touchdown (no EN, cannot be
+## cancelled by ascend). Move input tilts it (lateral speed).
+@export var fast_descent_speed: float = 28.0
+@export var fast_descent_accel: float = 120.0
+@export var fast_descent_lateral_speed: float = 14.0
+## Dive dash (descend during an air dash, or dash during a fast descent):
+## dash-speed horizontal travel with this sink rate, until touchdown.
+@export var dive_descent_speed: float = 22.0
+
 @export_group("Energy (EN)")
 @export var max_en: float = 100.0
-@export var hover_cost_per_sec: float = 20.0
-@export var ascend_cost_per_sec: float = 28.0
+## Halved 2026-11-20 (user): 20 → 10, ascend 28 → 22.
+@export var hover_cost_per_sec: float = 10.0
+## Hovering with no move input and little horizontal speed costs this × less.
+@export var idle_hover_mult: float = 0.5
+@export var idle_hover_speed: float = 3.0
+@export var ascend_cost_per_sec: float = 22.0
 @export var ground_regen_per_sec: float = 32.0
 @export var regen_delay: float = 0.5
 ## Ground regen multiplier while standing still (grounded, no move input,
 ## horizontal speed below `idle_regen_speed`). Playtest feedback 2026-11-19.
 @export var idle_regen_mult: float = 2.0
 @export var idle_regen_speed: float = 1.5
-## EN regen while airborne. Spec: no natural regen in the air (keep 0).
-@export var air_regen_per_sec: float = 0.0
+## EN regen while airborne and NOT thrusting (falling; not hovering,
+## ascending, dashing or fast-descending), after `regen_delay`. User decision
+## 2026-11-20 (AGENT.md §10.2 amended). After EN runs dry the thrusters stay
+## locked until touchdown, so regen in the air never re-launches a mech.
+@export var air_regen_per_sec: float = 6.0
 
 @export_group("Gravity / Landing")
 @export var gravity: float = 24.0
@@ -84,6 +102,9 @@ extends Resource
 func get_max_air_time_estimate() -> float:
 	## Upper bound used by tests: hover the full EN bar, then free-fall from the
 	## ascent ceiling.
-	var hover_time := max_en / maxf(hover_cost_per_sec, 0.01)
+	## Cheapest hover (idle) on a full bar, plus everything that could be
+	## regenerated while falling the full height back, plus that fall.
+	var cheapest := maxf(hover_cost_per_sec * idle_hover_mult, 0.01)
 	var fall_time := sqrt(2.0 * (max_ascent_height + jump_velocity * jump_velocity / (2.0 * gravity)) / gravity)
+	var hover_time := (max_en + air_regen_per_sec * fall_time) / cheapest
 	return hover_time + fall_time + takeoff_time + 2.0

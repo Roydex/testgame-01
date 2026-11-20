@@ -90,8 +90,12 @@ func _physics_process(delta: float) -> void:
 		cmd.ascend = true
 		if motor.is_grounded_state():
 			cmd.jump_pressed = true
+		elif not motor.hover_engaged:
+			cmd.hover_lock_request = 1  # stay up there once level with the target
 	elif to.y < -2.0:
 		cmd.descend = true
+		if motor.is_air_state() and not motor.fast_descent:
+			cmd.descend_pressed = true  # tap-descend back down
 	var ult := combat.ultimate
 	var training := mode == Mode.TRAINING or mode == Mode.TRAINING_RANGED
 	if use_ultimate and not training and ult and ult.is_ready() and dist < 16.0:

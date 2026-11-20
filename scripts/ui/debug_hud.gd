@@ -59,7 +59,7 @@ func _ready() -> void:
 	_help = Label.new()
 	_help.add_theme_font_override(&"font", UiFont.get_font())
 	_help.add_theme_font_size_override(&"font_size", 13)
-	_help.text = "WASD move | Mouse look (click to capture) | Esc / P pause | Space jump / hold ascend | C/Ctrl descend | Shift dash\nQ / MMB lock | E / R or wheel switch target | Z camera distance | LMB attack (hold: heavy) RMB guard / charge F parry / backstep X skill (hold: 2nd skill) V ultimate | 1-4 lab mech G lab partner | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters | F5 refill | F7 restart | F8 partner teams | F9/F11 partner modes | F10 HP→29% | F12 practice/match"
+	_help.text = "WASD move | Mouse look (click to capture) | Esc / P pause | Space jump / hold ascend / double-tap hover lock | C tap fast descent (+WASD tilt; during air dash: dive) | Shift dash\nQ / MMB lock | E / R or wheel switch target | Z camera distance | LMB attack (hold: heavy) RMB guard / charge F parry / backstep X skill (hold: 2nd skill) V ultimate | 1-4 lab mech G lab partner | F1 HUD | F2 mech profile | F3 test stagger | F4 test action | F5 reset | K kill locked target | F6 test shooters | F5 refill | F7 restart | F8 partner teams | F9/F11 partner modes | F10 HP→29% | F12 practice/match"
 	_help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_help.position = Vector2(12, -52)
 	_help.add_theme_color_override(&"font_shadow_color", Color.BLACK)

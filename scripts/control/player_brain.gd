@@ -37,6 +37,7 @@ func _physics_process(_delta: float) -> void:
 	cmd.move = camera_rig.get_yaw_basis() * Vector3(iv.x, 0.0, iv.y)
 	cmd.ascend = Input.is_action_pressed(&"jump_ascend")
 	cmd.descend = Input.is_action_pressed(&"descend")
+	cmd.descend_pressed = cmd.descend_pressed or Input.is_action_just_pressed(&"descend")
 	# OR-in edges so a press is never lost between motor ticks
 	cmd.jump_pressed = cmd.jump_pressed or Input.is_action_just_pressed(&"jump_ascend")
 	cmd.dash_pressed = cmd.dash_pressed or Input.is_action_just_pressed(&"dash")

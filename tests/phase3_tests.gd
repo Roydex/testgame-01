@@ -136,6 +136,8 @@ func _hover_dummy(pos: Vector3, team := 1, height := 6.0) -> MechMotor:
 	var y0 := d.global_position.y
 	for i in 120:
 		d.command.ascend = d.global_position.y < y0 + height
+		if d.is_air_state() and not d.hover_engaged:
+			d.command.hover_lock_request = 1  # 2026-11-20: hovering needs the lock
 		await r.get_tree().physics_frame
 	d.command.ascend = false
 	await r._ticks(20)
@@ -2300,3 +2302,202 @@ func get_first_habitat() -> Habitat:
 		if is_instance_valid(n) and not n.is_queued_for_deletion():
 			return n as Habitat
 	return null
+
+
+# ------------------------------------------------------------------ air control rework (2026-11-20)
+
+func _air_mech(id: StringName, pos: Vector3) -> MechMotor:
+	var m := MechFactory.create_by_id(id, 0, false)
+	m.position = pos
+	r.arena.add_child(m)
+	await r._ticks(15)
+	return m
+
+
+## Climb `secs` holding ascend; `lock` adds the double tap (second press 0.1 s in).
+func _climb(m: MechMotor, secs: float, lock: bool) -> void:
+	var ev := _rec()
+	m.command.jump_pressed = true
+	await _frames(ev, int(secs * 60.0), func(i: int) -> void:
+		m.command.ascend = true
+		m.command.jump_pressed = m.command.jump_pressed or (lock and i == 6))
+	_unrec()
+	m.command.ascend = false
+
+
+func t45_air_control(res: Dictionary) -> void:
+	var dt := 1.0 / 60.0
+	# --- release falls; double tap locks; double tap again unlocks
+	var m := await _air_mech(&"seraph", Vector3(0, 0.2, 30))
+	await _climb(m, 0.6, false)
+	var ev := _rec()
+	await _frames(ev, 30)
+	r._check(res, not m.hover_engaged and m.velocity.y < -1.0 and m.state == MechMotor.MotionState.FALLING,
+		"release ascend without the lock: falls (vy %.1f, %s)" % [m.velocity.y, m.get_state_name()])
+	await r._ticks(90)
+	await _climb(m, 0.6, true)
+	await _frames(ev, 40)  # release brakes the climb first (existing hover brake)
+	var y0 := m.global_position.y
+	await _frames(ev, 60)
+	r._check(res, m.hover_engaged and m.state == MechMotor.MotionState.HOVER and absf(m.global_position.y - y0) < 0.6,
+		"double tap: hover lock, altitude held after release (Δy %.2f m)" % (m.global_position.y - y0))
+	await _frames(ev, 12, func(i: int) -> void:
+		m.command.jump_pressed = i == 0 or i == 6)
+	await _frames(ev, 20)
+	r._check(res, not m.hover_engaged and m.velocity.y < -1.0, "double tap again: lock released, falling (vy %.1f)" % m.velocity.y)
+	await r._ticks(90)
+	# --- hover EN: moving vs idle
+	await _climb(m, 0.6, true)
+	m.en = m.profile.max_en
+	await r._ticks(30)
+	var e0 := m.en
+	await _frames(ev, 60)
+	var idle_rate := e0 - m.en
+	var e1 := m.en
+	await _frames(ev, 60, func(_i: int) -> void:
+		m.command.move = Vector3(1, 0, 0))
+	var move_rate := e1 - m.en
+	r._check(res, absf(idle_rate - 5.0) < 0.6 and absf(move_rate - 10.0) < 1.0,
+		"PALE SERAPH hover: idle %.1f EN/s, moving %.1f EN/s (5 / 10)" % [idle_rate, move_rate])
+	# --- fast descent: tap C, committed, not a hard landing
+	m.command.move = Vector3.ZERO
+	await r._ticks(5)
+	var st := {"t": -1.0, "cancel": false, "f": 0}
+	var hy := m.global_position.y
+	await _frames(ev, 90, func(i: int) -> void:
+		m.command.descend_pressed = i == 0
+		m.command.ascend = i > 5  # trying to stop it: must be ignored
+		m.command.jump_pressed = i == 8 or i == 12
+		if i > 2 and i < 20 and m.is_air_state() and not m.fast_descent:
+			st.cancel = true
+		if st.t < 0.0 and m.is_grounded_state():
+			st.t = i * dt)
+	m.command.ascend = false
+	await _frames(ev, 10)
+	r._check(res, st.t > 0.0 and st.t < 0.8 and not st.cancel and m.last_impact_speed > m.profile.hard_landing_speed and m.state == MechMotor.MotionState.GROUNDED,
+		"tap C from %.1f m: landed in %.2f s, ascend ignored (%s), %.0f m/s impact but no hard landing (%s)" % [hy, st.t, not st.cancel, m.last_impact_speed, m.get_state_name()])
+	_unrec()
+	await _free([m])
+	# --- directional fast descent and the dive dash
+	var d := await _air_mech(&"seraph", Vector3(0, 0.2, 30))
+	await _climb(d, 0.9, true)
+	await r._ticks(20)
+	var p0 := d.global_position
+	var ev2 := _rec()
+	await _frames(ev2, 90, func(i: int) -> void:
+		d.command.descend_pressed = i == 0
+		d.command.move = Vector3(1, 0, 0))
+	_unrec()
+	var lateral := Vector2(d.global_position.x - p0.x, d.global_position.z - p0.z).length()
+	r._check(res, d.is_grounded_state() and lateral > 3.0, "C + direction: tilted descent, landed %.1f m sideways" % lateral)
+	await r._ticks(60)
+	await _climb(d, 0.9, true)
+	await r._ticks(20)
+	var en_a := d.en
+	p0 = d.global_position
+	var s2 := {"dive": false, "hmax": 0.0, "en_min": en_a}
+	var ev3 := _rec()
+	await _frames(ev3, 90, func(i: int) -> void:
+		d.command.move = Vector3(0, 0, -1)
+		d.command.dash_pressed = i == 0
+		d.command.descend_pressed = i == 6  # C during the air dash
+		s2.dive = s2.dive or d.dive_dash
+		s2.en_min = minf(s2.en_min, d.en)
+		s2.hmax = maxf(s2.hmax, d.get_horizontal_velocity().length()))
+	_unrec()
+	var travel := Vector2(d.global_position.x - p0.x, d.global_position.z - p0.z).length()
+	r._check(res, s2.dive and d.is_grounded_state() and s2.hmax > d.profile.air_dash_speed * 0.9 and travel > 8.0,
+		"air dash + C: dive dash at %.0f m/s, landed %.1f m away" % [s2.hmax, travel])
+	r._check(res, absf((en_a - float(s2.en_min)) - d.profile.air_dash_cost) < 3.0, "dive from an air dash costs only the dash (%.1f EN)" % (en_a - float(s2.en_min)))
+	await r._ticks(60)
+	await _climb(d, 0.9, true)
+	await r._ticks(20)
+	var en_b := d.en
+	var s4 := {"en_min": en_b, "dive": false}
+	var ev4 := _rec()
+	await _frames(ev4, 60, func(i: int) -> void:
+		d.command.descend_pressed = i == 0
+		d.command.dash_pressed = i == 6  # dash during the fast descent
+		d.command.move = Vector3(1, 0, 0) if i >= 6 else Vector3.ZERO
+		s4.dive = s4.dive or d.dive_dash
+		s4.en_min = minf(s4.en_min, d.en))
+	_unrec()
+	r._check(res, s4.dive and d.is_grounded_state() and absf((en_b - float(s4.en_min)) - d.profile.air_dash_cost) < 3.0,
+		"C then dash: dive dash for one air dash of EN (%.1f)" % (en_b - float(s4.en_min)))
+	await _free([d])
+	# --- air regen while falling; thrust locked after EN runs dry
+	var f := await _air_mech(&"seraph", Vector3(0, 30.2, 30))
+	f.takeoff_height = 30.2
+	f.en = 40.0
+	var ev5 := _rec()
+	var s5 := {"e": []}
+	await _frames(ev5, 70, func(_i: int) -> void:
+		s5.e.append(f.en))
+	_unrec()
+	var regen_rate := (float(s5.e[69]) - float(s5.e[39])) / 0.5
+	r._check(res, absf(regen_rate - f.profile.air_regen_per_sec) < 0.8, "falling without thrust regenerates %.1f EN/s after the delay" % regen_rate)
+	await r._ticks(120)
+	await _climb(f, 0.4, true)
+	f.en = 1.0
+	var s6 := {"locked": false, "rethrust": false, "vy": f.velocity.y}
+	await _frames(ev5, 90, func(_i: int) -> void:
+		f.command.ascend = true
+		s6.locked = s6.locked or f.thrust_locked
+		# upward momentum may still coast after the bar empties; thrust would ADD to it
+		if f.thrust_locked and f.is_air_state() and f.velocity.y > float(s6.vy) + 0.05:
+			s6.rethrust = true
+		s6.vy = f.velocity.y)
+	f.command.ascend = false
+	r._check(res, s6.locked and not s6.rethrust, "EN dry in the air: thrust locked until touchdown even though EN trickles back")
+	await _free([f])
+	# --- no fast descent on dry thrusters: exhausted mechs only fall (AGENT.md §10.2)
+	var x := await _air_mech(&"seraph", Vector3(0, 14.2, 30))
+	x.takeoff_height = 14.2
+	x.en = 0.5
+	var evx := _rec()
+	await _frames(evx, 6, func(_i: int) -> void:
+		x.command.ascend = true)
+	x.command.ascend = false
+	var sx := {"fd": false, "vy": 0.0, "h": 0.0}
+	await _frames(evx, 30, func(i: int) -> void:
+		x.command.descend_pressed = i == 0
+		x.command.move = Vector3(1, 0, 0)
+		sx.fd = sx.fd or x.fast_descent
+		sx.vy = minf(float(sx.vy), x.velocity.y)
+		sx.h = maxf(float(sx.h), x.get_horizontal_velocity().length()))
+	_unrec()
+	r._check(res, x.thrust_locked and not sx.fd and float(sx.h) < x.profile.fast_descent_lateral_speed * 0.6,
+		"EN 0: tap C does nothing (plain fall, peak vy %.1f, lateral %.1f m/s with exhausted control)" % [sx.vy, sx.h])
+	x.en = 50.0  # as if a long drop had regenerated a dash's worth
+	var sd := {"dash": false, "air": true}
+	await _frames(evx, 12, func(i: int) -> void:
+		x.command.dash_pressed = i == 0
+		sd.air = sd.air and x.is_air_state()
+		sd.dash = sd.dash or x.state == MechMotor.MotionState.AIR_DASH)
+	_unrec()
+	r._check(res, sd.air and x.thrust_locked and not sd.dash, "thrust locked: no air dash until touchdown even with EN back")
+	await _free([x])
+	# --- no endless flight: bobbing (ascend below 6 m, fall above) still comes down
+	var b := await _air_mech(&"seraph", Vector3(0, 0.2, 30))
+	var bound := b.profile.get_max_air_time_estimate()
+	var s7 := {"land": -1.0, "t": 0.0, "en_mid": -1.0}
+	b.command.jump_pressed = true
+	var ev7 := _rec()
+	await _frames(ev7, int((bound + 4.0) * 60.0), func(_i: int) -> void:
+		s7.t += dt
+		b.command.ascend = b.global_position.y < 6.0
+		if s7.t > 1.0 and s7.land < 0.0 and b.is_grounded_state():
+			s7.land = s7.t
+		if s7.en_mid < 0.0 and s7.t >= 5.0:
+			s7.en_mid = b.en)
+	_unrec()
+	r._check(res, s7.land > 0.0 and s7.land <= bound and s7.en_mid < b.profile.max_en - 10.0,
+		"ascend / fall bobbing: EN %.0f after 5 s, lands at %.1f s (bound %.1f s)" % [s7.en_mid, s7.land, bound])
+	await _free([b])
+	# --- per-mech hover cost keeps the old ordering
+	var c := {}
+	for id in MechFactory.MECH_IDS:
+		var mp := MechFactory.load_profile((MechFactory.MECHS[id] as Dictionary).move)
+		c[id] = mp.hover_cost_per_sec
+	r._check(res, c[&"hellfang"] > c[&"seraph"] and c[&"seraph"] > c[&"azure"] and c[&"azure"] > c[&"verdant"],
+		"hover cost order kept: HELLFANG %.0f > PALE SERAPH %.0f > AZURE %.0f > VERDANT %.0f EN/s" % [c[&"hellfang"], c[&"seraph"], c[&"azure"], c[&"verdant"]])
