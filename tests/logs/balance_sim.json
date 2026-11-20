@@ -684,7 +684,7 @@
       "b": "verdant",
       "damage": {
         "seraph_dealt": 265.0,
-        "verdant_dealt": 259.0
+        "verdant_dealt": 255.0
       },
       "hp_a": 0.0,
       "hp_b": 0.162428961748634,
@@ -700,7 +700,7 @@
       "b": "seraph",
       "damage": {
         "seraph_dealt": 240.0,
-        "verdant_dealt": 257.0
+        "verdant_dealt": 258.0
       },
       "hp_a": 0.245344945355193,
       "hp_b": 0.0,
@@ -741,12 +741,12 @@
       "a": "hellfang",
       "b": "verdant",
       "damage": {
-        "hellfang_dealt": 318.0,
-        "verdant_dealt": 292.0
+        "hellfang_dealt": 333.0,
+        "verdant_dealt": 294.0
       },
       "hp_a": 0.0,
-      "hp_b": 0.234384071038257,
-      "time": 17.366666666667,
+      "hp_b": 0.190474234972684,
+      "time": 17.6833333333336,
       "ults": {
         "hellfang": 1,
         "verdant": 1
@@ -757,12 +757,12 @@
       "a": "verdant",
       "b": "hellfang",
       "damage": {
-        "hellfang_dealt": 345.0,
-        "verdant_dealt": 293.0
+        "hellfang_dealt": 368.0,
+        "verdant_dealt": 291.0
       },
-      "hp_a": 0.313359289617494,
+      "hp_a": 0.319359289617494,
       "hp_b": 0.0,
-      "time": 17.466666666667,
+      "time": 17.7666666666669,
       "ults": {
         "hellfang": 1,
         "verdant": 1
@@ -802,11 +802,11 @@
       "b": "azure",
       "damage": {
         "azure_dealt": 501.0,
-        "verdant_dealt": 251.0
+        "verdant_dealt": 250.0
       },
-      "hp_a": 0.0197577413479054,
+      "hp_a": 0.0217577413479054,
       "hp_b": 0.0,
-      "time": 23.8499999999999,
+      "time": 23.9499999999999,
       "ults": {
         "azure": 1,
         "verdant": 1
@@ -817,17 +817,17 @@
       "a": "azure",
       "b": "verdant",
       "damage": {
-        "azure_dealt": 543.0,
-        "verdant_dealt": 261.0
+        "azure_dealt": 568.0,
+        "verdant_dealt": 237.0
       },
-      "hp_a": 0.0,
-      "hp_b": 0.0168315118397087,
-      "time": 24.6333333333332,
+      "hp_a": 0.0753168521293746,
+      "hp_b": 0.0,
+      "time": 25.1499999999999,
       "ults": {
         "azure": 1,
         "verdant": 1
       },
-      "winner": "verdant"
+      "winner": "azure"
     }
   ]
 }
