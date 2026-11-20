@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CombatProfile" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_axe1.tres" id="2"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/combat/kits/heat_config.gd" id="6"]
 [ext_resource type="Resource" path="res://resources/combat/hellfang/hf_furnace_burst.tres" id="7"]
 [ext_resource type="Resource" path="res://resources/combat/status/bitten.tres" id="8"]
+[ext_resource type="Resource" path="res://resources/combat/ultimates/hellfang_backdraft.tres" id="ult_hellfang_combat"]
 
 [sub_resource type="Resource" id="HeatConfig_1"]
 script = ExtResource("6")
@@ -17,6 +18,7 @@ bite_status = ExtResource("8")
 
 [resource]
 script = ExtResource("1")
+ultimate = ExtResource("ult_hellfang_combat")
 display_name = "02 HELLFANG 武装"
 max_hp = 340.0
 light_combo = ExtResource("2")

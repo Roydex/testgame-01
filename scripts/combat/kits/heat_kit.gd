@@ -16,6 +16,12 @@ var _since_gain := 0.0
 var absorbed: float = 0.0
 ## 步进咬合: the mech our last axe swing connected with.
 var bite_target: MechMotor
+## 熔炉逆燃 active: heat pinned at max, never overheats, always scorching.
+var overdrive := false
+var _overdrive_hook_cd := 1.0
+## The current overheat is the ultimate's harsh cost (no dashing; the
+## damage-taken bonus comes from the ultimate's cost phase instead).
+var _harsh := false
 
 
 func cfg() -> HeatConfig:
@@ -32,10 +38,22 @@ func is_overheated() -> bool:
 
 
 func is_scorching() -> bool:
-	return heat >= cfg().scorch_threshold and not is_overheated()
+	return (heat >= cfg().scorch_threshold or overdrive) and not is_overheated()
+
+
+func set_overdrive(on: bool, hook_cd: float = 1.0) -> void:
+	overdrive = on
+	_overdrive_hook_cd = hook_cd
+	if on:
+		heat = cfg().max_heat
+		_since_gain = 0.0
 
 
 func add_heat(v: float) -> void:
+	if overdrive:
+		heat = cfg().max_heat  # pinned, never overheats
+		_since_gain = 0.0
+		return
 	if v <= 0.0 or is_overheated():
 		return
 	heat = minf(heat + v, cfg().max_heat)
@@ -44,12 +62,13 @@ func add_heat(v: float) -> void:
 		overheat(cfg().overheat_duration)
 
 
-func overheat(duration: float) -> void:
+func overheat(duration: float, harsh := false) -> void:
 	var fresh := not is_overheated()
 	heat = cfg().max_heat
 	overheat_left = maxf(overheat_left, duration)
+	_harsh = _harsh or harsh
 	var m := MovementModifier.create(MOD_OVERHEAT)
-	m.block_dash = cfg().overheat_blocks_dash
+	m.block_dash = cfg().overheat_blocks_dash or _harsh
 	m.speed_mult = cfg().overheat_speed_mult
 	motor.add_modifier(m)
 	CombatEvents.kit_event.emit(motor, &"overheat")
@@ -95,11 +114,13 @@ func outgoing_mult(def: AttackDefinition) -> float:
 
 
 func incoming_mult(_hit: HitInfo) -> float:
-	return cfg().overheat_damage_taken if is_overheated() else 1.0
+	return cfg().overheat_damage_taken if is_overheated() and not _harsh else 1.0
 
 
 func on_attack_started(def: AttackDefinition) -> void:
 	add_heat(def.heat_cost)
+	if overdrive and def == combat.profile.skill:
+		combat.cap_cooldown(def.id, _overdrive_hook_cd)  # 熔炉逆燃: rapid grapple
 	if def.heat_vent_rate > 0.0:
 		CombatEvents.kit_event.emit(motor, &"vent")
 
@@ -180,6 +201,8 @@ func on_guard_released() -> void:
 func reset() -> void:
 	heat = 0.0
 	overheat_left = 0.0
+	overdrive = false
+	_harsh = false
 	absorbed = 0.0
 	bite_target = null
 	motor.remove_modifier(MOD_BITE)
@@ -194,6 +217,7 @@ func _physics_process(delta: float) -> void:
 		heat = cfg().max_heat * clampf(overheat_left / cfg().overheat_duration, 0.0, 1.0) + cfg().overheat_reset * (1.0 - clampf(overheat_left / cfg().overheat_duration, 0.0, 1.0))
 		if overheat_left <= 0.0:
 			overheat_left = 0.0
+			_harsh = false
 			heat = cfg().overheat_reset
 			motor.remove_modifier(MOD_OVERHEAT)
 			CombatEvents.kit_event.emit(motor, &"overheat_end")
@@ -208,8 +232,10 @@ func _physics_process(delta: float) -> void:
 
 
 func hud_text() -> String:
+	if overdrive:
+		return "熔炉逆燃：热量锁定 %.0f · 灼热 ×%.1f · 不会过热" % [cfg().max_heat, cfg().scorch_damage_mult]
 	if is_overheated():
-		return "热量 过热！强制排气 %.1f s（不能攻击%s，受伤 ×%.2f）" % [overheat_left, " / 冲刺" if cfg().overheat_blocks_dash else "，可以冲刺", cfg().overheat_damage_taken]
+		return "热量 过热！强制排气 %.1f s（不能攻击%s，受伤 ×%.2f）" % [overheat_left, " / 冲刺" if cfg().overheat_blocks_dash or _harsh else "，可以冲刺", cfg().overheat_damage_taken]
 	var line := "热量 %3.0f / %.0f%s" % [heat, cfg().max_heat, "  灼热（伤害 ×%.1f）" % cfg().scorch_damage_mult if is_scorching() else ""]
 	if bite_active():
 		line += "  咬住 %.1fs" % DamageSystem.get_combat(bite_target).status.time_left(cfg().bite_status.id)

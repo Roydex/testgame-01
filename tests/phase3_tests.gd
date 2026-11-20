@@ -2099,3 +2099,204 @@ func t43_round5_regressions(res: Dictionary) -> void:
 		d = d.next_attack
 	r._check(res, ok, "combo lunges fit inside the active window (the chain point does not move)")
 	await _free([a, b])
+
+
+# ------------------------------------------------------------------ phase 3b ultimates
+
+func _ult_ready(m: MechMotor) -> UltimateSystem:
+	var c := _cs(m)
+	c.health.hp = c.health.max_hp * 0.25
+	for i in 90:  # hitstop pauses the ultimate's clock: wait until it is really READY
+		await r._ticks(1)
+		if c.ultimate.is_ready():
+			break
+	return c.ultimate
+
+
+func _hit(att: Node3D, vic: Node3D, def: AttackDefinition) -> HitInfo:
+	var h := HitInfo.new()
+	h.attacker = att
+	h.victim = vic
+	h.attack = def
+	h.source_position = att.global_position
+	h.direction = (vic.global_position - att.global_position).normalized()
+	DamageSystem.resolve(h)
+	return h
+
+
+func t44_ultimates_3b(res: Dictionary) -> void:
+	var l1 := load("res://resources/combat/seraph_l1.tres") as AttackDefinition
+	var finisher := load("res://resources/combat/hellfang/hf_finisher.tres") as AttackDefinition
+	var pulse := load("res://resources/combat/azure/ao_pulse.tres") as AttackDefinition
+	# ---------------- HELLFANG 熔炉逆燃
+	var hf := _mech(&"hellfang", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 26))
+	var foe := _mech(&"seraph", 1, Vector3(0, 0.2, 26), Vector3(0, 0.2, 30))
+	var far := _mech(&"seraph", 1, Vector3(12, 0.2, 30))
+	var ally := _mech(&"seraph", 0, Vector3(-4, 0.2, 30))
+	await r._ticks(20)
+	var hc := _cs(hf)
+	var u := hc.ultimate
+	r._check(res, u != null and u.definition.effect is BackdraftEffect and u.phase == UltimateSystem.Phase.LOCKED, "HELLFANG carries 熔炉逆燃, locked at full HP")
+	await _ult_ready(hf)
+	var ev := _rec()
+	hf.command.ult_pressed = true
+	await _frames(ev, 6)
+	_unrec()
+	var told := false
+	for t in ev.telegraph:
+		told = told or (t[1] == hf and t[2] == &"ult")
+	_hit(foe, hf, l1)  # light hit during the super-armoured windup
+	await r._ticks(2)
+	var still := u.phase == UltimateSystem.Phase.WINDUP
+	_hit(foe, hf, finisher)  # guard-breaking hit interrupts it
+	await r._ticks(2)
+	r._check(res, told and still and u.phase == UltimateSystem.Phase.COOLDOWN,
+		"windup broadcast %s; super armour shrugs a light hit (%s); a guard-breaking hit interrupts → %s" % [told, still, u.get_phase_name()])
+	hc.restore_full()
+	await _ult_ready(hf)
+	hf.command.ult_pressed = true
+	await r._ticks(40)
+	var hk := hc.kit as HeatKit
+	hk.add_heat(80.0)
+	var ev2 := _rec()
+	await _frames(ev2, 90, func(i: int) -> void:
+		_aim(hf, foe)
+		hf.command.skill_pressed = i == 5)
+	_unrec()
+	var aura_foe := _hits(ev2, foe, &"hf_backdraft_aura").size()
+	r._check(res, u.is_active() and hk.heat >= 99.9 and not hk.is_overheated() and hk.is_scorching() and hc.get_cooldown(&"hf_hook") <= 1.0,
+		"active: heat pinned %.0f, no overheat, scorching, grapple cooldown %.1f s" % [hk.heat, hc.get_cooldown(&"hf_hook")])
+	r._check(res, aura_foe >= 2 and _hits(ev2, far, &"hf_backdraft_aura").is_empty() and _hits(ev2, ally, &"hf_backdraft_aura").is_empty(),
+		"heat wave: enemy at 4 m burned %d×, enemy at 12 m and ally at 4 m untouched" % aura_foe)
+	await r._ticks(int(u.phase_time_left * 60.0) + 5)
+	var ev3 := _rec()
+	await _frames(ev3, 6, func(i: int) -> void:
+		hf.command.move = Vector3(1, 0, 0)
+		hf.command.dash_pressed = i == 1)
+	_unrec()
+	var dashed := hf.state == MechMotor.MotionState.GROUND_DASH
+	r._check(res, u.in_cost() and hk.is_overheated() and not dashed and is_equal_approx(hc.damage_taken_mult(), 1.3),
+		"cost: harsh overheat (no dash: %s), damage taken ×%.2f" % [not dashed, hc.damage_taken_mult()])
+	await r._ticks(200)
+	r._check(res, u.phase == UltimateSystem.Phase.SPENT and not hk.is_overheated(), "one use per match: %s afterwards" % u.get_phase_name())
+	await _free([hf, foe, far, ally])
+
+	# ---------------- VERDANT ARK 方舟苏生
+	var va := _mech(&"verdant", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 10))
+	var e1 := _mech(&"seraph", 1, Vector3(0, 0.2, 16.5))  # 13.5 m: on the habitat rim
+	var e2 := _mech(&"seraph", 1, Vector3(8, 0.2, 30))    # inside, not on the rim
+	var al := _mech(&"seraph", 0, Vector3(-13.5, 0.2, 30))
+	await r._ticks(20)
+	var vc := _cs(va)
+	var vu := vc.ultimate
+	await _ult_ready(va)
+	var p0 := va.global_position
+	va.command.ult_pressed = true
+	await _frames(_rec(), 20, func(_i: int) -> void:
+		va.command.move = Vector3(1, 0, 0))
+	_unrec()
+	var rooted := va.global_position.distance_to(p0) < 0.3
+	_hit(e1, va, pulse)  # a 5-damage, no-stagger hit
+	await r._ticks(2)
+	r._check(res, rooted and vu.phase == UltimateSystem.Phase.COOLDOWN, "windup rooted (%s); any landed hit interrupts it → %s" % [rooted, vu.get_phase_name()])
+	vc.restore_full()
+	vc.set_cooldown(&"va_turret", 5.0)
+	await _ult_ready(va)
+	va.command.ult_pressed = true
+	await r._ticks(70)
+	var dk := vc.kit as DeployKit
+	var tur := dk.turrets()
+	var hab := get_first_habitat()
+	r._check(res, vu.is_active() and tur.size() == 2 and vc.get_cooldown(&"va_turret") <= 0.0 and hab != null,
+		"active: %d turrets refilled, deploy cooldown cleared, habitat up" % tur.size())
+	await r._ticks(5)
+	var t0 := tur[0] as Turret
+	var hp_a := vc.health.hp
+	await r._ticks(60)
+	var regen := vc.health.hp - hp_a
+	var hh := _hit(e2, va, l1)
+	var want := l1.damage * dk.cfg().fortress_damage_taken * (vu.definition.effect as ArkRevivalEffect).owner_damage_taken
+	r._check(res, is_equal_approx(t0.fire_rate_mult, 1.5) and is_equal_approx(t0.range_bonus, 8.0) and regen > vc.health.max_hp * 0.015 \
+			and absf(hh.final_damage - want) < 0.01,
+		"turrets ×%.1f rate +%.0f m range; ark regen %.1f HP/s; hit %.2f (×fortress ×0.75)" % [t0.fire_rate_mult, t0.range_bonus, regen, hh.final_damage])
+	r._check(res, _cs(e1).status.has(&"habitat_edge") and not _cs(e2).status.has(&"habitat_edge") and not _cs(al).status.has(&"habitat_edge"),
+		"rim slows the enemy at 13.5 m, not the one inside, not the ally on the rim")
+	await r._ticks(int(vu.phase_time_left * 60.0) + 5)
+	vc.clear_cooldown(&"va_turret")
+	var n_before := dk.turrets().size()
+	var ev5 := _rec()
+	await _frames(ev5, 30, func(i: int) -> void:
+		va.command.skill_pressed = i == 0)
+	_unrec()
+	r._check(res, vu.in_cost() and dk.dormant and _started(ev5, va, &"va_turret") == 0 and get_first_habitat() == null,
+		"cost: dormant (deploy refused, %d turrets kept), habitat gone" % n_before)
+	await _free([va, e1, e2, al])
+
+	# ---------------- AZURE ORACLE 终末坐标
+	var az := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
+	var mk1 := _mech(&"seraph", 1, Vector3(0, 0.2, 18))
+	var un := _mech(&"seraph", 1, Vector3(15, 0.2, 18))
+	var al2 := _mech(&"seraph", 0, Vector3(-15, 0.2, 18))
+	await r._ticks(20)
+	var ac := _cs(az)
+	var au := ac.ultimate
+	var mark := load("res://resources/combat/status/mark.tres") as StatusEffectDefinition
+	_cs(mk1).status.apply(mark, az, 1)
+	_cs(al2).status.apply(mark, az, 1)
+	await _ult_ready(az)
+	var ap := az.global_position
+	az.command.ult_pressed = true
+	var ev6 := _rec()
+	var strikes := {"mk": 0, "un": 0, "al": 0, "tel": 0.0, "seen": {}}
+	await _frames(ev6, 300, func(_i: int) -> void:
+		az.command.move = Vector3(1, 0, 0)
+		_cs(mk1).status.apply(mark, az, 1)  # keep it marked for the test
+		for n in r.get_tree().get_nodes_in_group(&"orbital_strikes"):
+			var sid := n.get_instance_id()
+			if strikes.seen.has(sid):
+				continue
+			strikes.seen[sid] = true
+			var s := n as OrbitalStrike
+			strikes.tel = s.telegraph
+			if s.target == mk1: strikes.mk += 1
+			elif s.target == un: strikes.un += 1
+			elif s.target == al2: strikes.al += 1)
+	_unrec()
+	var tel: float = strikes.tel
+	r._check(res, az.global_position.distance_to(ap) < 0.3 and au.is_active(), "beacon: rooted while active (moved %.2f m)" % az.global_position.distance_to(ap))
+	r._check(res, strikes.mk >= 3 and strikes.un == 0 and strikes.al == 0 and is_equal_approx(tel, 1.1),
+		"strikes on the marked enemy %d, unmarked enemy %d, marked ally %d; telegraph %.1f s" % [strikes.mk, strikes.un, strikes.al, tel])
+	_cs(un).status.consume(&"mark")
+	_hit(az, un, pulse)
+	r._check(res, _cs(un).status.stacks(&"mark") == 2, "pulse marks twice while the beacon is up (%d stacks)" % _cs(un).status.stacks(&"mark"))
+	ac.apply_stagger(0.4)
+	await r._ticks(2)
+	r._check(res, au.in_cost(), "hard control ends the beacon early → %s" % au.get_phase_name())
+	await r._ticks(40)
+	var ev7 := _rec()
+	await _frames(ev7, 20, func(i: int) -> void:
+		_aim(az, un)
+		az.command.attack_pressed = i == 0)
+	_unrec()
+	r._check(res, au.in_cost() and _started(ev7, az, &"ao_pulse") == 0 and ac.get_cooldown(&"ao_backstep") > 0.0,
+		"cost: cannon overheated (no shot), backstep on cooldown %.1f s" % ac.get_cooldown(&"ao_backstep"))
+	await _free([az, mk1, un, al2])
+
+	# ---------------- shared rules
+	var x := _mech(&"hellfang", 0, Vector3(0, 0.2, 30))
+	await r._ticks(10)
+	var xu := _cs(x).ultimate
+	xu.unlimited_uses = true
+	await _ult_ready(x)
+	x.command.ult_pressed = true
+	await r._ticks(40)
+	r._check(res, xu.is_active() and xu.uses_left == 1 and not xu.in_judgment() and is_equal_approx(xu.parry_window_mult(), 1.0),
+		"practice: uses not consumed (%d left); a 3b ultimate is not PALE SERAPH judgment (no parry bonus)" % xu.uses_left)
+	await _free([x])
+
+
+func get_first_habitat() -> Habitat:
+	for n in r.get_tree().get_nodes_in_group(&"habitats"):
+		if is_instance_valid(n) and not n.is_queued_for_deletion():
+			return n as Habitat
+	return null

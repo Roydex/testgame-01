@@ -202,6 +202,14 @@ func get_cooldown(id: StringName) -> float:
 	return _cooldowns.get(id, 0.0)
 
 
+func set_cooldown(id: StringName, t: float) -> void:
+	_cooldowns[id] = t
+
+
+func clear_cooldown(id: StringName) -> void:
+	_cooldowns.erase(id)
+
+
 ## Shortens (never lengthens) a running cooldown (grapple miss / wall latch).
 func cap_cooldown(id: StringName, at_most: float) -> void:
 	if _cooldowns.has(id):
@@ -390,7 +398,8 @@ func _ready_inputs(cmd: MechCommand) -> void:
 		return  # a press is still deciding tap / hold
 	if cmd.guard_held:
 		if profile.charge_attack:
-			_enter_charge()
+			if not kit.blocks_actions():
+				_enter_charge()
 		else:
 			_enter_guard()
 
@@ -1063,6 +1072,8 @@ func on_guard_broken(hit: HitInfo) -> void:
 
 
 func on_clean_hit(hit: HitInfo, push: Vector3) -> void:
+	if ultimate and state == CombatState.ULT_WINDUP and ultimate.definition.windup_break_on_hit:
+		interrupt()  # VERDANT ARK: any landed hit breaks the rooting windup
 	if ultimate and ultimate.armor_absorbs(hit):
 		motor.apply_impulse(push * ultimate.definition.armor_knockback_mult)
 		CombatEvents.kit_event.emit(motor, &"super_armor")
@@ -1109,6 +1120,8 @@ func apply_stagger(duration: float, knockback: Vector3 = Vector3.ZERO) -> void:
 		return
 	interrupt()
 	momentum_chain = 0
+	if ultimate and ultimate.is_active() and ultimate.definition.active_ends_on_stagger:
+		ultimate.end_active_early()
 	_add_cc_mod(MOD_STAGGER, d)
 	_enter(CombatState.STAGGER, d)
 
@@ -1167,12 +1180,13 @@ func start_action(duration: float, speed_mult: float = 0.4, block_thrust: bool =
 	return true
 
 
-func start_ult_windup(duration: float) -> void:
+func start_ult_windup(duration: float, root := false) -> void:
 	_clear_state_mods()
 	var m := MovementModifier.create(MOD_ULT_WINDUP)
-	m.speed_mult = 0.2
+	m.speed_mult = 0.0 if root else 0.2
 	m.block_dash = true
 	m.block_jump = true
+	m.block_move = root
 	motor.add_modifier(m)
 	_enter(CombatState.ULT_WINDUP, duration)
 	CombatEvents.telegraph.emit(motor, null, duration)

@@ -7,7 +7,7 @@ extends RefCounted
 
 
 static func explode(owner: Node3D, def: AttackDefinition, center: Vector3, radius: float,
-		dmg_mult: float = 1.0, skip: Array = []) -> Array[HitInfo]:
+		dmg_mult: float = 1.0, skip: Array = [], quiet := false) -> Array[HitInfo]:
 	var out: Array[HitInfo] = []
 	if owner == null or not is_instance_valid(owner) or not owner.is_inside_tree():
 		return out
@@ -41,5 +41,6 @@ static func explode(owner: Node3D, def: AttackDefinition, center: Vector3, radiu
 		hit.damage_mult = dmg_mult
 		DamageSystem.resolve(hit)
 		out.append(hit)
-	CombatEvents.area_telegraph.emit(owner, center, radius, 0.0, &"blast")
+	if not quiet:
+		CombatEvents.area_telegraph.emit(owner, center, radius, 0.0, &"blast")
 	return out

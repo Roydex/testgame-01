@@ -188,3 +188,9 @@
 - **D-54 标记被硬控暂停而不是取消。** `interrupt()` 遇到 AIM 时只记下 `_aim_suspended`，硬直 / 失衡结束回到 READY 后自动重新进入 AIM（落点、剩余时间保留）；`aim_pending()` 给表现层用，保证暂停期间俯视和虚影不消失。确认改为攻击键，脚本大脑进入 AIM 后立刻确认，所以 AI 行为不变。
 - **D-55 冲刺追踪也走 MovementModifier。** 赤狱「咬住」给自己加一个带 `dash_home_target` 的修正；运动层在开始冲刺时，若输入方向与目标相差不超过 `dash_home_angle_deg`，就把冲刺方向改为朝向目标。战斗层仍不写速度。挥斧前冲的加成通过 MechKit 的 `lunge_speed_mult()` / `lunge_steer_bonus()` 钩子提供，状态机不知道具体机体。
 - **D-56 钩爪表现由 Grapple 自己绘制，只向机体视觉要锚点。** Grapple 通过鸭子类型调用 `Visual.grapple_anchor()` / `set_claw_launched()`（没有这两个方法时退回胸口位置），不依赖 MechVisual 的类型；钩墙、打空收回只影响表现和冷却（`CombatStateMachine.cap_cooldown()` 只缩短不延长）。
+
+## 设计决策（续，阶段 3b）
+
+- **D-57 大招 = 通用阶段 + 可插拔效果。** UltimateSystem 只管共同的阶段（LOCKED → READY → WINDUP → 生效 → 代价 → SPENT / COOLDOWN），三台机体的行为写在 `UltimateEffect` 子类（BackdraftEffect / ArkRevivalEffect / CoordinateEffect）里，通过 begin / tick / end / begin_cost / end_cost 钩子执行；效果资源无状态，运行时状态放在 `UltimateSystem.fx`，同一份 .tres 可被两台机体共用。效果只通过 kit、状态效果、MovementModifier 和 DamageSystem 影响机体。PALE SERAPH 的审判保持原实现（`effect = null`），`in_judgment()` 只对它为真，招架、反击等审判规则不会误触发到其他机体。
+- **D-58 前摇规则是数据。** `windup_root`（扎根）、`windup_super_armor`（霸体，抓取 / 破防例外）、`windup_break_on_hit`（任何命中打断）、`active_ends_on_stagger`（硬直提前结束生效）都在 UltimateDefinition 上，状态机在固定接缝处读取。
+- **D-59 平衡模拟每组对局独立播种，并多跑一组开大招的对战。** 修改一台机体不再打乱其他对局的随机序列；第 3 组对战给 U08 提供数据。

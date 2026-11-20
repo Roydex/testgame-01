@@ -93,6 +93,19 @@ static func _call_marked(combat: CombatStateMachine, def: AttackDefinition, spec
 	return s
 
 
+## 终末坐标: a strike called straight onto `target` (it follows, then locks).
+static func call_on(combat: CombatStateMachine, def: AttackDefinition, target: Node3D) -> OrbitalStrike:
+	var spec := def.orbital_spec if def.orbital_spec else OrbitalSpec.new()
+	var m := combat.motor
+	var s := OrbitalStrike.new()
+	m.get_parent().add_child(s)
+	s.global_position = ground_point(m.get_world_3d(), target.global_position + Vector3.UP * 2.0)
+	s.target = target
+	s.follow_duration = spec.follow_time
+	s.setup(m, def, spec, spec.radius)
+	return s
+
+
 ## Horizontal clamp of a marked point to the call range around `from`.
 static func clamp_to_range(from: Vector3, p: Vector3, max_range: float) -> Vector3:
 	var d := Vector2(p.x - from.x, p.z - from.z)
@@ -135,6 +148,10 @@ func setup(p_owner: Node3D, def: AttackDefinition, p_spec: OrbitalSpec, p_radius
 
 
 func _physics_process(delta: float) -> void:
+	if owner_mech == null or not is_instance_valid(owner_mech):
+		CombatEvents.entity_removed.emit(self, &"orbital", false)
+		queue_free()  # the caller was removed (mech swapped out / freed): the strike fizzles
+		return
 	var was_locked := is_locked()
 	_t += delta
 	if not _fired:
@@ -225,7 +242,8 @@ func _strike() -> void:
 	_beam.material_override = bm
 	_beam.position = Vector3.UP * spec.sky_height * 0.5
 	add_child(_beam)
-	CombatEvents.kit_event.emit(owner_mech, &"orbital_strike")
+	if owner_mech and is_instance_valid(owner_mech):
+		CombatEvents.kit_event.emit(owner_mech, &"orbital_strike")
 	if spec.shock_attack and spec.shock_radius > radius and owner_mech and is_instance_valid(owner_mech):
 		_shockwave(struck)
 

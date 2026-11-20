@@ -20,6 +20,8 @@ var phase: int = Phase.LOCKED
 var phase_time_left: float = 0.0
 var uses_left: int = 1
 var spear_charges_left: int = 0
+## Runtime state of the phase-3b effect (the effect resource is stateless).
+var fx: Dictionary = {}
 ## Practice mode: uses are not consumed.
 var unlimited_uses: bool = false
 
@@ -35,8 +37,22 @@ func get_phase_name() -> String:
 	return PHASE_NAMES[phase]
 
 
+## PALE SERAPH judgment specifically (parry counters, spear, field…).
 func in_judgment() -> bool:
+	return phase == Phase.JUDGMENT and definition.effect == null
+
+
+## Any mech's ultimate is in its active phase.
+func is_active() -> bool:
 	return phase == Phase.JUDGMENT
+
+
+func in_cost() -> bool:
+	return phase == Phase.OVERLOAD
+
+
+func in_windup() -> bool:
+	return phase == Phase.WINDUP
 
 
 func is_ready() -> bool:
@@ -44,7 +60,7 @@ func is_ready() -> bool:
 
 
 func parry_window_mult() -> float:
-	return definition.parry_window_mult if phase == Phase.JUDGMENT else 1.0
+	return definition.parry_window_mult if in_judgment() else 1.0
 
 
 func damage_taken_mult() -> float:
@@ -52,12 +68,15 @@ func damage_taken_mult() -> float:
 
 
 func outgoing_mult() -> float:
-	return definition.damage_mult if phase == Phase.JUDGMENT else 1.0
+	return definition.damage_mult if in_judgment() else 1.0
 
 
-## Judgment super armour: does a clean hit of `damage` stagger us?
+## Super armour: judgment (light hits) or a super-armoured windup (all but
+## grabs and guard breaks). Absorbed hits do not stagger.
 func armor_absorbs(hit: HitInfo) -> bool:
-	return phase == Phase.JUDGMENT and hit.final_damage < definition.armor_damage_threshold \
+	if phase == Phase.WINDUP and definition.windup_super_armor:
+		return hit.attack.attack_type != CombatTypes.AttackType.GRAB and not hit.attack.guard_break and not hit.force_guard_break
+	return in_judgment() and hit.final_damage < definition.armor_damage_threshold \
 		and not hit.attack.guard_break and not hit.force_guard_break
 
 
@@ -91,13 +110,16 @@ func _physics_process(delta: float) -> void:
 				_set_phase(Phase.READY if _unlock_condition() else Phase.LOCKED)
 		Phase.JUDGMENT:
 			phase_time_left -= delta
-			_tick_field()
-			if phase_time_left <= 0.0:
+			if definition.effect:
+				definition.effect.tick(self, delta)
+			else:
+				_tick_field()
+			if phase_time_left <= 0.0 and phase == Phase.JUDGMENT:
 				_end_judgment()
 		Phase.OVERLOAD:
 			phase_time_left -= delta
 			if phase_time_left <= 0.0:
-				combat.motor.remove_modifier(MOD_OVERLOAD)
+				_end_cost()
 				_set_phase(Phase.READY if _unlock_condition() else (Phase.SPENT if uses_left <= 0 else Phase.LOCKED))
 
 
@@ -110,7 +132,7 @@ func try_activate() -> bool:
 		enter_judgment()
 		return true
 	_set_phase(Phase.WINDUP)
-	combat.start_ult_windup(definition.windup)
+	combat.start_ult_windup(definition.windup, definition.windup_root)
 	return true
 
 
@@ -119,8 +141,13 @@ func enter_judgment() -> void:
 		return
 	if not unlimited_uses:
 		uses_left -= 1
-	spear_charges_left = definition.spear_charges
 	phase_time_left = definition.duration
+	if definition.effect:
+		fx.clear()
+		_set_phase(Phase.JUDGMENT)
+		definition.effect.begin(self)
+		return
+	spear_charges_left = definition.spear_charges
 	var m := MovementModifier.create(MOD_JUDGMENT)
 	m.speed_mult = definition.speed_mult
 	m.en_cost_mult = definition.dash_cost_mult
@@ -129,6 +156,8 @@ func enter_judgment() -> void:
 
 
 func _end_judgment() -> void:
+	if definition.effect:
+		definition.effect.end(self)
 	combat.motor.remove_modifier(MOD_JUDGMENT)
 	spear_charges_left = 0
 	var m := MovementModifier.create(MOD_OVERLOAD)
@@ -136,6 +165,20 @@ func _end_judgment() -> void:
 	combat.motor.add_modifier(m)
 	phase_time_left = definition.overload_duration
 	_set_phase(Phase.OVERLOAD)
+	if definition.effect:
+		definition.effect.begin_cost(self)
+
+
+func _end_cost() -> void:
+	combat.motor.remove_modifier(MOD_OVERLOAD)
+	if definition.effect:
+		definition.effect.end_cost(self)
+
+
+## Active phase cut short (AZURE beacon hit by hard control): straight to the cost.
+func end_active_early() -> void:
+	if phase == Phase.JUDGMENT:
+		_end_judgment()
 
 
 func on_windup_interrupted() -> void:
@@ -146,6 +189,10 @@ func on_windup_interrupted() -> void:
 
 ## Practice reset: back to the start-of-match state.
 func reset() -> void:
+	if definition.effect and phase == Phase.JUDGMENT:
+		definition.effect.end(self)
+	if definition.effect and phase == Phase.OVERLOAD:
+		definition.effect.end_cost(self)
 	combat.motor.remove_modifier(MOD_JUDGMENT)
 	combat.motor.remove_modifier(MOD_OVERLOAD)
 	uses_left = definition.uses_per_match
@@ -155,6 +202,10 @@ func reset() -> void:
 
 
 func on_owner_died() -> void:
+	if definition.effect and phase == Phase.JUDGMENT:
+		definition.effect.end(self)
+	if definition.effect and phase == Phase.OVERLOAD:
+		definition.effect.end_cost(self)
 	combat.motor.remove_modifier(MOD_JUDGMENT)
 	combat.motor.remove_modifier(MOD_OVERLOAD)
 	_set_phase(Phase.SPENT)

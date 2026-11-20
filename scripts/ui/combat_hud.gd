@@ -182,6 +182,8 @@ func _process(delta: float) -> void:
 	var u := combat.ultimate
 	if u == null:
 		_ult.text = ""
+	elif u.definition.effect:
+		_ult.text = _ult_text_generic(u)
 	else:
 		var txt := ""
 		match u.phase:
@@ -213,7 +215,7 @@ func _process(delta: float) -> void:
 		_target_hp.value = th.hp
 	if tc:
 		_target_name.text = "%s  [%s]%s" % [t.name, tc.get_state_name(),
-			"  审判中" if tc.ultimate and tc.ultimate.in_judgment() else ""]
+			("  " + tc.ultimate.definition.active_label + "中") if tc.ultimate and tc.ultimate.is_active() else ""]
 		_target_hp.max_value = tc.health.max_hp
 		_target_hp.value = tc.health.hp
 
@@ -239,12 +241,17 @@ func _on_parried(defender: Node3D, attacker: Node3D, was_projectile: bool) -> vo
 
 
 func _on_ult(mech: Node3D, phase: String) -> void:
+	var mc := DamageSystem.get_combat(mech)
+	var d: UltimateDefinition = mc.ultimate.definition if mc and mc.ultimate else null
+	var seraph := d == null or d.effect == null
 	if mech == motor and phase == "JUDGMENT":
-		callout("冠冕补完 · 审判开始", Color(1.0, 0.93, 0.6), 1.5)
+		callout("冠冕补完 · 审判开始" if seraph else "%s 发动" % d.display_name, Color(1.0, 0.93, 0.6), 1.5)
 	elif mech != motor and phase == "JUDGMENT":
-		callout("警告：%s 进入审判状态" % mech.name, Color(1.0, 0.5, 0.3), 1.5)
+		callout("警告：%s 进入审判状态" % mech.name if seraph else "警告：%s 发动 %s" % [mech.name, d.display_name], Color(1.0, 0.5, 0.3), 1.5)
+	elif mech != motor and phase == "WINDUP" and not seraph:
+		callout("%s 正在发动 %s —— 打断它！" % [mech.name, d.display_name], Color(1.0, 0.6, 0.3), 1.0)
 	elif mech != motor and phase == "READY":
-		callout("%s 的冠冕亮起" % mech.name, Color(1.0, 0.8, 0.4), 1.2)
+		callout("%s 的冠冕亮起" % mech.name if seraph else "%s 的 %s 已就绪" % [mech.name, d.display_name], Color(1.0, 0.8, 0.4), 1.2)
 
 
 func _on_died(mech: Node3D) -> void:
@@ -304,12 +311,35 @@ func _on_riposte_window(mech: Node3D, target: Node3D, _duration: float) -> void:
 		callout("反刺！ 左键", Color(1.0, 0.95, 0.6), combat.profile.riposte_window)
 
 
+## HUD line for a phase-3b ultimate (PALE SERAPH keeps its own wording).
+func _ult_text_generic(u: UltimateSystem) -> String:
+	var d := u.definition
+	match u.phase:
+		UltimateSystem.Phase.LOCKED:
+			return "%s · HP ≤ %d%% 时解锁" % [d.display_name, int(d.hp_threshold * 100.0)]
+		UltimateSystem.Phase.READY:
+			return "【V】%s 已就绪" % d.display_name
+		UltimateSystem.Phase.WINDUP:
+			return "%s 发动中……" % d.display_name
+		UltimateSystem.Phase.JUDGMENT:
+			var extra := d.effect.hud_active(u)
+			return "%s %.1fs%s" % [d.active_label, u.phase_time_left, ("  ·  " + extra) if extra != "" else ""]
+		UltimateSystem.Phase.OVERLOAD:
+			return "%s %.1fs（%s%s）" % [d.cost_label, u.phase_time_left, d.cost_desc,
+				"，受伤 ×%.1f" % d.overload_damage_taken_mult if d.overload_damage_taken_mult > 1.0 else ""]
+		UltimateSystem.Phase.COOLDOWN:
+			return "%s 被打断 · %.1fs 后可再次发动" % [d.display_name, u.phase_time_left]
+		UltimateSystem.Phase.SPENT:
+			return "%s 已用尽（F12 切到练习模式可不限次数）" % d.display_name
+	return ""
+
+
 func _update_vignette(delta: float) -> void:
 	_vig_t += delta
 	var u := combat.ultimate
 	var strength := 0.0
-	if u and u.in_judgment():
-		_vig_mat.set_shader_parameter(&"tint", Color(1.0, 0.85, 0.35, 0.7))
+	if u and u.is_active():
+		_vig_mat.set_shader_parameter(&"tint", u.definition.vignette_color)
 		strength = 0.55 + 0.15 * sin(_vig_t * 6.0)
 	elif combat.status.has(&"judgment_suppressed"):
 		_vig_mat.set_shader_parameter(&"tint", Color(1.0, 0.45, 0.15, 0.6))

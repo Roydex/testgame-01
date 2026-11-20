@@ -8,6 +8,9 @@ extends MechKit
 
 var wall: ShieldWall
 var wall_cooldown_left := 0.0
+## 方舟苏生: the active habitat (null when none) and the dormancy cost.
+var habitat: Habitat
+var dormant := false
 
 
 func cfg() -> DeployConfig:
@@ -19,7 +22,7 @@ func wall_up() -> bool:
 
 
 func on_guard_started() -> void:
-	if not cfg().wall_enabled or wall_up() or wall_cooldown_left > 0.0:
+	if not cfg().wall_enabled or wall_up() or wall_cooldown_left > 0.0 or dormant:
 		return
 	var fwd := motor.get_forward()
 	var rt := combat.ranged_target() if combat.ranged_target() else combat.aim_target
@@ -52,6 +55,8 @@ func turrets() -> Array[Node3D]:
 
 
 func can_start(def: AttackDefinition) -> bool:
+	if dormant and def.get_delivery() == CombatTypes.Delivery.DEPLOY:
+		return false  # 方舟苏生 cost: no deploying while dormant
 	if def.get_delivery() == CombatTypes.Delivery.DEPLOY and def.deploy_spec and def.deploy_spec.kind == DeploySpec.Kind.TURRET:
 		return turrets().size() < cfg().max_turrets
 	return true
@@ -65,10 +70,34 @@ func in_fortress() -> bool:
 
 
 func incoming_mult(_hit: HitInfo) -> float:
-	return cfg().fortress_damage_taken if in_fortress() else 1.0
+	var m := cfg().fortress_damage_taken if in_fortress() else 1.0
+	if habitat and is_instance_valid(habitat) and habitat.contains(motor):
+		m *= habitat.effect.owner_damage_taken
+	return m
+
+
+## 方舟苏生: turrets refilled next to the ark, deploy / zone / wall ready.
+func revive() -> void:
+	var p := combat.profile
+	if p.skill:
+		combat.clear_cooldown(p.skill.id)
+	if p.skill_hold:
+		combat.clear_cooldown(p.skill_hold.id)
+	wall_cooldown_left = 0.0
+	var spec: DeploySpec = p.skill.deploy_spec if p.skill and p.skill.deploy_spec else null
+	if spec == null:
+		return
+	var side := 1.0
+	while turrets().size() < cfg().max_turrets:
+		var at := motor.global_position + motor.global_basis.x * (4.0 * side) + Vector3.UP * 2.0
+		Deployables.spawn_turret(combat, spec, OrbitalStrike.ground_point(motor.get_world_3d(), at))
+		side = -side
+	CombatEvents.kit_event.emit(motor, &"ark_revive")
 
 
 func reset() -> void:
+	dormant = false
+	habitat = null
 	if wall_up():
 		wall.remove(false)
 	wall = null

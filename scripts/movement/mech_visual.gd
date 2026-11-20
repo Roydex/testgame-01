@@ -161,10 +161,14 @@ func setup(p_motor: MechMotor, color: Color, p_style: StringName = &"generic") -
 		CombatEvents.attack_active.connect(_on_attack_active)
 		CombatEvents.status_changed.connect(_on_status)
 		combat.combat_state_changed.connect(_on_combat_state)
-		if combat.ultimate:
+		if combat.ultimate and combat.ultimate.definition.effect == null:
 			var aura := JudgmentAura.new()
 			add_child(aura)
 			aura.setup(motor, combat)
+		elif combat.ultimate:
+			var ua := UltimateAura.new()
+			add_child(ua)
+			ua.setup(motor, combat)
 
 
 ## PALE SERAPH story read: an INCOMPLETE crown (3 of 4 arcs) above the head

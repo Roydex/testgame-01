@@ -202,6 +202,22 @@ func _sequence() -> void:
 	await _hold(0.2, func(_t: float): _cmd().guard_held = false)
 	await _shot("hellfang_furnace_burst")
 	await _hold(0.8)
+	# --- phase 3b: the three new signature ultimates
+	for spec in [[&"hellfang", "ult_backdraft", 0.9], [&"verdant", "ult_ark_revival", 1.6], [&"azure", "ult_final_coordinate", 2.2]]:
+		await _setup_round(spec[0], SparringBrain.Mode.PASSIVE)
+		_partner().reset_to(Vector3(0, 0.2, 22) if spec[0] != &"azure" else Vector3(0, 0.2, 12))
+		if spec[0] == &"azure":
+			var mk := load("res://resources/combat/status/mark.tres") as StatusEffectDefinition
+			DamageSystem.get_combat(_partner()).status.apply(mk, scene.motor, 3)
+		scene.combat.health.hp = scene.combat.health.max_hp * 0.25
+		await _hold(0.1)
+		await _hold(0.05, func(t: float): _cmd().ult_pressed = t < 0.02)
+		if spec[0] == &"hellfang":
+			await _hold(0.3)
+			await _shot("ult_backdraft_windup")
+		await _hold(spec[2])
+		await _shot(spec[1])
+		await _hold(0.3)
 	# --- P12: frame rate with the lab busy (turrets + missiles + strike + partners fighting)
 	await _setup_round(&"verdant", SparringBrain.Mode.MELEE)
 	scene._swap_partner(&"azure")

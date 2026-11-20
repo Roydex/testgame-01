@@ -37,6 +37,13 @@ func take(amount: float) -> void:
 		died.emit()
 
 
+## Healing (ultimate regeneration). Never revives.
+func heal(amount: float) -> void:
+	if dead or amount <= 0.0:
+		return
+	hp = minf(hp + amount, max_hp)
+
+
 func restore() -> void:
 	hp = max_hp
 	dead = false

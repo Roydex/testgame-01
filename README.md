@@ -2,7 +2,7 @@
 
 Godot 4.7.2 + GDScript。- 阶段 2a 机动 / 能量 / 镜头原型：**PASS**（M03/M07/M08/M09 DEFERRED，已绑定到后续阶段）。
 - 阶段 2b 单机体战斗原型（01 白祷）：**AWAITING_USER_ACCEPTANCE**。
-- 阶段 3a 另外三台机体（02 赤狱、03 苍藓、04 苍穹）的武装与技能测试场景：**AWAITING_USER_ACCEPTANCE**（自动化 43/43 PASS；第 1–5 轮试玩反馈已修改，待复测）。
+- 阶段 3a 另外三台机体（02 赤狱、03 苍藓、04 苍穹）的武装与技能测试场景：**AWAITING_USER_ACCEPTANCE**（自动化 44/44 PASS；第 1–5 轮试玩反馈已修改，待复测）。阶段 3b 三台机体的特色大招（熔炉逆燃 / 方舟苏生 / 终末坐标）已实现，HP ≤ 30% 时按 `V` 发动：**AWAITING_USER_ACCEPTANCE**。
 项目规范见 [AGENT.md](AGENT.md)，验收结果见 [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)。
 
 ## 运行
@@ -86,7 +86,7 @@ Godot 4.7.2 + GDScript。- 阶段 2a 机动 / 能量 / 镜头原型：**PASS**�
 tests/run_tests.sh
 ```
 
-无头运行，固定 60 Hz 步长，共 43 项（T28–T36 为阶段 3a，T37 为第 1 轮试玩修正，T38–T39 为第 2 轮，T40 为第 3 轮，T41 为第 4 轮，T42 为第 5 轮，T43 为第 5 轮排查出的回归），用时约 2 分钟。可加 `--only=T05` 只跑单项。日志写入 `tests/logs/test_results.log`，退出码 0 表示全部通过。
+无头运行，固定 60 Hz 步长，共 44 项（T28–T36 为阶段 3a，T37 为第 1 轮试玩修正，T38–T39 为第 2 轮，T40 为第 3 轮，T41 为第 4 轮，T42 为第 5 轮，T43 为第 5 轮排查出的回归，T44 为阶段 3b 大招），用时约 2 分钟。可加 `--only=T05` 只跑单项。日志写入 `tests/logs/test_results.log`，退出码 0 表示全部通过。
 
 真实渲染演示（自动截图到 `docs/screenshots/`，并输出帧率统计），机动演示：
 

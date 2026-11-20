@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CombatProfile" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/combat/azure/ao_pulse.tres" id="2"]
@@ -7,6 +7,7 @@
 [ext_resource type="Resource" path="res://resources/combat/azure/ao_rail.tres" id="5"]
 [ext_resource type="Resource" path="res://resources/combat/azure/ao_backstep.tres" id="6"]
 [ext_resource type="Script" path="res://scripts/combat/kits/mark_config.gd" id="7"]
+[ext_resource type="Resource" path="res://resources/combat/ultimates/azure_final_coordinate.tres" id="ult_azure_combat"]
 
 [sub_resource type="Resource" id="MarkConfig_1"]
 script = ExtResource("7")
@@ -14,6 +15,7 @@ script = ExtResource("7")
 
 [resource]
 script = ExtResource("1")
+ultimate = ExtResource("ult_azure_combat")
 display_name = "04 AZURE ORACLE 武装"
 max_hp = 280.0
 ranged = ExtResource("2")

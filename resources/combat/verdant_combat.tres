@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="CombatProfile" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="CombatProfile" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/combat/combat_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/combat/verdant/va_scatter.tres" id="2"]
 [ext_resource type="Resource" path="res://resources/combat/verdant/va_turret.tres" id="3"]
 [ext_resource type="Resource" path="res://resources/combat/verdant/va_zone.tres" id="4"]
 [ext_resource type="Script" path="res://scripts/combat/kits/deploy_config.gd" id="5"]
+[ext_resource type="Resource" path="res://resources/combat/ultimates/verdant_ark_revival.tres" id="ult_verdant_combat"]
 
 [sub_resource type="Resource" id="DeployConfig_1"]
 script = ExtResource("5")
@@ -12,6 +13,7 @@ script = ExtResource("5")
 
 [resource]
 script = ExtResource("1")
+ultimate = ExtResource("ult_verdant_combat")
 display_name = "03 VERDANT ARK 武装"
 max_hp = 360.0
 ranged = ExtResource("2")

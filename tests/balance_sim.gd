@@ -6,6 +6,7 @@ extends Node
 ##     second, hit rate and the attacks that did the damage.
 ##  2. Scripted 1v1: every pair, both spawn sides, the generic scripted
 ##     partner pattern at full aggression (NOT an AI), up to MATCH_S s.
+##  3. The same duels with the low-HP ultimates on (phase 3b, gate U08).
 ## These are scripted proxies, not player skill: use them for ranges and
 ## relative tendencies only. Output: tests/logs/balance_sim.log and
 ## tests/logs/balance_sim.json.
@@ -17,7 +18,7 @@ const MATCH_S := 90.0
 const RANGES := [5.0, 12.0, 20.0, 30.0, 45.0]
 
 var arena: Node3D
-var out := {"dps": [], "duels": []}
+var out := {"dps": [], "duels": [], "duels_ult": []}
 var lines: PackedStringArray = []
 
 
@@ -68,20 +69,21 @@ func _run() -> void:
 				await _free_arena()
 				out.dps.append(r)
 				_log("%-9s %-9s %6.0f %8.1f %7.0f%%  %s" % [id, "strafing" if strafe else "still", d, r.dps, r.hit_rate * 100.0, r.by_attack])
-	_log("\n--- 2. Scripted 1v1 (full-aggression partner pattern, ultimates off; both spawn sides)")
 	var ids := MechFactory.MECH_IDS
-	for i in ids.size():
-		for j in range(i + 1, ids.size()):
-			for side in 2:
-				var a: StringName = ids[i] if side == 0 else ids[j]
-				var b: StringName = ids[j] if side == 0 else ids[i]
-				await _new_arena()
-				seed(_seed_for("%s/%s" % [a, b]))
-				var r := await _duel(a, b)
-				await _free_arena()
-				out.duels.append(r)
-				_log("%-9s vs %-9s → winner %-9s  %5.1f s   HP left %s %.0f%% / %s %.0f%%   dmg %s" % [a, b, r.winner, r.time,
-					a, r.hp_a * 100.0, b, r.hp_b * 100.0, r.damage])
+	for ult in [false, true]:
+		_log("\n--- %s Scripted 1v1 (full-aggression partner pattern, ultimates %s; both spawn sides)" % ["2." if not ult else "3.", "ON" if ult else "off"])
+		for i in ids.size():
+			for j in range(i + 1, ids.size()):
+				for side in 2:
+					var a: StringName = ids[i] if side == 0 else ids[j]
+					var b: StringName = ids[j] if side == 0 else ids[i]
+					await _new_arena()
+					seed(_seed_for("%s/%s" % [a, b]))
+					var r := await _duel(a, b, ult)
+					await _free_arena()
+					(out.duels_ult if ult else out.duels).append(r)
+					_log("%-9s vs %-9s → winner %-9s  %5.1f s   HP left %s %.0f%% / %s %.0f%%   dmg %s%s" % [a, b, r.winner, r.time,
+						a, r.hp_a * 100.0, b, r.hp_b * 100.0, r.damage, ("   ults %s" % r.ults) if ult else ""])
 	var f := FileAccess.open(ProjectSettings.globalize_path("res://tests/logs/balance_sim.log"), FileAccess.WRITE)
 	f.store_string("\n".join(lines) + "\n")
 	f.close()
@@ -200,7 +202,7 @@ func _drive_attacker(a: MechMotor, tgt: MechMotor, d: float, ctl: Dictionary, t:
 
 # ------------------------------------------------------------------ 2. duels
 
-func _duel(ida: StringName, idb: StringName) -> Dictionary:
+func _duel(ida: StringName, idb: StringName, ult := false) -> Dictionary:
 	var a := MechFactory.create_by_id(ida, 1, false)
 	a.position = Vector3(0, 0.2, 20)
 	arena.add_child(a)
@@ -212,10 +214,16 @@ func _duel(ida: StringName, idb: StringName) -> Dictionary:
 		var br := SparringBrain.new()
 		br.name = "SparringBrain"
 		br.mode = SparringBrain.Mode.MELEE if (m == a and ida in [&"seraph", &"hellfang"]) or (m == b and idb in [&"seraph", &"hellfang"]) else SparringBrain.Mode.RANGED
-		br.use_ultimate = false
+		br.use_ultimate = ult
 		m.add_child(br)
 		br.setup(m)
 	var dmg := {String(ida) + "_dealt": 0.0, String(idb) + "_dealt": 0.0}
+	var ults := {}
+	var on_ult := func(m: Node3D, phase: String) -> void:
+		if phase == "JUDGMENT":
+			var k := String(ida) if m == a else String(idb)
+			ults[k] = int(ults.get(k, 0)) + 1
+	CombatEvents.ultimate_phase.connect(on_ult)
 	var on_hit := func(h: HitInfo) -> void:
 		var src: Node = h.attacker
 		if src and src.get(&"owner_mech") is Node:
@@ -230,6 +238,7 @@ func _duel(ida: StringName, idb: StringName) -> Dictionary:
 		await get_tree().physics_frame
 		t += DT
 	CombatEvents.hit_resolved.disconnect(on_hit)
+	CombatEvents.ultimate_phase.disconnect(on_ult)
 	var ha := _cs(a).health.ratio()
 	var hb := _cs(b).health.ratio()
 	var w := "timeout"
@@ -239,4 +248,4 @@ func _duel(ida: StringName, idb: StringName) -> Dictionary:
 		w = String(ida)
 	for k in dmg:
 		dmg[k] = snappedf(dmg[k], 1.0)
-	return {"a": String(ida), "b": String(idb), "winner": w, "time": t, "hp_a": ha, "hp_b": hb, "damage": dmg}
+	return {"a": String(ida), "b": String(idb), "winner": w, "time": t, "hp_a": ha, "hp_b": hb, "damage": dmg, "ults": ults}

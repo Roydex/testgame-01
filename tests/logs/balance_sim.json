@@ -483,6 +483,7 @@
       "hp_a": 0.0,
       "hp_b": 0.0882352941176471,
       "time": 29.3833333333329,
+      "ults": {},
       "winner": "hellfang"
     },
     {
@@ -495,6 +496,7 @@
       "hp_a": 0.0,
       "hp_b": 0.00853333333333334,
       "time": 31.2166666666662,
+      "ults": {},
       "winner": "seraph"
     },
     {
@@ -507,6 +509,7 @@
       "hp_a": 0.0,
       "hp_b": 0.386111111111111,
       "time": 33.0333333333327,
+      "ults": {},
       "winner": "verdant"
     },
     {
@@ -519,6 +522,7 @@
       "hp_a": 0.581527777777778,
       "hp_b": 0.0,
       "time": 26.7833333333331,
+      "ults": {},
       "winner": "verdant"
     },
     {
@@ -531,6 +535,7 @@
       "hp_a": 0.0,
       "hp_b": 0.435714285714286,
       "time": 19.3166666666669,
+      "ults": {},
       "winner": "azure"
     },
     {
@@ -543,6 +548,7 @@
       "hp_a": 0.185714285714286,
       "hp_b": 0.0,
       "time": 23.5999999999999,
+      "ults": {},
       "winner": "azure"
     },
     {
@@ -555,6 +561,7 @@
       "hp_a": 0.523529411764706,
       "hp_b": 0.0,
       "time": 21.7666666666667,
+      "ults": {},
       "winner": "hellfang"
     },
     {
@@ -567,6 +574,7 @@
       "hp_a": 0.0,
       "hp_b": 0.276470588235294,
       "time": 25.7999999999998,
+      "ults": {},
       "winner": "hellfang"
     },
     {
@@ -579,6 +587,7 @@
       "hp_a": 0.800272331154684,
       "hp_b": 0.0,
       "time": 14.866666666667,
+      "ults": {},
       "winner": "hellfang"
     },
     {
@@ -591,6 +600,7 @@
       "hp_a": 0.0,
       "hp_b": 0.800272331154684,
       "time": 14.866666666667,
+      "ults": {},
       "winner": "hellfang"
     },
     {
@@ -603,6 +613,7 @@
       "hp_a": 0.0,
       "hp_b": 0.0276004686020315,
       "time": 35.3333333333326,
+      "ults": {},
       "winner": "azure"
     },
     {
@@ -615,6 +626,188 @@
       "hp_a": 0.282604183190103,
       "hp_b": 0.0,
       "time": 32.6333333333328,
+      "ults": {},
+      "winner": "azure"
+    }
+  ],
+  "duels_ult": [
+    {
+      "a": "seraph",
+      "b": "hellfang",
+      "damage": {
+        "hellfang_dealt": 293.0,
+        "seraph_dealt": 342.0
+      },
+      "hp_a": 0.0219333333333334,
+      "hp_b": 0.0,
+      "time": 28.883333333333,
+      "ults": {
+        "hellfang": 1,
+        "seraph": 1
+      },
+      "winner": "seraph"
+    },
+    {
+      "a": "hellfang",
+      "b": "seraph",
+      "damage": {
+        "hellfang_dealt": 292.0,
+        "seraph_dealt": 342.0
+      },
+      "hp_a": 0.0,
+      "hp_b": 0.0269333333333333,
+      "time": 28.133333333333,
+      "ults": {
+        "hellfang": 1,
+        "seraph": 1
+      },
+      "winner": "seraph"
+    },
+    {
+      "a": "seraph",
+      "b": "verdant",
+      "damage": {
+        "seraph_dealt": 331.0,
+        "verdant_dealt": 304.0
+      },
+      "hp_a": 0.0,
+      "hp_b": 0.132902777777778,
+      "time": 30.1833333333329,
+      "ults": {
+        "seraph": 1,
+        "verdant": 1
+      },
+      "winner": "verdant"
+    },
+    {
+      "a": "verdant",
+      "b": "seraph",
+      "damage": {
+        "seraph_dealt": 340.0,
+        "verdant_dealt": 303.0
+      },
+      "hp_a": 0.055138888888889,
+      "hp_b": 0.0,
+      "time": 29.9666666666662,
+      "ults": {
+        "seraph": 1
+      },
+      "winner": "verdant"
+    },
+    {
+      "a": "seraph",
+      "b": "azure",
+      "damage": {
+        "azure_dealt": 302.0,
+        "seraph_dealt": 184.0
+      },
+      "hp_a": 0.0,
+      "hp_b": 0.341964285714286,
+      "time": 19.4500000000002,
+      "ults": {
+        "seraph": 1
+      },
+      "winner": "azure"
+    },
+    {
+      "a": "azure",
+      "b": "seraph",
+      "damage": {
+        "azure_dealt": 294.0,
+        "seraph_dealt": 292.0
+      },
+      "hp_a": 0.0,
+      "hp_b": 0.0188024691358026,
+      "time": 26.7666666666664,
+      "ults": {
+        "azure": 1,
+        "seraph": 1
+      },
+      "winner": "seraph"
+    },
+    {
+      "a": "hellfang",
+      "b": "verdant",
+      "damage": {
+        "hellfang_dealt": 441.0,
+        "verdant_dealt": 162.0
+      },
+      "hp_a": 0.523529411764706,
+      "hp_b": 0.0,
+      "time": 21.7666666666667,
+      "ults": {},
+      "winner": "hellfang"
+    },
+    {
+      "a": "verdant",
+      "b": "hellfang",
+      "damage": {
+        "hellfang_dealt": 537.0,
+        "verdant_dealt": 293.0
+      },
+      "hp_a": 0.0,
+      "hp_b": 0.138235294117647,
+      "time": 28.9499999999996,
+      "ults": {
+        "hellfang": 1,
+        "verdant": 1
+      },
+      "winner": "hellfang"
+    },
+    {
+      "a": "hellfang",
+      "b": "azure",
+      "damage": {
+        "azure_dealt": 63.0,
+        "hellfang_dealt": 283.0
+      },
+      "hp_a": 0.814978213507625,
+      "hp_b": 0.0,
+      "time": 14.866666666667,
+      "ults": {},
+      "winner": "hellfang"
+    },
+    {
+      "a": "azure",
+      "b": "hellfang",
+      "damage": {
+        "azure_dealt": 63.0,
+        "hellfang_dealt": 283.0
+      },
+      "hp_a": 0.0,
+      "hp_b": 0.814978213507625,
+      "time": 14.866666666667,
+      "ults": {},
+      "winner": "hellfang"
+    },
+    {
+      "a": "verdant",
+      "b": "azure",
+      "damage": {
+        "azure_dealt": 679.0,
+        "verdant_dealt": 263.0
+      },
+      "hp_a": 0.0,
+      "hp_b": 0.151030525416136,
+      "time": 31.4833333333328,
+      "ults": {
+        "azure": 1
+      },
+      "winner": "azure"
+    },
+    {
+      "a": "azure",
+      "b": "verdant",
+      "damage": {
+        "azure_dealt": 458.0,
+        "verdant_dealt": 217.0
+      },
+      "hp_a": 0.282604184262454,
+      "hp_b": 0.0,
+      "time": 32.2333333333328,
+      "ults": {
+        "azure": 1
+      },
       "winner": "azure"
     }
   ]

@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="AttackDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/attack_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/specs/orbital_spec.gd" id="2"]
+
+[sub_resource type="Resource" id="OrbitalSpec_1"]
+script = ExtResource("2")
+follow_time = 0.5
+follow_per_mark = 0.0
+follow_speed = 12.0
+lock_time = 0.6
+radius = 5.0
+radius_per_mark = 0.0
+min_radius = 5.0
+beam_duration = 0.3
+sky_height = 45.0
+max_call_range = 60.0
+
+[resource]
+script = ExtResource("1")
+id = &"ao_coordinate_strike"
+display_name = "坐标打击"
+attack_type = 2
+delivery = 3
+damage = 25.0
+parryable = false
+knockback = 3.0
+knockback_up = 2.0
+stagger_time = 0.3
+hitstop = 0.08
+shake = 0.3
+orbital_spec = SubResource("OrbitalSpec_1")

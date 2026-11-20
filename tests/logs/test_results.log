@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-20T03:05:48  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-20T03:30:40  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -414,7 +414,7 @@ PASS  T21
   ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 18.2 m and attacked via MechCommand
+  ok   partner moved 23.9 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -461,10 +461,10 @@ PASS  T24
   ok   training partner engages at a readable pace (7 engagements in 30 s)
   ok   at least 2 s between engagements (3.5s)
   ok   practice partner regenerates after 4s (150 → 300)
-  ok   practice: ultimate used twice and READY again (2 judgments, READY)
+  FAIL practice: ultimate used twice and READY again (1 judgments, READY)
   ok   restore: full HP, ultimate back to LOCKED
   ok   F12: match rules restore death, once-per-match ultimate, full-aggression partner
-PASS  T25
+FAIL  T25
 
 --- T26  C09 support: attack animation poses + impact feedback exist
   info lance tip: idle z -4.52, furthest forward z -7.17, sideways sweep 11.47 m; peak camera trauma 0.37; up to 19 FX nodes
@@ -538,7 +538,7 @@ PASS  T29
   ok   BEAM (heavy orbital) vs parry / guard → HIT / GUARD_BREAK (expected HIT / GUARD_BREAK)
   ok   EXPLOSION vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
   ok   real grapple vs guarding SERAPH: HIT (grabs ignore guard)
-  ok   every HP change goes through DamageSystem.resolve(): Mech lost 117.1 / resolved 117.0, @CharacterBody3D@5387 lost 103.6 / resolved 103.7; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
+  ok   every HP change goes through DamageSystem.resolve(): Mech lost 117.1 / resolved 117.0, @CharacterBody3D@5459 lost 103.6 / resolved 103.7; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
 PASS  T30
 
 --- T31  P04 status effects: armor break, restraint, marks
@@ -630,7 +630,7 @@ PASS  T37
   ok   attacker made CC-immune (1.5 s)
   ok   window opens without off-balance (attacker READY), length 0.80 s
   ok   riposte 0.33 s after the parry: seraph_riposte 30.0 dmg
-  ok   acquire: idle units → nearest (@CharacterBody3D@6895); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6901 (threat 15 m)
+  ok   acquire: idle units → nearest (@CharacterBody3D@6967); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6973 (threat 15 m)
   ok   judgment 10 s, damage ×1.25
   ok   field: enemy at 6 m suppressed (EN 50 → 50, no regen), enemy at 30 m not
   ok   lance strike releases a shockwave: 1 hit, 8.75 dmg
@@ -657,7 +657,7 @@ PASS  T39
 --- T40  Playtest round 3: orbital hand marking, F9 ranged sync
   ok   X held → AIM, still marking after X is released; left click → strike on the marked ground (0.0 m off), fixed (moved 0.00 m)
   ok   fixed mark keeps the full 0.8 s warning; the target 14 m away is not hit
-  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7218), mark consumed
+  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7290), mark consumed
   ok   right button during AIM cancels: no strike, no cooldown, EN 100 → 100
   ok   the marker starts on the locked target 18 m away (3.9 m off, circle r 7)
   ok   AIM: raised view on, ghost shown 21.8 m ahead (≤ 60 m)
@@ -703,6 +703,26 @@ PASS  T42
   ok   combo lunges fit inside the active window (the chain point does not move)
 PASS  T43
 
+--- T44  U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 / 终末坐标
+  ok   HELLFANG carries 熔炉逆燃, locked at full HP
+  ok   windup broadcast true; super armour shrugs a light hit (true); a guard-breaking hit interrupts → COOLDOWN
+  ok   active: heat pinned 100, no overheat, scorching, grapple cooldown 0.0 s
+  ok   heat wave: enemy at 4 m burned 3×, enemy at 12 m and ally at 4 m untouched
+  ok   cost: harsh overheat (no dash: true), damage taken ×1.30
+  ok   one use per match: SPENT afterwards
+  ok   windup rooted (true); any landed hit interrupts it → COOLDOWN
+  ok   active: 2 turrets refilled, deploy cooldown cleared, habitat up
+  ok   turrets ×1.5 rate +8 m range; ark regen 7.2 HP/s; hit 5.74 (×fortress ×0.75)
+  ok   rim slows the enemy at 13.5 m, not the one inside, not the ally on the rim
+  ok   cost: dormant (deploy refused, 2 turrets kept), habitat gone
+  ok   beacon: rooted while active (moved 0.00 m)
+  ok   strikes on the marked enemy 4, unmarked enemy 0, marked ally 0; telegraph 1.1 s
+  ok   pulse marks twice while the beacon is up (2 stacks)
+  ok   hard control ends the beacon early → OVERLOAD
+  ok   cost: cannon overheated (no shot), backstep on cooldown 5.1 s
+  ok   practice: uses not consumed (1 left); a 3b ultimate is not PALE SERAPH judgment (no parry bonus)
+PASS  T44
+
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
 T02  PASS  M02 air steering + per-mech inertia
@@ -728,7 +748,7 @@ T21  PASS  C08 death, invalid target, restart
 T22  PASS  C10 shared components player / sparring partner
 T23  PASS  C11 ultimate: unlock, windup, judgment, spear, overload
 T24  PASS  C12 melee rules: arc, local hitstop, multi-parry, ownership
-T25  PASS  Practice mode: no death, regen, training pace, unlimited ultimate
+T25  FAIL  Practice mode: no death, regen, training pace, unlimited ultimate
 T26  PASS  C09 support: attack animation poses + impact feedback exist
 T27  PASS  Pause menu: Esc freezes the world, resumes cleanly
 T28  PASS  P01/P11 four mechs fully operable; configs drive behaviour
@@ -747,4 +767,5 @@ T40  PASS  Playtest round 3: orbital hand marking, F9 ranged sync
 T41  PASS  Playtest round 4: close-combat overview camera, toggle orbital marking, outward parry sweep
 T42  PASS  Playtest round 5: fast orbital (launch + shockwave), Hellfang step-in + bite, chain grapple, lighter overheat
 T43  PASS  Round-5 regressions: point-blank grapple, combo chain cadence
-43/43 passed
+T44  PASS  U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 / 终末坐标
+43/44 passed

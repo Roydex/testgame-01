@@ -1,4 +1,4 @@
-=== Phase 3a balance simulation  2026-11-20T03:04:16 ===
+=== Phase 3a balance simulation  2026-11-20T03:25:47 ===
 
 --- 1. DPS probe (damage per second while held at distance d; target does not defend)
 mech      target     d (m)      DPS     hit%  damage by attack
@@ -56,3 +56,17 @@ hellfang  vs azure     → winner hellfang    14.9 s   HP left hellfang 80% / az
 azure     vs hellfang  → winner hellfang    14.9 s   HP left azure 0% / hellfang 80%   dmg { "azure_dealt": 68.0, "hellfang_dealt": 283.0 }
 verdant   vs azure     → winner azure       35.3 s   HP left verdant 0% / azure 3%   dmg { "verdant_dealt": 298.0, "azure_dealt": 553.0 }
 azure     vs verdant   → winner azure       32.6 s   HP left azure 28% / verdant 0%   dmg { "azure_dealt": 499.0, "verdant_dealt": 217.0 }
+
+--- 3. Scripted 1v1 (full-aggression partner pattern, ultimates ON; both spawn sides)
+seraph    vs hellfang  → winner seraph      28.9 s   HP left seraph 2% / hellfang 0%   dmg { "seraph_dealt": 342.0, "hellfang_dealt": 293.0 }   ults { "seraph": 1, "hellfang": 1 }
+hellfang  vs seraph    → winner seraph      28.1 s   HP left hellfang 0% / seraph 3%   dmg { "hellfang_dealt": 292.0, "seraph_dealt": 342.0 }   ults { "seraph": 1, "hellfang": 1 }
+seraph    vs verdant   → winner verdant     30.2 s   HP left seraph 0% / verdant 13%   dmg { "seraph_dealt": 331.0, "verdant_dealt": 304.0 }   ults { "seraph": 1, "verdant": 1 }
+verdant   vs seraph    → winner verdant     30.0 s   HP left verdant 6% / seraph 0%   dmg { "verdant_dealt": 303.0, "seraph_dealt": 340.0 }   ults { "seraph": 1 }
+seraph    vs azure     → winner azure       19.5 s   HP left seraph 0% / azure 34%   dmg { "seraph_dealt": 184.0, "azure_dealt": 302.0 }   ults { "seraph": 1 }
+azure     vs seraph    → winner seraph      26.8 s   HP left azure 0% / seraph 2%   dmg { "azure_dealt": 294.0, "seraph_dealt": 292.0 }   ults { "seraph": 1, "azure": 1 }
+hellfang  vs verdant   → winner hellfang    21.8 s   HP left hellfang 52% / verdant 0%   dmg { "hellfang_dealt": 441.0, "verdant_dealt": 162.0 }   ults {  }
+verdant   vs hellfang  → winner hellfang    28.9 s   HP left verdant 0% / hellfang 14%   dmg { "verdant_dealt": 293.0, "hellfang_dealt": 537.0 }   ults { "hellfang": 1, "verdant": 1 }
+hellfang  vs azure     → winner hellfang    14.9 s   HP left hellfang 81% / azure 0%   dmg { "hellfang_dealt": 283.0, "azure_dealt": 63.0 }   ults {  }
+azure     vs hellfang  → winner hellfang    14.9 s   HP left azure 0% / hellfang 81%   dmg { "azure_dealt": 63.0, "hellfang_dealt": 283.0 }   ults {  }
+verdant   vs azure     → winner azure       31.5 s   HP left verdant 0% / azure 15%   dmg { "verdant_dealt": 263.0, "azure_dealt": 679.0 }   ults { "azure": 1 }
+azure     vs verdant   → winner azure       32.2 s   HP left azure 28% / verdant 0%   dmg { "azure_dealt": 458.0, "verdant_dealt": 217.0 }   ults { "azure": 1 }

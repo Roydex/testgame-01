@@ -20,6 +20,9 @@ var _aim := Vector3.FORWARD
 var _head: Node3D
 var _gone := false
 var _mat: StandardMaterial3D
+## 方舟苏生 habitat bonuses (set every tick by the habitat).
+var fire_rate_mult := 1.0
+var range_bonus := 0.0
 
 
 func setup(p_owner: Node3D, p_spec: DeploySpec) -> void:
@@ -132,7 +135,7 @@ func _physics_process(delta: float) -> void:
 	_head.global_basis = Basis.looking_at(_aim, Vector3.UP if absf(_aim.y) < 0.99 else Vector3.RIGHT)
 	_cool -= delta
 	if _cool <= 0.0 and _aim.angle_to(want) < deg_to_rad(6.0) and spec.shot:
-		_cool = spec.fire_interval
+		_cool = spec.fire_interval / maxf(fire_rate_mult, 0.1)
 		var p := Projectile.new()
 		get_parent().add_child(p)
 		p.global_position = muzzle + _aim * 1.2
@@ -143,7 +146,7 @@ func _valid(t: Node3D) -> bool:
 	if t == null or not is_instance_valid(t) or not TeamRules.can_damage(self, t):
 		return false
 	var p: Vector3 = t.call(&"get_lock_point")
-	return _head.global_position.distance_to(p) <= spec.fire_range \
+	return _head.global_position.distance_to(p) <= spec.fire_range + range_bonus \
 		and CombatTypes.has_line_of_sight(get_world_3d(), _head.global_position, p)
 
 

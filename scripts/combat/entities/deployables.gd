@@ -35,6 +35,14 @@ static func placement(combat: CombatStateMachine, spec: DeploySpec) -> Vector3:
 	return OrbitalStrike.ground_point(m.get_world_3d(), at + Vector3.UP * 3.0)
 
 
+static func spawn_turret(combat: CombatStateMachine, spec: DeploySpec, at: Vector3) -> Turret:
+	var t := Turret.new()
+	combat.motor.get_parent().add_child(t)
+	t.global_position = at
+	t.setup(combat.motor, spec)
+	return t
+
+
 static func deploy(combat: CombatStateMachine, def: AttackDefinition) -> Node3D:
 	var spec := def.deploy_spec
 	if spec == null:
