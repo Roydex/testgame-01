@@ -41,7 +41,7 @@ func _physics_process(_delta: float) -> void:
 	cmd.jump_pressed = cmd.jump_pressed or Input.is_action_just_pressed(&"jump_ascend")
 	cmd.dash_pressed = cmd.dash_pressed or Input.is_action_just_pressed(&"dash")
 	var combat0 := motor.get_node_or_null(^"CombatStateMachine") as CombatStateMachine
-	if combat0 and combat0.is_aiming_placement():
+	if combat0 and combat0.aim_pending():
 		var to0 := combat0.placement_point - motor.global_position
 		cmd.face_dir = Vector3(to0.x, 0.0, to0.z)
 	elif targeting.has_target():
@@ -76,7 +76,7 @@ func _physics_process(_delta: float) -> void:
 ## ray onto the ground (clamped to the call range) and show the ghost.
 ## Public so the scripted demo can drive it while the brain is disabled.
 func update_placement_aim(combat: CombatStateMachine) -> void:
-	var aiming := combat.is_aiming_placement()
+	var aiming := combat.aim_pending()
 	camera_rig.set_placement_mode(aiming)
 	if not aiming:
 		if _reticle:

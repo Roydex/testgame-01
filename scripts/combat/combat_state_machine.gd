@@ -91,6 +91,10 @@ var placement_point := Vector3.ZERO
 var placement_set := false
 ## Attack being aimed (AIM state).
 var aim_def: AttackDefinition
+## Seconds of aiming left before it cancels itself (nothing spent).
+var aim_left := 0.0
+## Hard control interrupted the aim: it resumes once we are READY again.
+var _aim_suspended := false
 ## Combat time the current parry started (presentation: shield swing).
 var parry_started_at := -100.0
 
@@ -163,6 +167,8 @@ func restore_full() -> void:
 	offbalance_by = null
 	riposte_target = null
 	riposte_left = 0.0
+	_aim_suspended = false
+	placement_set = false
 	cc_immune_left = 0.0
 	invuln_left = 0.0
 	status.clear()
@@ -294,7 +300,10 @@ func _physics_process(delta: float) -> void:
 
 	match state:
 		CombatState.READY:
-			_ready_inputs(cmd)
+			if _aim_suspended:
+				_resume_aim()  # hard control is over: back to marking
+			else:
+				_ready_inputs(cmd)
 		CombatState.GUARD:
 			if _buf_ult > 0.0 and ultimate and ultimate.try_activate():
 				_buf_ult = 0.0
@@ -325,7 +334,7 @@ func _physics_process(delta: float) -> void:
 		CombatState.CHARGE:
 			_tick_charge(delta, cmd)
 		CombatState.AIM:
-			_tick_aim(cmd)
+			_tick_aim(cmd, delta)
 
 
 ## Tap / hold decision for buttons that have a hold variant.
@@ -476,35 +485,74 @@ func _start_skill_hold() -> bool:
 	_finish_attack()
 	_clear_state_mods()
 	aim_def = def
+	aim_left = profile.aim_timeout
 	placement_set = false
+	_aim_suspended = false
+	_buf_attack = 0.0
+	_enter_aim()
+	return true
+
+
+func _enter_aim() -> void:
 	var m := MovementModifier.create(MOD_AIM)
 	m.speed_mult = 0.4
 	m.block_dash = true
 	m.turn_mult = 0.6
 	motor.add_modifier(m)
 	_enter(CombatState.AIM)
-	return true
 
 
-## AIM: the brain moves the marker; releasing the skill button fires at it,
-## guard / parry cancels (nothing is spent).
-func _tick_aim(cmd: MechCommand) -> void:
+## AIM (playtest round 4: a toggle): the skill button may be released; the
+## brain moves the marker; attack confirms, guard / parry cancels, and it
+## cancels itself after `aim_timeout` — nothing is spent unless it fires.
+func _tick_aim(cmd: MechCommand, delta: float) -> void:
+	aim_left -= delta
 	if _buf_parry > 0.0 or cmd.guard_held:
-		placement_set = false
-		_to_ready()
-		if _buf_parry > 0.0:
+		var parry := _buf_parry > 0.0
+		_cancel_aim()
+		if parry:
 			_defend()
 		return
-	if cmd.skill_held:
+	if aim_left <= 0.0:
+		_cancel_aim()
+		CombatEvents.kit_event.emit(motor, &"aim_timeout")
 		return
+	if _buf_attack <= 0.0:
+		return
+	_buf_attack = 0.0
 	var def := aim_def
 	_to_ready()
 	if not _start_attack(def):
 		placement_set = false
 
 
+func _cancel_aim() -> void:
+	_aim_suspended = false
+	placement_set = false
+	if state == CombatState.AIM:
+		_to_ready()
+
+
+## Back to AIM after hard control (same marker, same time left). Dropped if
+## the attack can no longer be paid for.
+func _resume_aim() -> void:
+	_aim_suspended = false
+	var def := aim_def
+	if def == null or aim_left <= 0.0 or get_cooldown(def.id) > 0.0 or kit.blocks_actions() \
+			or motor.en < def.en_cost * motor.get_en_cost_mult():
+		placement_set = false
+		return
+	_enter_aim()
+
+
 func is_aiming_placement() -> bool:
 	return state == CombatState.AIM
+
+
+## Marking in progress, including while suspended by hard control
+## (presentation keeps the raised view and the ghost up).
+func aim_pending() -> bool:
+	return state == CombatState.AIM or _aim_suspended
 
 
 ## Tells the kit the current attack is over (finished, chained or interrupted).
@@ -1091,7 +1139,7 @@ func interrupt() -> void:
 			or state == CombatState.ULT_WINDUP or state == CombatState.ACTION or state == CombatState.CHARGE \
 			or state == CombatState.AIM:
 		if state == CombatState.AIM:
-			placement_set = false
+			_aim_suspended = true  # hard control pauses the marking, it does not cancel it
 		_to_ready()
 
 
@@ -1127,6 +1175,8 @@ func start_ult_windup(duration: float) -> void:
 # ==========================================================================
 
 func _on_died() -> void:
+	_aim_suspended = false
+	placement_set = false
 	_finish_attack()
 	_clear_state_mods()
 	for id in [MOD_STAGGER, MOD_OFFBALANCE, MOD_ACTION]:

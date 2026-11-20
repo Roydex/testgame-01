@@ -171,7 +171,7 @@
 | 脉冲炮 | 左键 | 弹丸 | 0.08 / 0.02 / 0.2 | 5 | — | 弹速 70、射程 70；命中叠 1 层标记（≤ 3 层，8 s） |
 | 磁轨蓄力狙击 | 右键按住蓄力，松开发射 | 弹丸 | 0.06 / 0.02 / 0.65 | 20 → 满蓄 55 | 0.8 s | 蓄力 1.5 s，最少 25%；蓄力时移速 ×0.35、显示红色瞄准激光；满蓄（≥ 98%）破防；每层标记 +15%，命中后消耗 |
 | 导弹齐射 | X 短按 | 弹丸 × 4，**有预兆** | 0.35 / 0.05 / 0.4 | 7 每发 + 爆炸 4（半径 2.5） | 7 s / 6 EN | 弹速 24、追踪 75°/s，6 m 后才追踪和爆炸；每发 HP 1，可以被击落 |
-| 轨道激光 | X 长按 | **光束**（不可招架、可格挡），**有预兆**，**破防** | 0.45 / 0.05 / 0.5 | 60 | 8 s / 8 EN | 光圈先**跟随**目标 0.5 s（每层标记 +0.1 s，跟随速度上限 12 m/s，橙色），再**锁定** 0.6 s（红色）后落下，总预兆 1.1–1.4 s；半径 5，每层标记 −0.8（最小 2.6）；呼叫距离 ≤ 60 m；顶棚可挡。玩家按住 X 先进入**标记**（AIM：移速 ×0.4、不能冲刺，松开发射，右键 / F 取消且不消耗），落点由屏幕中心视线决定；标记圈内有敌人则跟随该敌人，否则固定在原地并保留完整预警（`aim_placement = true`）；落下后光圈变成 3 s **灼烧区**（每 0.5 s 一次爆炸伤害 4，可格挡，不硬直，同样受顶棚遮挡） |
+| 轨道激光 | X 长按 | **光束**（不可招架、可格挡），**有预兆**，**破防** | 0.45 / 0.05 / 0.5 | 60 | 8 s / 8 EN | 光圈先**跟随**目标 0.5 s（每层标记 +0.1 s，跟随速度上限 12 m/s，橙色），再**锁定** 0.6 s（红色）后落下，总预兆 1.1–1.4 s；半径 5，每层标记 −0.8（最小 2.6）；呼叫距离 ≤ 60 m；顶棚可挡。玩家长按 X 先进入**标记**（AIM：移速 ×0.4、不能冲刺；第 4 轮起为切换式，松开 X 仍在标记，左键发射，右键 / F 取消，`aim_timeout` 8 s 后自动取消，均不消耗；硬直只暂停标记），落点由屏幕中心视线决定；标记圈内有敌人则跟随该敌人，否则固定在原地并保留完整预警（`aim_placement = true`）；落下后光圈变成 3 s **灼烧区**（每 0.5 s 一次爆炸伤害 4，可格挡，不硬直，同样受顶棚遮挡） |
 | 推进后跃 | F | 自身动作 | 0.04 / 0.25 / 0.25 | — | 6 s | 以 24 m/s 后撤 0.25 s；无敌 0.25 s；对 5 m 内敌人推开 12（无伤害），并打断对方的攻击或蓄力 |
 
 没有格挡（右键用于蓄力），没有招架。
@@ -195,8 +195,12 @@
 | `MOMENTUM_SPEED_START` / `MOMENTUM_PER_MPS` / `MOMENTUM_MAX_BONUS` | Experiments | 8 m/s / 2.5% / +60% | 速度即伤害：按出招过程中的最高接近速度；击退按倍率平方 |
 | `CHAIN_WINDOW` / `CHAIN_STEP` / `CHAIN_MAX` | Experiments | 0.9 s / +10% / 5 层 | 命中后冲刺取消，窗口内开始的下一击叠层 |
 | `DASH_ATTACK_SPEED_FRAC` / `DASH_ATTACK_CARRY` | Experiments | 0.8 / 0.9 | 速度 ≥ 地面冲刺速度 × 0.8 时出招，按当前速度 × 0.9 滑入（前摇加有效段内线性衰减到 40%） |
-| `duel_range` / `duel_side_deg` / `duel_aim_weight` / `duel_extra_dist_per_m` | CameraRig | 14 m / 55° / 0.5 / 0.35 | 对决镜头 |
-| `cine_zoom` | CameraRig | ×0.6 | 特写时镜头臂长 |
+| `overview_range` / `overview_exit_range` | CameraRig | 12 / 14 m | 近战俯瞰镜头（第 4 轮，替换第 2 轮的 55° 对决镜头）进入 / 退出距离 |
+| `overview_pitch_deg` / `overview_min_dist` / `overview_max_dist` | CameraRig | −35° / 10 m / 22 m | 俯视角与臂长范围（臂长 = 取景半径 × 1.6 + 7） |
+| `overview_behind_deg` / `overview_settle_deg` / `overview_turn_deg` | CameraRig | 110° / 30° / 60°/s | 懒跟随：目标偏离视线 > 110° 或有机体要出画才转，转到 30° 以内停 |
+| `overview_threat_range` / `overview_edge_margin_deg` | CameraRig | 20 m / 8° | 额外框入的威胁单位（最多 2 台）与出画判定余量 |
+| `cine_distance` / `cine_side_deg` | CameraRig | max(6.5, 双方距离 × 0.8 + 5) m / 70° | 关键动作特写机位 |
+| `CINE_COOLDOWN_MS` / `CINE_CUT_S` | CombatFeedback | 1500 ms / 0.5 s | 特写间隔与时长 |
 | `SLOWMO_SCALE` / `SLOWMO_MS` | CombatFeedback | 0.3 / 220 ms（真实时间） | 只在对决镜头实验开启时触发 |
 | `AIM_ASSIST_DEG` / `AIM_MAX_DISTANCE` | Experiments | 3.5° / 250 m | 自由瞄准吸附角度和射线长度 |
 | `free_aim_lock_weight` / `free_aim_manual_yaw_deg` / `free_aim_manual_pitch_deg` | CameraRig | 0.85 / 35° / 20° | 自由瞄准时锁定取景更靠近目标，鼠标偏移范围更大，便于提前量 |
@@ -209,5 +213,6 @@
 | `placement_height` / `placement_distance` | CameraRig | 9 m / 13 m | 标记时镜头焦点抬高、镜头臂长 |
 | `placement_pitch_min_deg` / `placement_pitch_max_deg` | CameraRig | −80° / −8° | 标记时的俯仰范围；进入时自动对准锁定目标的脚下 |
 | `placement_sharpness` | CameraRig | 6（实际过渡约 0.33 s） | 镜头升降速度 |
-| 招架挥出 | MechVisual | 0.07 s | 盾臂从身侧挥到身前的时间 |
-| 招架盾光半径 | MechVisual | 1.6 m（审判 2.8 m） | 审判中额外有一圈扩散到 ×1.7 的光环 |
+| 招架外挥 | MechVisual | 蓄势 0.04 s → 外挥到 0.12 s → 0.18 s 回稳 | 持盾臂偏航 −0.95 → +1.7（过冲）→ +1.45，躯干 −0.45 → +0.5（第 4 轮） |
+| 盾缘光带 | MechVisual / WeaponTrail | 普通青蓝、寿命 0.18 s；审判金色、寿命 0.3 s、更长 | 审判中挥到外侧时爆出半径 2.5 m 的金色能量盾光环，扩散到 ×1.8 |
+| `aim_timeout` | CombatProfile | 8 s | 轨道标记不操作自动取消 |

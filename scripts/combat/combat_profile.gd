@@ -57,6 +57,9 @@ extends Resource
 ## null = no riposte (HELLFANG / VERDANT parries do not cause off-balance).
 @export var parry_riposte: AttackDefinition
 @export var riposte_window: float = 0.8
+## Hand-marked placement (AZURE orbital): the marking cancels itself after
+## this long without a confirm (nothing spent).
+@export var aim_timeout: float = 8.0
 ## false: a parried melee attacker is only pushed back (interrupted), not
 ## knocked off-balance, and there is no counter bonus (HELLFANG / VERDANT).
 @export var parry_causes_offbalance: bool = true

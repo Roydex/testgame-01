@@ -25,6 +25,12 @@ const CINE_ATTACKS: Array[StringName] = [&"seraph_riposte", &"seraph_judgment_co
 	&"hf_finisher", &"hf_furnace_burst", &"hf_ram"]
 const SLOWMO_SCALE := 0.3
 const SLOWMO_MS := 220
+## Real-time gap between two cinematic cuts (brawls must not cut constantly).
+const CINE_COOLDOWN_MS := 1500
+const CINE_CUT_S := 0.5
+var _last_cine_ms := -100000
+## Cuts taken so far (tests / tuning).
+var cinematic_count := 0
 
 
 func _ready() -> void:
@@ -73,10 +79,15 @@ func _process(_delta: float) -> void:
 func _cinematic() -> void:
 	if not Experiments.duel_cam:
 		return
+	var now := Time.get_ticks_msec()
+	if now - _last_cine_ms < CINE_COOLDOWN_MS:
+		return
+	_last_cine_ms = now
+	cinematic_count += 1
 	Engine.time_scale = SLOWMO_SCALE
-	_slowmo_until = Time.get_ticks_msec() + SLOWMO_MS
+	_slowmo_until = now + SLOWMO_MS
 	if rig:
-		rig.cinematic(SLOWMO_MS * 0.001 * SLOWMO_SCALE + 0.25)
+		rig.cinematic(CINE_CUT_S)
 
 
 func _on_hit(hit: HitInfo) -> void:
@@ -131,6 +142,8 @@ func _on_telegraph(attacker: Node3D, _attack: AttackDefinition, _d: float) -> vo
 
 
 func _on_ult(mech: Node3D, phase: String) -> void:
+	if phase == "JUDGMENT" and mech == focus_mech:
+		_cinematic()
 	if phase == "JUDGMENT" or phase == "WINDUP":
 		play(&"ult", mech.global_position + Vector3.UP * 3.0, 1.0 if phase == "JUDGMENT" else 0.8)
 		_spark(mech.global_position + Vector3.UP * 4.0, Color(1.0, 0.95, 0.7), 2.0)

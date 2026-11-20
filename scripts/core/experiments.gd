@@ -10,8 +10,9 @@ extends RefCounted
 ## 速度即伤害: melee hits scale with closing speed, attacks started at dash
 ## speed keep their momentum, a landed hit can be dash-cancelled and chained.
 static var momentum := false
-## 动态对决镜头: close lock-on swings to a three-quarter side framing;
-## parries / ripostes / finishers get a short slow-motion close-up.
+## 近战俯瞰镜头 (id kept as duel_cam): close lock-on rises to a high, wide
+## shot that barely turns; parries / ripostes / finishers / judgment get a
+## short side cut with slow motion (at most one per 1.5 s).
 static var duel_cam := false
 ## 自由瞄准: ranged weapons fire at the crosshair (with aim assist); the lock
 ## only frames the camera and steers melee lunges.
@@ -19,7 +20,7 @@ static var free_aim := false
 
 const NAMES := {
 	&"momentum": "速度即伤害",
-	&"duel_cam": "动态对决镜头",
+	&"duel_cam": "近战俯瞰镜头",
 	&"free_aim": "自由瞄准",
 }
 

@@ -130,8 +130,20 @@ func _sequence() -> void:
 		_cmd().skill_held = true
 		scene.brain.update_placement_aim(scene.combat))
 	await _shot("azure_orbital_aim")
-	await _hold(0.4, func(_t: float):
+	# round 4: a hit during the mark only pauses it
+	var hit := HitInfo.new()
+	hit.attacker = _partner()
+	hit.victim = scene.motor
+	hit.attack = load("res://resources/combat/sparring_pulse_shot.tres")
+	hit.source_position = _partner().global_position
+	hit.direction = (scene.motor.global_position - _partner().global_position).normalized()
+	DamageSystem.resolve(hit)
+	await _hold(0.1, func(_t: float): scene.brain.update_placement_aim(scene.combat))
+	await _shot("azure_orbital_aim_hit")
+	await _hold(0.4, func(_t: float): scene.brain.update_placement_aim(scene.combat))
+	await _hold(0.4, func(t: float):
 		_cmd().skill_held = false
+		_cmd().attack_pressed = t < 0.02  # round 4: left click confirms the mark
 		scene.brain.update_placement_aim(scene.combat))
 	await _shot("azure_orbital_circle")
 	await _hold(1.25)
@@ -142,7 +154,14 @@ func _sequence() -> void:
 	await _hold(0.8)
 	await _hold(0.05, func(t: float): _cmd().parry_pressed = t < 0.02)
 	await _shot("seraph_parry_swing")
+	await _hold(0.08)
+	await _shot("seraph_parry_end")
 	await _hold(0.6)
+	# round 4: close-combat overview with a third mech (the ranged partner) aiming at us
+	scene.dummies[1].global_position = scene.motor.global_position + Vector3(12, 0, -4)
+	await _hold(1.6)
+	await _shot("overview_brawl")
+	scene.dummies[1].global_position = Vector3(60, 0.2, 60)
 	scene.combat.ultimate.enter_judgment()
 	await _hold(0.3)
 	await _hold(0.05, func(t: float): _cmd().parry_pressed = t < 0.02)

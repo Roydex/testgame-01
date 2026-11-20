@@ -184,3 +184,5 @@
 - **D-50 审判的压制用状态效果实现。** 圣域每帧给范围内敌人刷新 0.3 s 的 `judgment_suppressed`；状态效果新增 `block_en_regen` 与 `windup_mult`，前摇减速由 CombatStateMachine 在前摇段按倍率推进 `attack_time`，仍不写速度。
 - **D-51 手动落点用 AIM 状态加“大脑写入落点”。** `AttackDefinition.aim_placement` 的长按技能先进入 CombatStateMachine 的 AIM 状态（只是限速、不能冲刺）；玩家大脑把视线落点写入 `placement_point` / `placement_set`，松开技能键才真正开始攻击，由 `OrbitalStrike` 在有效段读取并消耗。战斗层不知道镜头和鼠标；没有写入落点的大脑（陪练、AI）照旧自动呼叫。镜头的俯视模式（`CameraRig.set_placement_mode`）和落点虚影（`PlacementReticle`）都只属于玩家侧表现。
 - **D-52 招架表现读状态、不改判定。** MechVisual 通过 `combat_state_changed` 在进入 PARRY 时生成盾光，挥盾姿势按 `parry_started_at` 计时；招架判定窗口和规则不变。
+- **D-53 近战俯瞰镜头是叠加层。** CameraRig 先照常算出肩后锁定镜头，再按 `_ov_blend` 叠加俯瞰机位（焦点、臂长、俯仰、懒跟随偏航都在 `_update_overview()`），最后叠加特写机位；俯瞰期间 `yaw` 取俯瞰偏航，所以 WASD 始终对应屏幕方向。取景集合复用 `TargetingSystem.threat_of()`，镜头不依赖具体机体。实验关闭时完全走旧路径（T10 不变）。
+- **D-54 标记被硬控暂停而不是取消。** `interrupt()` 遇到 AIM 时只记下 `_aim_suspended`，硬直 / 失衡结束回到 READY 后自动重新进入 AIM（落点、剩余时间保留）；`aim_pending()` 给表现层用，保证暂停期间俯视和虚影不消失。确认改为攻击键，脚本大脑进入 AIM 后立刻确认，所以 AI 行为不变。

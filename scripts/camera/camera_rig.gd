@@ -56,14 +56,26 @@ var distance: float = 10.0
 @export var lock_offset_return_speed: float = 2.5
 
 @export_group("Experiments (playtest round 2)")
-## 动态对决镜头: under this horizontal lock distance the view swings to a
-## three-quarter side framing of both mechs (side kept while it lasts).
-@export var duel_range: float = 14.0
-@export var duel_side_deg: float = 55.0
-@export var duel_aim_weight: float = 0.5
-@export var duel_extra_dist_per_m: float = 0.35
-## Close-up on a cinematic moment (parry, riposte, finisher): arm length ×.
-@export var cine_zoom: float = 0.6
+## 近战俯瞰镜头 (experiment "duel_cam", playtest round 4): under
+## `overview_range` of the lock target the view rises to a high, wide shot
+## that frames you, the target and up to two other threats, and only turns
+## (slowly) when the target slips behind you or someone leaves the frame.
+@export var overview_range: float = 12.0
+@export var overview_exit_range: float = 14.0
+@export var overview_pitch_deg: float = -35.0
+@export var overview_min_dist: float = 10.0
+@export var overview_max_dist: float = 22.0
+@export var overview_turn_deg: float = 60.0
+## Turn only when the target is really behind you (the line is more than
+## this off the view direction) or someone is leaving the frame; stop once
+## within `overview_settle_deg`.
+@export var overview_behind_deg: float = 110.0
+@export var overview_settle_deg: float = 30.0
+@export var overview_threat_range: float = 20.0
+@export var overview_edge_margin_deg: float = 8.0
+## Cinematic cut (parry, riposte, finisher, judgment): side shot of both.
+@export var cine_distance: float = 6.5
+@export var cine_side_deg: float = 70.0
 ## 自由瞄准: lock framing keeps the target near the crosshair, and the mouse
 ## gets a wider offset range for leading shots.
 @export var free_aim_lock_weight: float = 0.85
@@ -126,10 +138,16 @@ var shake_trauma: float = 0.0
 @export var shake_decay: float = 3.0
 ## FOV punch spring (deg, decays with fov_sharpness).
 var _fov_punch := 0.0
-var _duel_blend := 0.0
-var _duel_side := 1.0
+var _ov_blend := 0.0
+var _ov_yaw := 0.0
+var _ov_pitch := 0.0
+var _ov_turning := false
+var _ov_focus := Vector3.ZERO
+var _ov_dist := 12.0
+var _ov_members: Array[Node3D] = []
 var _cine_left := 0.0
-var _cine_total := 0.4
+var _cine_total := 0.5
+var _cine_side := 1.0
 ## Set by the player brain while the mech is in the AIM (placement) state.
 var placement_mode := false
 var _place_blend := 0.0
@@ -172,10 +190,29 @@ func add_fov_punch(deg: float) -> void:
 	_fov_punch = maxf(_fov_punch, deg)
 
 
-## Short close-up (arm pulled in) for a cinematic moment.
-func cinematic(duration: float = 0.4) -> void:
+## Cinematic cut: a short side shot of you and the target, then back. The
+## side is the one the camera is already on (never crosses the line).
+func cinematic(duration: float = 0.5) -> void:
 	_cine_total = maxf(duration, 0.05)
 	_cine_left = _cine_total
+	if mech and camera:
+		var a := _cine_anchor()
+		var side := (a[1] as Vector3).cross(Vector3.UP)
+		_cine_side = 1.0 if (camera.global_position - (a[0] as Vector3)).dot(side) >= 0.0 else -1.0
+
+
+func is_cinematic() -> bool:
+	return _cine_left > 0.0
+
+
+## [midpoint (chest height), flat direction you → target]
+func _cine_anchor() -> Array:
+	var p := mech.global_position
+	var t: Vector3 = targeting.current.global_position if targeting and targeting.has_target() else p + mech.get_forward() * 6.0
+	var d := Vector3(t.x - p.x, 0.0, t.z - p.z)
+	if d.length() < 0.3:
+		d = mech.get_forward()
+	return [(p + t) * 0.5 + Vector3.UP * 2.2, d.normalized()]
 
 
 ## Enter / leave the raised placement view. On entry the view turns to the
@@ -196,9 +233,14 @@ func set_placement_mode(on: bool) -> void:
 		pitch = clampf(pitch - deg_to_rad(25.0), deg_to_rad(placement_pitch_min_deg), deg_to_rad(placement_pitch_max_deg))
 
 
-## 0..1: how far the duel (three-quarter side) framing is blended in.
-func duel_blend() -> float:
-	return _duel_blend
+## 0..1: how far the close-combat overview is blended in.
+func overview_blend() -> float:
+	return _ov_blend
+
+
+## Mechs the overview is currently framing (you, the target, threats).
+func overview_members() -> Array[Node3D]:
+	return _ov_members
 
 
 func get_yaw_basis() -> Basis:
@@ -237,6 +279,10 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Look input in radians (x = yaw, y = pitch). In lock mode it becomes a
 ## bounded offset that eases back.
 func add_look_input(delta_rad: Vector2) -> void:
+	if _ov_blend > 0.5 and not placement_mode:
+		_ov_yaw = wrapf(_ov_yaw - delta_rad.x, -PI, PI)  # nudge the overview by hand
+		_ov_turning = false
+		return
 	if placement_mode:
 		yaw = wrapf(yaw - delta_rad.x, -PI, PI)
 		pitch = clampf(pitch - delta_rad.y, deg_to_rad(placement_pitch_min_deg), deg_to_rad(placement_pitch_max_deg))
@@ -282,28 +328,40 @@ func _update_camera(delta: float, instant: bool) -> void:
 		var desired_yaw := yaw - _yaw_offset_applied()
 		if horiz > 2.5:
 			desired_yaw = atan2(-to.x, -to.z)
-		# 动态对决镜头: swing to the side the camera is already on
-		var duel_want := 1.0 if Experiments.duel_cam and horiz < duel_range else 0.0
-		if duel_want > 0.0 and _duel_blend < 0.01:
-			_duel_side = 1.0 if wrapf(yaw - desired_yaw, -PI, PI) >= 0.0 else -1.0
-		_duel_blend = duel_want if instant else move_toward(_duel_blend, duel_want, delta * 2.0)
-		desired_yaw += _duel_side * deg_to_rad(duel_side_deg) * _duel_blend
-		var desired_pitch := clampf(atan2(to.y, maxf(horiz, 0.1)) * lock_pitch_factor,
-			deg_to_rad(lock_pitch_min_deg), deg_to_rad(lock_pitch_max_deg))
-		_offset_idle += delta
-		if _offset_idle > lock_offset_return_delay:
-			_yaw_offset = move_toward(_yaw_offset, 0.0, lock_offset_return_speed * delta * absf(_yaw_offset) + 0.2 * delta)
-			_pitch_offset = move_toward(_pitch_offset, 0.0, lock_offset_return_speed * delta * absf(_pitch_offset) + 0.2 * delta)
-		yaw = _approach_angle(yaw, desired_yaw + _yaw_offset, delta, instant)
-		pitch = _approach_angle(pitch, desired_pitch + _pitch_offset, delta, instant)
-		pitch = clampf(pitch, deg_to_rad(pitch_min_deg), deg_to_rad(pitch_max_deg))
-		close_t = clampf((lock_close_distance - horiz) / lock_close_distance, 0.0, 1.0) * (1.0 - _duel_blend)
+		# 近战俯瞰镜头: enter under overview_range, leave past overview_exit_range
+		var ov_want := 0.0
+		if Experiments.duel_cam:
+			var tg := targeting.current.global_position - mech.global_position
+			var hz := Vector2(tg.x, tg.z).length()
+			if hz < overview_range or (_ov_blend > 0.0 and hz < overview_exit_range):
+				ov_want = 1.0
+		if ov_want > 0.0 and _ov_blend <= 0.0:
+			_ov_yaw = yaw
+			_ov_turning = false
+			_ov_focus = Vector3.ZERO
+		_ov_blend = ov_want if instant else move_toward(_ov_blend, ov_want, delta * 2.0)
+		if _ov_blend > 0.0:
+			_update_overview(delta, instant)
+		if ov_want > 0.0:
+			yaw = _ov_yaw  # movement input follows the overview's screen axes
+			_yaw_offset = 0.0
+			_pitch_offset = 0.0
+		else:
+			var desired_pitch := clampf(atan2(to.y, maxf(horiz, 0.1)) * lock_pitch_factor,
+				deg_to_rad(lock_pitch_min_deg), deg_to_rad(lock_pitch_max_deg))
+			_offset_idle += delta
+			if _offset_idle > lock_offset_return_delay:
+				_yaw_offset = move_toward(_yaw_offset, 0.0, lock_offset_return_speed * delta * absf(_yaw_offset) + 0.2 * delta)
+				_pitch_offset = move_toward(_pitch_offset, 0.0, lock_offset_return_speed * delta * absf(_pitch_offset) + 0.2 * delta)
+			yaw = _approach_angle(yaw, desired_yaw + _yaw_offset, delta, instant)
+			pitch = _approach_angle(pitch, desired_pitch + _pitch_offset, delta, instant)
+			pitch = clampf(pitch, deg_to_rad(pitch_min_deg), deg_to_rad(pitch_max_deg))
+		close_t = clampf((lock_close_distance - horiz) / lock_close_distance, 0.0, 1.0)
 		extra_dist = clampf(absf(to.y) * lock_height_distance_factor + maxf(horiz - 40.0, 0.0) * 0.02, 0.0, lock_max_extra_distance)
-		extra_dist += _duel_blend * horiz * duel_extra_dist_per_m
 	else:
 		_yaw_offset = 0.0
 		_pitch_offset = 0.0
-		_duel_blend = 0.0 if instant else move_toward(_duel_blend, 0.0, delta * 2.0)
+		_ov_blend = 0.0 if instant else move_toward(_ov_blend, 0.0, delta * 2.0)
 
 	# --- dynamic distance: preset (eased), height difference, speed pull-back
 	distance = get_target_distance() if instant else lerpf(distance, get_target_distance(), 1.0 - exp(-distance_change_sharpness * delta))
@@ -312,10 +370,6 @@ func _update_camera(delta: float, instant: bool) -> void:
 	var speed_t := clampf((spd - p.ground_max_speed) / maxf(p.air_dash_speed - p.ground_max_speed, 1.0), 0.0, 1.0)
 	var want_dist := distance + extra_dist + speed_t * speed_pullback
 	want_dist = lerpf(want_dist, placement_distance, _ease(_place_blend))
-	if _cine_left > 0.0 and not instant:
-		_cine_left = maxf(_cine_left - delta, 0.0)
-		var ck := clampf(minf(_cine_left, _cine_total - _cine_left) / 0.08, 0.0, 1.0)
-		want_dist *= lerpf(1.0, cine_zoom, ck)
 
 	var basis_free := Basis.from_euler(Vector3(pitch, yaw, 0.0))
 	var orbit_pitch := pitch
@@ -380,8 +434,6 @@ func _update_camera(delta: float, instant: bool) -> void:
 			var sep := d_p.angle_to(d_t)
 			var w := free_aim_lock_weight if Experiments.free_aim else lock_aim_weight
 			var max_ang := 40.0 if Experiments.free_aim else lock_player_max_angle_deg
-			w = lerpf(w, maxf(duel_aim_weight, w - 0.2) if Experiments.free_aim else duel_aim_weight, _duel_blend)
-			max_ang = lerpf(max_ang, 45.0, _duel_blend)
 			if sep > 0.001:
 				w = minf(w, deg_to_rad(max_ang) / sep)
 			var want_dir := d_p.slerp(d_t, clampf(w, 0.0, 1.0)).normalized()
@@ -395,8 +447,39 @@ func _update_camera(delta: float, instant: bool) -> void:
 		q = q_free.slerp(q_last, lock_blend)
 	if lock_blend <= 0.0:
 		_aim_dir = -basis_free.z
+	# close-combat overview and cinematic cuts are blended on top
+	var directed := false
+	if _ov_blend > 0.0 and _ov_focus != Vector3.ZERO:
+		var ob := Basis.from_euler(Vector3(_ov_pitch, _ov_yaw, 0.0))
+		var ov_want := _ov_focus + ob.z * _ov_dist
+		var ov_pos := _ov_focus + (ov_want - _ov_focus) * _sweep(_ov_focus, ov_want)
+		var k := _ease(_ov_blend)
+		cam_pos = cam_pos.lerp(ov_pos, k)
+		var lk := _ov_focus - ov_pos
+		if lk.length() > 0.5 and absf(lk.normalized().dot(Vector3.UP)) < 0.98:
+			q = q.slerp(Basis.looking_at(lk, Vector3.UP).get_rotation_quaternion(), k)
+		directed = true
+	if _cine_left > 0.0 and not instant:
+		_cine_left = maxf(_cine_left - delta, 0.0)
+		var ck := clampf(minf(_cine_left / 0.12, (_cine_total - _cine_left) / 0.06), 0.0, 1.0)
+		var a := _cine_anchor()
+		var mid: Vector3 = a[0]
+		var dir: Vector3 = a[1]
+		var side := dir.cross(Vector3.UP).normalized() * _cine_side
+		var ang := deg_to_rad(cine_side_deg)
+		var sep := 0.0
+		if targeting and targeting.has_target():
+			var tv := targeting.current.global_position - mech.global_position
+			sep = Vector2(tv.x, tv.z).length()
+		var cd := maxf(cine_distance, sep * 0.8 + 5.0)  # far enough to frame both
+		var c_want := mid + (side * sin(ang) - dir * cos(ang)) * cd + Vector3.UP * 1.0
+		var c_pos := mid + (c_want - mid) * _sweep(mid, c_want)
+		cam_pos = cam_pos.lerp(c_pos, ck)
+		if (mid - c_pos).length() > 0.5:
+			q = q.slerp(Basis.looking_at(mid - c_pos, Vector3.UP).get_rotation_quaternion(), ck)
+		directed = true
 	# rate-limit any automatic rotation (lock / switch / release)
-	if not instant and lock_blend > 0.0 and _has_prev_q:
+	if not instant and lock_blend > 0.0 and _has_prev_q and not directed:
 		var ang := _prev_q.angle_to(q)
 		var max_step := deg_to_rad(lock_max_turn_deg) * delta
 		if ang > max_step:
@@ -422,6 +505,66 @@ func _update_camera(delta: float, instant: bool) -> void:
 	if _fov_punch > 0.01 and not instant:
 		camera.fov -= _fov_punch
 		_fov_punch = move_toward(_fov_punch, 0.0, delta * 30.0)
+
+
+## Overview framing: members, focus, distance, pitch and the lazy yaw.
+func _update_overview(delta: float, instant: bool) -> void:
+	if not (targeting and targeting.has_target()):
+		return  # keep the last framing while blending out
+	var p := mech.global_position
+	var t := targeting.current
+	var tp := t.global_position
+	var line := Vector3(tp.x - p.x, 0.0, tp.z - p.z)
+	var dir := line.normalized() if line.length() > 0.3 else Vector3(-sin(_ov_yaw), 0.0, -cos(_ov_yaw))
+	_ov_members = [mech, t]
+	var c := (p + tp) * 0.5
+	var threats: Array = []
+	for e in TeamRules.get_valid_targets(mech, &"mechs"):
+		if e == t:
+			continue
+		var de := Vector2(e.global_position.x - p.x, e.global_position.z - p.z).length()
+		var th := targeting.threat_of(e)
+		if de <= overview_threat_range and th > 0.0:
+			threats.append([th, e])
+	threats.sort_custom(func(x, y): return x[0] > y[0])
+	for i in mini(threats.size(), 2):
+		var e: Node3D = threats[i][1]
+		_ov_members.append(e)
+		c += (e.global_position - c) * 0.2
+	var want_focus := Vector3(c.x, (p.y + tp.y) * 0.5 + 2.0, c.z)
+	_ov_focus = want_focus if instant or _ov_focus == Vector3.ZERO else _ov_focus.lerp(want_focus, 1.0 - exp(-6.0 * delta))
+	var max_r := 0.0
+	for m in _ov_members:
+		max_r = maxf(max_r, Vector2(m.global_position.x - _ov_focus.x, m.global_position.z - _ov_focus.z).length())
+	var want_d := clampf(max_r * 1.6 + 7.0, overview_min_dist, overview_max_dist)
+	_ov_dist = want_d if instant else lerpf(_ov_dist, want_d, 1.0 - exp(-3.0 * delta))
+	_ov_pitch = deg_to_rad(overview_pitch_deg + clampf((tp.y - p.y) * 1.5, -10.0, 25.0))
+	# lazy yaw: turn only when the target is getting behind you or someone leaves the frame
+	var want_yaw := atan2(-dir.x, -dir.z)
+	if instant:
+		_ov_yaw = want_yaw
+		return
+	var fwd := Vector3(-sin(_ov_yaw), 0.0, -cos(_ov_yaw))
+	var need := line.length() > 0.5 and rad_to_deg(fwd.angle_to(dir)) > overview_behind_deg
+	if not need:
+		var vs := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2.ZERO
+		var aspect := vs.x / vs.y if vs.y > 0.0 else 16.0 / 9.0
+		var half_h := rad_to_deg(atan(tan(deg_to_rad(camera.fov) * 0.5) * aspect))
+		var cam_est := _ov_focus + Basis.from_euler(Vector3(_ov_pitch, _ov_yaw, 0.0)).z * _ov_dist
+		for m in _ov_members:
+			var tm := Vector3(m.global_position.x - cam_est.x, 0.0, m.global_position.z - cam_est.z)
+			if tm.length() > 0.5 and rad_to_deg(fwd.angle_to(tm.normalized())) > half_h - overview_edge_margin_deg:
+				need = true
+				break
+	if need:
+		_ov_turning = true
+	if _ov_turning:
+		var diff := wrapf(want_yaw - _ov_yaw, -PI, PI)
+		if absf(diff) < deg_to_rad(overview_settle_deg):
+			_ov_turning = false
+		else:
+			var mx := deg_to_rad(overview_turn_deg) * delta
+			_ov_yaw = wrapf(_ov_yaw + clampf(diff, -mx, mx), -PI, PI)
 
 
 static func _ease(t: float) -> float:

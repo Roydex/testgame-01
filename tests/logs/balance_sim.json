@@ -322,7 +322,7 @@
         "ao_pulse": 185.0
       },
       "dps": 23.0,
-      "hit_rate": 1.225,
+      "hit_rate": 1.25641025641026,
       "mech": "azure",
       "range": 5.0,
       "strafe": false
@@ -332,11 +332,11 @@
         "ao_missiles": 28.0,
         "ao_orbital": 120.0,
         "ao_orbital_burn": 40.0,
-        "ao_pulse": 85.0,
-        "ao_rail": 125.8
+        "ao_pulse": 80.0,
+        "ao_rail": 182.6
       },
-      "dps": 26.5877777777778,
-      "hit_rate": 1.4,
+      "dps": 30.0376543209876,
+      "hit_rate": 1.45833333333333,
       "mech": "azure",
       "range": 12.0,
       "strafe": false
@@ -346,27 +346,13 @@
         "ao_missiles": 28.0,
         "ao_orbital": 120.0,
         "ao_orbital_burn": 40.0,
-        "ao_pulse": 85.0,
-        "ao_rail": 196.5
+        "ao_pulse": 80.0,
+        "ao_rail": 182.6
       },
-      "dps": 31.302962962963,
-      "hit_rate": 1.44,
+      "dps": 30.0376543209876,
+      "hit_rate": 1.45833333333333,
       "mech": "azure",
       "range": 20.0,
-      "strafe": false
-    },
-    {
-      "by_attack": {
-        "ao_missiles": 56.0,
-        "ao_orbital": 120.0,
-        "ao_orbital_burn": 40.0,
-        "ao_pulse": 80.0,
-        "ao_rail": 196.5
-      },
-      "dps": 32.8362962962963,
-      "hit_rate": 1.56,
-      "mech": "azure",
-      "range": 30.0,
       "strafe": false
     },
     {
@@ -375,33 +361,51 @@
         "ao_orbital": 120.0,
         "ao_orbital_burn": 40.0,
         "ao_pulse": 75.0,
-        "ao_rail": 196.5
+        "ao_rail": 182.6
       },
-      "dps": 32.5029629629629,
-      "hit_rate": 1.52,
+      "dps": 31.570987654321,
+      "hit_rate": 1.58333333333333,
+      "mech": "azure",
+      "range": 30.0,
+      "strafe": false
+    },
+    {
+      "by_attack": {
+        "ao_missiles": 56.0,
+        "ao_orbital": 120.0,
+        "ao_orbital_burn": 40.0,
+        "ao_pulse": 70.0,
+        "ao_rail": 182.6
+      },
+      "dps": 31.2376543209876,
+      "hit_rate": 1.54166666666667,
       "mech": "azure",
       "range": 45.0,
       "strafe": false
     },
     {
       "by_attack": {
-        "ao_missiles": 7.0,
-        "ao_pulse": 145.0
+        "ao_orbital": 60.0,
+        "ao_orbital_burn": 8.0,
+        "ao_pulse": 95.0,
+        "ao_rail": 70.0
       },
-      "dps": 10.1333333333333,
-      "hit_rate": 0.75,
+      "dps": 15.5317283950617,
+      "hit_rate": 0.696969696969697,
       "mech": "azure",
       "range": 5.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "ao_orbital_burn": 12.0,
-        "ao_pulse": 15.0,
-        "ao_rail": 99.0
+        "ao_missiles": 21.0,
+        "ao_orbital": 60.0,
+        "ao_orbital_burn": 4.0,
+        "ao_pulse": 20.0,
+        "ao_rail": 160.6
       },
-      "dps": 8.40469135802469,
-      "hit_rate": 0.258064516129032,
+      "dps": 17.709012345679,
+      "hit_rate": 0.5,
       "mech": "azure",
       "range": 12.0,
       "strafe": true
@@ -409,34 +413,35 @@
     {
       "by_attack": {
         "ao_orbital_burn": 8.0,
-        "ao_pulse": 20.0,
-        "ao_rail": 63.2
+        "ao_pulse": 15.0,
+        "ao_rail": 69.2
       },
-      "dps": 6.08061728395061,
-      "hit_rate": 0.225806451612903,
+      "dps": 6.14827160493827,
+      "hit_rate": 0.25,
       "mech": "azure",
       "range": 20.0,
       "strafe": true
     },
     {
       "by_attack": {
-        "ao_missiles": 14.0,
+        "ao_missiles": 21.0,
+        "ao_orbital_burn": 4.0,
         "ao_pulse": 5.0
       },
-      "dps": 1.26666666666667,
-      "hit_rate": 0.0967741935483871,
+      "dps": 2.0,
+      "hit_rate": 0.208333333333333,
       "mech": "azure",
       "range": 30.0,
       "strafe": true
     },
     {
       "by_attack": {
+        "ao_missiles": 7.0,
         "ao_orbital_burn": 8.0,
-        "ao_pulse": 15.0,
-        "ao_rail": 63.2
+        "ao_rail": 47.7
       },
-      "dps": 5.74728395061728,
-      "hit_rate": 0.193548387096774,
+      "dps": 4.18271604938271,
+      "hit_rate": 0.166666666666667,
       "mech": "azure",
       "range": 45.0,
       "strafe": true
@@ -495,24 +500,24 @@
       "a": "seraph",
       "b": "azure",
       "damage": {
-        "azure_dealt": 222.0,
+        "azure_dealt": 268.0,
         "seraph_dealt": 280.0
       },
-      "hp_a": 0.258623456790123,
+      "hp_a": 0.106734567901235,
       "hp_b": 0.0,
-      "time": 28.6666666666663,
+      "time": 29.2166666666663,
       "winner": "seraph"
     },
     {
       "a": "azure",
       "b": "seraph",
       "damage": {
-        "azure_dealt": 348.0,
+        "azure_dealt": 337.0,
         "seraph_dealt": 229.0
       },
       "hp_a": 0.182142857142857,
       "hp_b": 0.0,
-      "time": 24.0499999999999,
+      "time": 24.1999999999999,
       "winner": "azure"
     },
     {
@@ -543,10 +548,10 @@
       "a": "hellfang",
       "b": "azure",
       "damage": {
-        "azure_dealt": 224.0,
+        "azure_dealt": 223.0,
         "hellfang_dealt": 297.0
       },
-      "hp_a": 0.3425,
+      "hp_a": 0.344711328976035,
       "hp_b": 0.0,
       "time": 20.3666666666668,
       "winner": "hellfang"
@@ -555,36 +560,36 @@
       "a": "azure",
       "b": "hellfang",
       "damage": {
-        "azure_dealt": 344.0,
+        "azure_dealt": 346.0,
         "hellfang_dealt": 247.0
       },
       "hp_a": 0.117142857142857,
       "hp_b": 0.0,
-      "time": 25.3333333333332,
+      "time": 24.7499999999999,
       "winner": "azure"
     },
     {
       "a": "verdant",
       "b": "azure",
       "damage": {
-        "azure_dealt": 627.0,
-        "verdant_dealt": 300.0
+        "azure_dealt": 600.0,
+        "verdant_dealt": 313.0
       },
-      "hp_a": 0.164768518518519,
+      "hp_a": 0.242824074074074,
       "hp_b": 0.0,
-      "time": 33.2833333333327,
+      "time": 34.516666666666,
       "winner": "verdant"
     },
     {
       "a": "azure",
       "b": "verdant",
       "damage": {
-        "azure_dealt": 499.0,
-        "verdant_dealt": 293.0
+        "azure_dealt": 684.0,
+        "verdant_dealt": 300.0
       },
-      "hp_a": 0.0421280006239457,
+      "hp_a": 0.00672993721174369,
       "hp_b": 0.0,
-      "time": 32.6333333333328,
+      "time": 40.4833333333323,
       "winner": "azure"
     }
   ]

@@ -238,6 +238,9 @@ func _kit_pattern(cmd: MechCommand, flat: Vector3, dist: float, _delta: float, t
 	if not _act.is_empty():
 		_run_action(cmd)
 		return
+	if combat.is_aiming_placement():
+		cmd.attack_pressed = true  # scripts never hand-mark: confirm at once (auto-call on the target)
+		return
 	if training and _target_stunned():
 		_timer = maxf(_timer, 1.2)
 		return

@@ -1,4 +1,4 @@
-=== Ground-Air Hybrid movement tests  2026-11-19T23:41:17  Godot 4.7.2-stable (official) ===
+=== Ground-Air Hybrid movement tests  2026-11-20T01:40:27  Godot 4.7.2-stable (official) ===
 physics 60 Hz, physics engine: Jolt Physics
 
 --- T01  M01 ground move / accel / decel / turn
@@ -414,7 +414,7 @@ PASS  T21
   ok   Sparring_Ranged shares MechMotor + CombatStateMachine + Health + Hurtbox with the player (["CollisionShape3D", "CombatStateMachine", "Health", "Hurtbox", "MechKit", "StatusEffects"])
   ok   Sparring_Ranged differs only by its brain (SparringBrain)
   ok   melee partner (same PALE SERAPH kit) has the identical component set incl. UltimateSystem
-  ok   partner moved 21.1 m and attacked via MechCommand
+  ok   partner moved 23.4 m and attacked via MechCommand
 PASS  T22
 
 --- T23  C11 ultimate: unlock, windup, judgment, spear, overload
@@ -538,7 +538,7 @@ PASS  T29
   ok   BEAM (heavy orbital) vs parry / guard → HIT / GUARD_BREAK (expected HIT / GUARD_BREAK)
   ok   EXPLOSION vs parry / guard → HIT / GUARDED (expected HIT / GUARDED)
   ok   real grapple vs guarding SERAPH: HIT (grabs ignore guard)
-  ok   every HP change goes through DamageSystem.resolve(): Mech lost 239.1 / resolved 239.1, @CharacterBody3D@5285 lost 19.5 / resolved 19.5; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
+  ok   every HP change goes through DamageSystem.resolve(): Mech lost 239.1 / resolved 239.1, @CharacterBody3D@5331 lost 19.5 / resolved 19.5; attacks seen [&"hf_axe1", &"va_scatter", &"va_turret_shot", &"hf_axe2", &"hf_finisher"]
 PASS  T30
 
 --- T31  P04 status effects: armor break, restraint, marks
@@ -630,7 +630,7 @@ PASS  T37
   ok   attacker made CC-immune (1.5 s)
   ok   window opens without off-balance (attacker READY), length 0.80 s
   ok   riposte 0.33 s after the parry: seraph_riposte 30.0 dmg
-  ok   acquire: idle units → nearest (@CharacterBody3D@6744); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6750 (threat 15 m)
+  ok   acquire: idle units → nearest (@CharacterBody3D@6793); a unit aiming at and hitting us 20 m away → @CharacterBody3D@6799 (threat 15 m)
   ok   judgment 10 s, damage ×1.25
   ok   field: enemy at 6 m suppressed (EN 50 → 50, no regen), enemy at 30 m not
   ok   lance strike releases a shockwave: 1 hit, 8.75 dmg
@@ -651,23 +651,34 @@ PASS  T38
   ok   chained attack hits harder: 9.0 → 9.9 (chain ×1.1)
   ok   swing from a walk 10.8 dmg (×1.20); from a dash 14.4 dmg (×1.60)
   ok   shot toward the crosshair point (off 2.4°), toward the assist target (off 0.5°)
-  ok   locked at 8 m: view vs target line 5° normally, 49° with the duel camera
+  ok   locked at 8 m: the round-4 overview camera is on (view vs target line 5° normally, 0° overview)
 PASS  T39
 
---- T40  Playtest round 3: orbital hand marking, F9 ranged sync, parry swing + judgment shield
-  ok   X held → AIM; released → strike on the marked ground (0.0 m off), fixed (moved 0.00 m)
+--- T40  Playtest round 3: orbital hand marking, F9 ranged sync
+  ok   X held → AIM, still marking after X is released; left click → strike on the marked ground (0.0 m off), fixed (moved 0.00 m)
   ok   fixed mark keeps the full 1.1 s warning; the target 14 m away is not hit
-  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7067), mark consumed
+  ok   mark 3 m from an enemy → follows it (target @CharacterBody3D@7116), mark consumed
   ok   right button during AIM cancels: no strike, no cooldown, EN 100 → 100
   ok   the marker starts on the locked target 18 m away (3.9 m off, circle r 5)
   ok   AIM: raised view on, ghost shown 21.8 m ahead (≤ 60 m)
   ok   camera height above the mech 5.3 → 17.0 m
-  ok   release → orbital fires, view and ghost back to normal (ATTACK)
+  ok   left click → orbital fires, view and ghost back to normal (ATTACK)
   ok   F9 cycles both partners: 全力近战/全力远程, 静止/静止, 只格挡/只格挡, 定时招架/定时招架, 陪练近战/陪练远程
   ok   leaving the skill lab switches the experiments off again
-  ok   parry: shield arm swings out (0.35 → 1.80 rad), shield disc r 1.6 m
-  ok   judgment parry: golden energy shield r 2.8 m with an expanding halo
 PASS  T40
+
+--- T41  Playtest round 4: close-combat overview camera, toggle orbital marking, outward parry sweep
+  ok   target circling at 5 m for 2 s: view turned 56° with the overview, 325° with the old lock camera
+  ok   overview keeps you and the target on screen the whole time
+  ok   a threat 15 m away is framed too (3 mechs, arm 21.9 m ≤ 22)
+  ok   two parries 0.5 s apart → 1 cinematic cut (cooldown 1.5 s)
+  ok   X released after entering the mark: still marking
+  ok   0.2 s stagger pauses the mark (pending true), then it resumes (true) with the same point (true)
+  ok   left click fires the marked strike
+  ok   untouched mark cancels itself after 8 s: no strike, no cooldown, EN 100 → 100
+  ok   0.15 s: shield arm coils (ly -0.95) and sweeps out (ly 1.64), shield edge travels 13.6 m, ribbon 8 samples
+  ok   judgment parry: golden ribbon (life 0.30 s) and the energy-shield halo at the end of the sweep (yes)
+PASS  T41
 
 === SUMMARY ===
 T01  PASS  M01 ground move / accel / decel / turn
@@ -709,5 +720,6 @@ T36  PASS  P09 deployables / missiles / zones / blasts / strikes follow TeamRule
 T37  PASS  Playtest round 1: grapple stagger, riposte, EN regen, orbital follow, dash gait
 T38  PASS  Playtest round 2: riposte vs DR, threat lock, judgment, heavy orbital, furnace, wall
 T39  PASS  Playtest round 2 experiments: momentum, free aim, duel camera (switchable)
-T40  PASS  Playtest round 3: orbital hand marking, F9 ranged sync, parry swing + judgment shield
-40/40 passed
+T40  PASS  Playtest round 3: orbital hand marking, F9 ranged sync
+T41  PASS  Playtest round 4: close-combat overview camera, toggle orbital marking, outward parry sweep
+41/41 passed

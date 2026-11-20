@@ -140,6 +140,9 @@ func _drive_attacker(a: MechMotor, tgt: MechMotor, d: float, ctl: Dictionary, t:
 	cmd.attack_held = false
 	cmd.skill_held = false
 	cmd.guard_held = false
+	if ctl.hold <= 0 and c.is_aiming_placement():
+		cmd.attack_pressed = true  # orbital marking: confirm at once (auto-call on the target)
+		return
 	if ctl.hold > 0:
 		ctl.hold -= 1
 		match ctl.kind:
