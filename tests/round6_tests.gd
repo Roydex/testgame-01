@@ -416,3 +416,80 @@ func t46_round6_defence_moves(res: Dictionary) -> void:
 	r._check(res, absf(spear_out[1][0] / 60.0 - spear.hold_windup_max) <= 2.0 / 60.0
 		and absf(spear_out[1][1] - spear.damage * spear.hold_damage_max_mult * judg) < 0.1,
 		"held spear: out after %.2f s (max %.2f), reaches it for %.1f (= %.0f × %.3f × %.2f)" % [spear_out[1][0] / 60.0, spear.hold_windup_max, spear_out[1][1], spear.damage, spear.hold_damage_max_mult, judg])
+
+
+# ------------------------------------------------------------------ T47
+
+## Round 6c (standard tempo package): hit-confirm cancels, cooldowns ×0.75,
+## quicker deploy / charge, HP ×0.85, EN regen delay 0.35 s.
+func t47_round6_tempo(res: Dictionary) -> void:
+	var l1 := load(L1) as AttackDefinition
+	# 命中取消: a landed hit opens dash / skill cancels at once; a whiff waits for cancel_time
+	var outs := {}
+	for kind in ["hit_dash", "whiff_dash", "hit_skill"]:
+		var a := _mech(&"seraph", 0, Vector3(0, 0.2, 30), Vector3(0, 0.2, 26.5))
+		var b := _mech(&"seraph", 1, Vector3(0, 0.2, 26.5) if kind != "whiff_dash" else Vector3(0, 0.2, 10), Vector3(0, 0.2, 30))
+		await r._ticks(25)
+		var ac := _cs(a)
+		var ev := _rec()
+		var p := {"cancel_f": -1, "hit_f": -1}
+		await _frames(ev, 40, func(i: int) -> void:
+			_aim(a, b)
+			a.command.attack_pressed = i == 0
+			a.command.attack_held = i == 0
+			# edges are OR-ed in like PlayerBrain does: a press inside the hit's
+			# hitstop is kept until the mech runs again
+			if i == 11:
+				if kind == "hit_skill":
+					a.command.skill_pressed = true
+				else:
+					a.command.dash_pressed = true
+			if p.cancel_f < 0 and i > 11:
+				if kind == "hit_skill" and ac.attack and ac.attack.id == &"seraph_dash_slash":
+					p.cancel_f = i
+				elif kind != "hit_skill" and a.state == MechMotor.MotionState.GROUND_DASH:
+					p.cancel_f = i)
+		_unrec()
+		var hits := _hits(ev, b, &"seraph_l1")
+		p.hit_f = hits[0][0] if hits.size() else -1
+		outs[kind] = [p.hit_f, p.cancel_f, _kit_events(ev, &"hit_cancel")]
+		await _free([a, b])
+	var cancel_f := int(l1.cancel_time * 60.0)
+	r._info("hit-cancel probes [hit frame, cancel frame, events]: %s (cancel_time %d frames)" % [outs, cancel_f])
+	r._check(res, outs.hit_dash[0] >= 0 and outs.hit_dash[1] > 0 and outs.hit_dash[1] < cancel_f and outs.hit_dash[2] == 1,
+		"landed thrust: dash cancels at frame %d (cancel_time frame %d)" % [outs.hit_dash[1], cancel_f])
+	r._check(res, outs.whiff_dash[0] < 0 and (outs.whiff_dash[1] < 0 or outs.whiff_dash[1] >= cancel_f) and outs.whiff_dash[2] == 0,
+		"whiffed thrust: no early cancel (dash at frame %d)" % outs.whiff_dash[1])
+	r._check(res, outs.hit_skill[0] >= 0 and outs.hit_skill[1] > 0 and outs.hit_skill[1] < cancel_f,
+		"landed thrust: X cancels into the dash slash at frame %d" % outs.hit_skill[1])
+	# data: HP ×0.85, cooldowns ×0.75, quicker deploys / charge, regen delay
+	var hp := {}
+	for id: StringName in MechFactory.MECH_IDS:
+		var m := _mech(id, 0, Vector3(0, 0.2, 30))
+		await r._ticks(2)
+		hp[id] = _cs(m).health.max_hp
+		await _free([m])
+	r._check(res, hp == {&"seraph": 255.0, &"hellfang": 290.0, &"verdant": 305.0, &"azure": 240.0}, "HP ×0.85: %s" % hp)
+	var cds := {
+		"seraph_dash_slash.tres": 1.9, "azure/ao_missiles.tres": 5.3, "azure/ao_orbital.tres": 3.8,
+		"azure/ao_backstep.tres": 4.5, "azure/ao_rail.tres": 0.6, "verdant/va_turret.tres": 4.5,
+		"verdant/va_zone.tres": 10.5, "hellfang/hf_hook.tres": 2.3, "hellfang/hf_ram.tres": 3.0, "hellfang/hf_ram_lite.tres": 3.0,
+	}
+	var bad := []
+	for f in cds:
+		var d := load("res://resources/combat/" + f) as AttackDefinition
+		if not is_equal_approx(d.cooldown, cds[f]):
+			bad.append("%s %.2f" % [f, d.cooldown])
+	var hook := load("res://resources/combat/hellfang/hf_hook.tres") as AttackDefinition
+	var turret := load("res://resources/combat/verdant/va_turret.tres") as AttackDefinition
+	var zone := load("res://resources/combat/verdant/va_zone.tres") as AttackDefinition
+	var azp := load("res://resources/combat/azure_combat.tres") as CombatProfile
+	var dcfg := DeployConfig.new()
+	var mp := MechMovementProfile.new()
+	r._check(res, bad.is_empty() and is_equal_approx(hook.grapple_spec.miss_cooldown, 1.4),
+		"cooldowns ×0.75 (grapple miss %.1f s)%s" % [hook.grapple_spec.miss_cooldown, "" if bad.is_empty() else " — off: %s" % [bad]])
+	r._check(res, is_equal_approx(turret.windup, 0.6) and is_equal_approx(zone.windup, 0.45) and is_equal_approx(azp.charge_time, 1.2) and is_equal_approx(mp.regen_delay, 0.35),
+		"turret windup %.2f s, zone %.2f s, rail full charge %.1f s, EN regen delay %.2f s" % [turret.windup, zone.windup, azp.charge_time, mp.regen_delay])
+	r._check(res, is_equal_approx(CombatProfile.new().guard_break_stagger, 0.6) and is_equal_approx(CombatProfile.new().parry_whiff_recovery, 0.3)
+		and is_equal_approx(dcfg.wall_cooldown, 4.5),
+		"guard-break stagger 0.6 s, whiffed parry 0.3 s, shield wall cooldown %.1f s" % dcfg.wall_cooldown)

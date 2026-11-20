@@ -806,7 +806,7 @@ func t33_resources(res: Dictionary) -> void:
 	await r._ticks(25)
 	var rail := load("res://resources/combat/azure/ao_rail.tres") as AttackDefinition
 	var dmg := []
-	for frames in [int(_cs(az).profile.charge_time * _cs(az).profile.charge_min * 60) + 2, int(_cs(az).profile.charge_time * 60) + 10]:
+	for frames in [roundi(_cs(az).profile.charge_time * _cs(az).profile.charge_min * 60) + 1, int(_cs(az).profile.charge_time * 60) + 10]:
 		_cs(tg).restore_full()
 		_cs(az).restore_full()
 		await r._ticks(5)
@@ -1241,8 +1241,8 @@ func t37_playtest_fixes(res: Dictionary) -> void:
 	var m := _mech(&"seraph", 0, Vector3(0, 0.2, 30))
 	await r._ticks(20)
 	var pr := m.profile
-	r._check(res, is_equal_approx(pr.ground_dash_cost, 16.0) and is_equal_approx(pr.ground_regen_per_sec, 32.0) and is_equal_approx(pr.regen_delay, 0.5) and is_equal_approx(pr.idle_regen_mult, 2.0),
-		"EN defaults: ground dash %.0f, regen %.0f/s, delay %.1f s, idle ×%.1f" % [pr.ground_dash_cost, pr.ground_regen_per_sec, pr.regen_delay, pr.idle_regen_mult])
+	r._check(res, is_equal_approx(pr.ground_dash_cost, 16.0) and is_equal_approx(pr.ground_regen_per_sec, 32.0) and is_equal_approx(pr.regen_delay, 0.35) and is_equal_approx(pr.idle_regen_mult, 2.0),
+		"EN defaults: ground dash %.0f, regen %.0f/s, delay %.2f s (round 6: 0.5 → 0.35), idle ×%.1f" % [pr.ground_dash_cost, pr.ground_regen_per_sec, pr.regen_delay, pr.idle_regen_mult])
 	var rates := []
 	for moving in [false, true]:
 		m.en = 20.0
@@ -1926,9 +1926,9 @@ func t42_playtest_round5(res: Dictionary) -> void:
 	# --- 1. AZURE orbital: fast, wide, launches, outer shockwave
 	var odef := load("res://resources/combat/azure/ao_orbital.tres") as AttackDefinition
 	var spec := odef.orbital_spec
-	r._check(res, is_equal_approx(odef.windup + spec.follow_time + spec.lock_time, 0.95) and is_equal_approx(odef.cooldown, 5.0) \
+	r._check(res, is_equal_approx(odef.windup + spec.follow_time + spec.lock_time, 0.95) and is_equal_approx(odef.cooldown, 3.8) \
 			and is_equal_approx(spec.radius, 7.0) and spec.shock_attack != null,
-		"orbital data: confirm → impact %.2f s, cooldown %.0f s, radius %.0f m, shockwave to %.0f m" % [odef.windup + spec.follow_time + spec.lock_time, odef.cooldown, spec.radius, spec.shock_radius])
+		"orbital data: confirm → impact %.2f s, cooldown %.1f s (round 6: ×0.75), radius %.0f m, shockwave to %.0f m" % [odef.windup + spec.follow_time + spec.lock_time, odef.cooldown, spec.radius, spec.shock_radius])
 	var o := _mech(&"azure", 0, Vector3(0, 0.2, 40), Vector3(0, 0.2, 10))
 	var v := _mech(&"seraph", 1, Vector3(0, 0.2, 10))
 	var side := _mech(&"seraph", 1, Vector3(9, 0.2, 10))
@@ -2056,8 +2056,10 @@ func t42_playtest_round5(res: Dictionary) -> void:
 		a.reset_to(Vector3(0, 0.2, 30))
 		b.reset_to(Vector3(0, 0.2, 14))
 		await r._ticks(70)
-	r._check(res, cds[0] <= hook.grapple_spec.miss_cooldown and cds[0] > 0.0 and cds[1] > hook.grapple_spec.miss_cooldown,
-		"cooldown after a miss %.1f s (≤ %.1f), after a grab %.1f s (full %.0f s)" % [cds[0], hook.grapple_spec.miss_cooldown, cds[1], hook.cooldown])
+	# same 1 s after the throw in both probes: a grab keeps the full cooldown (round 6:
+	# 2.3 s), a miss is capped to the short one from the moment it misses
+	r._check(res, cds[0] <= hook.grapple_spec.miss_cooldown and cds[0] > 0.0 and cds[1] > cds[0] + 0.3,
+		"cooldown after a miss %.1f s (≤ %.1f), after a grab %.1f s (full %.1f s)" % [cds[0], hook.grapple_spec.miss_cooldown, cds[1], hook.cooldown])
 	await _free([a, b, c4])
 
 	# --- 4. overheat: shorter, dash allowed, steam pushes enemies away

@@ -48,6 +48,6 @@ active_speed_mult = 0.1
 recovery_speed_mult = 0.4
 turn_mult = 0.3
 en_cost = 8.0
-cooldown = 5.0
+cooldown = 3.8
 orbital_spec = SubResource("OrbitalSpec_1")
 aim_placement = true

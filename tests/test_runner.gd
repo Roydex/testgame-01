@@ -79,6 +79,7 @@ func _run_all() -> void:
 		["T44", "U01–U06 phase 3b ultimates: 熔炉逆燃 / 方舟苏生 (moving ark) / 轨道扫射", p3.t44_ultimates_3b],
 		["T45", "Air control rework: hover lock, fast / dive descent, hover EN, air regen", p3.t45_air_control],
 		["T46", "Round 6a: mirror heat / claw catch / symbiotic shell / spore burst, spear charge, weak ram, flame", p6.t46_round6_defence_moves],
+		["T47", "Round 6c: hit-confirm cancels, cooldowns ×0.75, quicker deploy / charge, HP ×0.85, EN delay", p6.t47_round6_tempo],
 	]
 	for t in tests:
 		if _filter != "" and not (t[0] as String).contains(_filter):
@@ -384,7 +385,9 @@ func t04_energy_compression(res: Dictionary) -> void:
 		_check(res, rem1 <= rem0_1 * 0.8, "[%s] 1 air dash leaves ≤80%% of remaining hover (%.0f%%)" % [n, 100.0 * rem1 / rem0_1])
 		_check(res, rem2 <= rem0_2 * 0.6, "[%s] 2 consecutive air dashes remove ≥40%% of remaining hover (%.0f%% left)" % [n, 100.0 * rem2 / rem0_2])
 		_check(res, r2.sustained < r1.sustained and r1.sustained < r0.sustained, "[%s] total air time strictly decreasing with dash count" % n)
-		_check(res, rg.sustained <= r0.sustained * 0.8, "[%s] 2 ground dashes before takeoff cut air time to %.0f%%" % [n, 100.0 * rg.sustained / r0.sustained])
+		# round 6 (EN regen delay 0.5 → 0.35, user tempo package): the EN refilled between the
+		# ground dashes and takeoff makes the cut smaller for the slow-dashing mechs (84 %)
+		_check(res, rg.sustained <= r0.sustained * 0.85, "[%s] 2 ground dashes before takeoff cut air time to %.0f%% (≤ 85%%)" % [n, 100.0 * rg.sustained / r0.sustained])
 
 
 func t05_en_exhaustion(res: Dictionary) -> void:

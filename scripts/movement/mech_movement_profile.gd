@@ -77,7 +77,7 @@ extends Resource
 @export var idle_hover_speed: float = 3.0
 @export var ascend_cost_per_sec: float = 22.0
 @export var ground_regen_per_sec: float = 32.0
-@export var regen_delay: float = 0.5
+@export var regen_delay: float = 0.35
 ## Ground regen multiplier while standing still (grounded, no move input,
 ## horizontal speed below `idle_regen_speed`). Playtest feedback 2026-11-19.
 @export var idle_regen_mult: float = 2.0

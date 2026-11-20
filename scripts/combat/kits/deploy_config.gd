@@ -13,7 +13,7 @@ extends KitConfig
 @export var wall_enabled: bool = true
 @export var wall_hp: float = 150.0
 @export var wall_lifetime: float = 8.0
-@export var wall_cooldown: float = 6.0
+@export var wall_cooldown: float = 4.5
 @export var wall_size: Vector3 = Vector3(6.0, 4.5, 0.6)
 @export var wall_distance: float = 3.5
 @export_group("Symbiotic shell (共生龟甲, round 6)")

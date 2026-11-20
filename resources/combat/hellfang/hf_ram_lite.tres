@@ -29,6 +29,6 @@ lunge_duration = 0.4
 lunge_steer_deg = 25.0
 vertical_track_speed = 6.0
 vertical_track_range = 4.0
-cooldown = 4.0
+cooldown = 3.0
 cooldown_id = &"hf_ram"
 heat_cost = 20.0

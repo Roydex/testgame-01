@@ -15,7 +15,7 @@ ray_attack = ExtResource("7")
 [resource]
 script = ExtResource("1")
 display_name = "01 PALE SERAPH 武装"
-max_hp = 300.0
+max_hp = 255.0
 light_combo = ExtResource("2")
 skill = ExtResource("3")
 ultimate = ExtResource("4")
